@@ -74,6 +74,7 @@ fun CivCanvas(
 ) {
     val tapCb by rememberUpdatedState(onTapTile)
     val art = remember { CivArt() }
+    val cart = remember { CritterArt() }
     var frame by remember { mutableLongStateOf(0L) }
     val textPaint = remember {
         Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -170,7 +171,7 @@ fun CivCanvas(
     } else Modifier
     Canvas(modifier.then(tapMod)) {
         @Suppress("UNUSED_VARIABLE") val f = frame
-        drawWorld(sim, art, cover, labels, textPaint, bubblePaint, namePaint)
+        drawWorld(sim, art, cart, cover, labels, textPaint, bubblePaint, namePaint)
     }
 }
 
@@ -268,7 +269,7 @@ private fun DrawScope.banner(x: Float, baseY: Float, h: Float, c: Color, ps: Flo
 }
 
 private fun DrawScope.drawWorld(
-    sim: CivSim, art: CivArt, cover: Boolean, labels: Boolean,
+    sim: CivSim, art: CivArt, cart: CritterArt, cover: Boolean, labels: Boolean,
     textPaint: Paint, bubblePaint: Paint, namePaint: Paint,
 ) {
     val ts = if (cover) max(size.width / GW, size.height / GH) else min(size.width / GW, size.height / GH)
@@ -538,8 +539,10 @@ private fun DrawScope.drawWorld(
     // wildlife, then villagers
     lifeCritters(sim, art, geo)
     drawDrops(sim, geo)
+    drawCritters(sim, art, cart, geo, sun)
     val sorted = sim.villagers.sortedBy { it.y }
     drawVillagers(sim, art, geo, sun)
+    drawCritterEffects(sim, cart, geo)
 
     // effects (bolts, meteors, fires, clashes, arrows)
     for (f in sim.fx.toList()) {
@@ -932,6 +935,7 @@ private fun DrawScope.drawWorld(
     )
 
     ageBanner(sim, geo, namePaint, bubblePaint)
+    critterTexts(sim, geo, labels, textPaint, bubblePaint, namePaint)
 
     // speech bubbles and names
     drawIntoCanvas { c ->
@@ -1034,6 +1038,7 @@ fun VillageScreen(vm: MainViewModel, fullscreen: Boolean, onFullscreen: (Boolean
     var tick by remember { mutableLongStateOf(0L) }
     var whisper by remember { mutableStateOf("") }
     var confirmReset by remember { mutableStateOf(false) }
+    var showDex by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         while (true) {
             delay(500L)
@@ -1042,6 +1047,11 @@ fun VillageScreen(vm: MainViewModel, fullscreen: Boolean, onFullscreen: (Boolean
     }
     @Suppress("UNUSED_VARIABLE") val t = tick
     val narration by vm.narration.collectAsState()
+
+    if (showDex) {
+        CritterDexScreen(sim) { showDex = false }
+        return
+    }
 
     if (fullscreen) {
         Box(Modifier.fillMaxSize()) {
@@ -1072,6 +1082,7 @@ fun VillageScreen(vm: MainViewModel, fullscreen: Boolean, onFullscreen: (Boolean
         BackBar("Village", onBack, trailing = {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 GlassButton("Speed ${sim.speed}x", { sim.speed = nextSpeed(sim.speed) })
+                GlassButton("Critterdex ${sim.critters.caught.size}/50", { showDex = true })
                 GlassButton("Fullscreen", { onFullscreen(true) }, filled = true)
                 GlassButton(if (confirmReset) "Tap again to start over" else "Start over", {
                     if (confirmReset) {
@@ -1117,6 +1128,11 @@ fun VillageScreen(vm: MainViewModel, fullscreen: Boolean, onFullscreen: (Boolean
                     color = Glass.InkDim, fontSize = 16.sp,
                 )
                 Text("Brain: ${sim.brain}", color = Glass.InkFaint, fontSize = 14.sp)
+                Text(
+                    "Critters ${sim.critters.critters.size}/${sim.critters.maxKept()} kept · ${sim.critters.caught.size}/50 species caught" +
+                        (if (sim.critters.encounters.isNotEmpty()) " · ${sim.critters.encounters.size} encounter(s) under way" else ""),
+                    color = Glass.InkDim, fontSize = 14.sp,
+                )
                 Column(
                     Modifier.weight(1f).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(10.dp),

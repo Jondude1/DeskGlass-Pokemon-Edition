@@ -224,6 +224,8 @@ class CivSim(
     private val fleeAt = HashMap<Int, Double>()
     var hides = 0
     val drops = ArrayList<Drop>()
+    /** Wild critters, companions, helpers, training and evolution. */
+    val critters = CritterWorld(this)
     var ageBannerAt = -999.0
     var ageBannerName = ""
     private var worldClock = 0f
@@ -382,6 +384,7 @@ class CivSim(
     fun restart() {
         seed = System.currentTimeMillis()
         nextId = 1
+        critters.reset()
         generate()
         setupWorld()
         save()
@@ -521,6 +524,18 @@ class CivSim(
         v.gathered = 0
         if (p.isEmpty()) arrive(v)
         return true
+    }
+
+    /** Used by the critter world to send a villager somewhere on a critter errand. */
+    internal fun walkTo(v: Villager, action: String, goal: Int): Boolean = go(v, action, goal)
+
+    /** Frees a villager when a critter errand is over. */
+    internal fun releaseVillager(v: Villager) = finish(v)
+
+    /** A line for the news feed, narrated now and then. */
+    internal fun note(text: String) {
+        addLog(text)
+        narrate(text)
     }
 
     private fun findSite(): Int {
@@ -688,6 +703,7 @@ class CivSim(
             v.action == "tend_farm" -> { v.phase = "working"; v.workLeft = 5f }
             v.action == "explore" -> { v.phase = "working"; v.workLeft = 5f }
             v.action == "huddle" -> { v.phase = "working"; v.workLeft = 7f }
+            v.action.startsWith("critter_") -> critters.onArrive(v)
             v.action == "tell_story" -> {
                 v.phase = "working"
                 v.workLeft = 9f
@@ -752,6 +768,10 @@ class CivSim(
     }
 
     private fun work(v: Villager, dt: Float) {
+        if (v.action.startsWith("critter_")) {
+            critters.onWork(v)
+            return
+        }
         v.workLeft -= dt
         if (v.workLeft > 0f) return
         when (v.action) {
@@ -1154,6 +1174,10 @@ class CivSim(
         if (time < plagueUntil) out.add("People are falling sick. Keep your distance.")
         history(5).lastOrNull()?.let { out.add("I keep thinking about it: ${it.take(60)}") }
         childrenOf(v).firstOrNull()?.let { out.add("${it.name} is ${ageYears(it)} already. They grow fast.") }
+        critters.companionOf(v)?.let { c ->
+            out.add("${c.name} is level ${c.level} now.")
+            if (c.species.evolveTo > 0) out.add("${c.name} will change shape at level ${c.species.evolveLv}.")
+        }
         v.memories.lastOrNull()?.let { out.add("I keep remembering that ${it.take(50)}.") }
         nearby(v).firstOrNull()?.let { out.add("${it.name} is busy ${doing(it)}.") }
         out.add("The ${ageInfo().name.lowercase()} suits us.")
@@ -1391,6 +1415,8 @@ class CivSim(
         if (v.parents.isNotBlank()) fam.add("your parents are ${v.parents}")
         if (kids.isNotEmpty()) fam.add("your children: " + kids.joinToString(", ") { "${it.name} (${ageYears(it)})" })
         if (fam.isNotEmpty()) sb.append("Family: " + fam.joinToString("; ") + ".\n")
+        critters.factFor(v)?.let { sb.append(it + "\n") }
+        if (critters.critters.isNotEmpty()) sb.append("The village keeps ${critters.critters.size} friendly critters that help with the work and train.\n")
         sb.append("Village stock: wood $wood, stone $stone, food $food")
         if (age >= 2) sb.append(", ore $ore, metal $metal")
         sb.append(". Buildings: ${count("hut")} ${if (age == 0) "tents" else "huts"}, ")
@@ -1823,6 +1849,11 @@ class CivSim(
                     if (rnd.nextInt(45) == 0) fx.add(Fx("arrow", p.x, p.y, time, 0.6f))
                 }
             }
+            val critterPower = critters.fightPower(p.x, p.y)
+            if (critterPower > 0f) {
+                p.hp -= critterPower * dt
+                if (rnd.nextInt(40) == 0) fx.add(Fx("clash", p.x, p.y, time, 0.8f))
+            }
             val fighters = villagers.filter { isFighter(it) && hypot(it.x - p.x, it.y - p.y) < 2.6f }
             if (fighters.isNotEmpty()) {
                 p.hp -= fighters.size * (6f + 3f * toolBonus()) * dt
@@ -1999,6 +2030,7 @@ class CivSim(
 
         ageTick(dt)
         planTick()
+        critters.tick(dt)
         capStores()
         eventTick()
         worldTick(dt)
@@ -2141,6 +2173,7 @@ class CivSim(
             }
             o.put("villagers", vs)
             o.put("log", JSONArray(log.takeLast(20)))
+            o.put("critters", critters.toJson())
             val tmp = File(saveFile.parentFile, saveFile.name + ".tmp")
             tmp.writeText(o.toString())
             tmp.renameTo(saveFile)
@@ -2202,6 +2235,7 @@ class CivSim(
             val lg = o.optJSONArray("log")
             if (lg != null) for (i in 0 until lg.length()) log.add(lg.getString(i))
             hides = o.optInt("hides", 0)
+            critters.fromJson(o.optJSONObject("critters"))
             drops.clear()
             rels.clear()
             rnd = Random(seed xor time.toLong())
