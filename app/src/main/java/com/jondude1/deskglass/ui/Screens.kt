@@ -44,13 +44,13 @@ import com.jondude1.deskglass.MainViewModel
 enum class Screen { Home, Calendar, Notes, Checklists, Chat, Village, Settings }
 
 @Composable
-fun BackBar(title: String, onBack: () -> Unit, trailing: @Composable (() -> Unit)? = null) {
+fun BackBar(title: String, onBack: (() -> Unit)?, trailing: @Composable (() -> Unit)? = null) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 24.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(24.dp),
     ) {
-        GlassButton("‹  Home", onBack)
+        if (onBack != null) GlassButton("‹  Back", onBack)
         Text(title, color = Glass.Ink, fontSize = 34.sp, fontWeight = FontWeight.Light)
         if (trailing != null) {
             Spacer(Modifier.weight(1f))

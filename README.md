@@ -1,4 +1,4 @@
-# DeskGlass Pokemon Edition
+# Summoner's Village
 
 A fork of [DeskGlass](https://github.com/Jondude1/DeskGlass), the frosted-glass desk companion with a self-running village. In this edition, inspired by Taran Matharu's Summoner books, gifted villagers read scrolls at a pentacle circle to summon critters from rifts, bind weakened wild ones, cast glyph spells, train, battle, and keep them as helpers and companions.
 

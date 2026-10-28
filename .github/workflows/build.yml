@@ -38,12 +38,12 @@ jobs:
           exit 1
 
       - name: Name the APK
-        run: cp app/build/outputs/apk/release/app-release.apk DeskGlass-Pokemon-Edition-v1.0.${{ github.run_number }}.apk
+        run: cp app/build/outputs/apk/release/app-release.apk Summoners-Village-v1.0.${{ github.run_number }}.apk
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.${{ github.run_number }}
           name: DeskGlass Pokemon Edition v1.0.${{ github.run_number }}
-          files: DeskGlass-Pokemon-Edition-v1.0.${{ github.run_number }}.apk
+          files: Summoners-Village-v1.0.${{ github.run_number }}.apk
           make_latest: true

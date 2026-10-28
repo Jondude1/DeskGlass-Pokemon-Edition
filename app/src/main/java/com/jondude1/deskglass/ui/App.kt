@@ -67,12 +67,13 @@ fun DeskGlassTheme(content: @Composable () -> Unit) {
 
 @Composable
 fun DeskGlassApp(vm: MainViewModel) {
-    var screen by rememberSaveable { mutableStateOf(Screen.Home) }
+    var screen by rememberSaveable { mutableStateOf(Screen.Village) }
     val now = rememberNow()
-    val active by remember { derivedStateOf { isActiveHours(now.value) } }
+    // A game, not a desk display: always lively, never dimmed.
+    val active by remember { derivedStateOf { true } }
     var villageFull by rememberSaveable { mutableStateOf(false) }
     // A fullscreen village never dims or sleeps, even after hours.
-    val awake = active || (screen == Screen.Village && villageFull)
+    val awake = true
 
     // Really lower the backlight outside active hours, not just darken the picture.
     val activity = LocalContext.current.findActivity()
@@ -88,8 +89,8 @@ fun DeskGlassApp(vm: MainViewModel) {
         }
     }
 
-    BackHandler(enabled = screen != Screen.Home) {
-        if (screen == Screen.Village && villageFull) villageFull = false else screen = Screen.Home
+    BackHandler(enabled = screen != Screen.Village || villageFull) {
+        if (screen == Screen.Village) villageFull = false else screen = Screen.Village
     }
 
     val dim by animateFloatAsState(if (awake) 0f else 0.5f, animationSpec = tween(2500), label = "dim")
@@ -99,7 +100,7 @@ fun DeskGlassApp(vm: MainViewModel) {
 
         // The village, running behind the idle home screen only.
         val narration by vm.narration.collectAsState()
-        val showWallpaper = screen == Screen.Home && active
+        val showWallpaper = false
         AnimatedVisibility(
             visible = showWallpaper,
             enter = fadeIn(tween(2000)),
@@ -113,13 +114,8 @@ fun DeskGlassApp(vm: MainViewModel) {
 
         Crossfade(targetState = screen, modifier = Modifier.imePadding(), animationSpec = tween(350), label = "screen") { s ->
             when (s) {
-                Screen.Home -> HomeScreen(vm, now, active) { screen = it }
-                Screen.Calendar -> CalendarScreen(vm, now) { screen = Screen.Home }
-                Screen.Notes -> NotesScreen(vm) { screen = Screen.Home }
-                Screen.Checklists -> ChecklistsScreen(vm) { screen = Screen.Home }
-                Screen.Chat -> ChatScreen(vm, { screen = Screen.Home }) { screen = Screen.Settings }
-                Screen.Village -> VillageScreen(vm, villageFull, { villageFull = it }) { screen = Screen.Home }
-                Screen.Settings -> SettingsScreen(vm) { screen = Screen.Home }
+                Screen.Settings -> SettingsScreen(vm) { screen = Screen.Village }
+                else -> VillageScreen(vm, villageFull, { villageFull = it }, { screen = Screen.Settings }) { }
             }
         }
 

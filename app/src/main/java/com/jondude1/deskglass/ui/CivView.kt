@@ -1033,7 +1033,7 @@ private fun newsTint(line: String): Color {
 }
 
 @Composable
-fun VillageScreen(vm: MainViewModel, fullscreen: Boolean, onFullscreen: (Boolean) -> Unit, onBack: () -> Unit) {
+fun VillageScreen(vm: MainViewModel, fullscreen: Boolean, onFullscreen: (Boolean) -> Unit, onSettings: () -> Unit, onBack: () -> Unit) {
     val sim = vm.civ
     var tick by remember { mutableLongStateOf(0L) }
     var whisper by remember { mutableStateOf("") }
@@ -1079,11 +1079,12 @@ fun VillageScreen(vm: MainViewModel, fullscreen: Boolean, onFullscreen: (Boolean
     }
 
     Column(Modifier.fillMaxSize()) {
-        BackBar("Village", onBack, trailing = {
+        BackBar("Summoner's Village", null, trailing = {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 GlassButton("Speed ${sim.speed}x", { sim.speed = nextSpeed(sim.speed) })
                 GlassButton("Critterdex ${sim.critters.caught.size}/50", { showDex = true })
                 GlassButton("Fullscreen", { onFullscreen(true) }, filled = true)
+                GlassButton("Settings", onSettings)
                 GlassButton(if (confirmReset) "Tap again to start over" else "Start over", {
                     if (confirmReset) {
                         sim.restart()
