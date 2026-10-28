@@ -19,7 +19,7 @@ data class UpdateInfo(
 
 /** Checks the public GitHub repo's latest release and installs its APK. */
 object Updater {
-    private const val LATEST = "https://api.github.com/repos/Jondude1/DeskGlass/releases/latest"
+    private const val LATEST = "https://api.github.com/repos/Jondude1/DeskGlass-Pokemon-Edition/releases/latest"
 
     /** Latest published release, or null if it has no APK or no readable version. */
     suspend fun fetchLatest(): UpdateInfo? = withContext(Dispatchers.IO) {

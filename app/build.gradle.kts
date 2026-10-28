@@ -12,7 +12,7 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.jondude1.deskglass"
+        applicationId = "com.jondude1.deskglass.pokemon"
         minSdk = 26
         targetSdk = 35
         versionCode = runNumber
