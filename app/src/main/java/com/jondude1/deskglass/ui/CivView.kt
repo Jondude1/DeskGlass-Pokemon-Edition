@@ -29,6 +29,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberUpdatedState
@@ -71,6 +72,8 @@ import kotlinx.coroutines.withContext
  * showed; pulling out shows the whole wide world. Plain fields, set by gestures and read every frame by the draw.
  */
 class CivCamera {
+    /** The villager the view follows, or -1. Compose state, so the side window appears and goes with it. */
+    var followId by mutableIntStateOf(-1)
     var zoom = 1f
     var cx = GW / 2f
     var cy = GH / 2f
@@ -102,6 +105,11 @@ class CivCamera {
     /** Drag by [dx],[dy] pixels and zoom by [factor] around the screen point ([ax],[ay]). */
     fun transform(ax: Float, ay: Float, dx: Float, dy: Float, factor: Float) {
         if (ts <= 0f) return
+        if (followId >= 0) {
+            // while following, the villager stays in the middle; pinching still zooms
+            zoomAround(w / 2f, h / 2f, factor)
+            return
+        }
         cx -= dx / ts
         cy -= dy / ts
         zoomAround(ax, ay, factor)
@@ -119,6 +127,7 @@ class CivCamera {
     fun zoomStep(factor: Float) = zoomAround(w / 2f, h / 2f, factor)
 
     fun home() {
+        followId = -1
         zoom = 1f
         cx = GW / 2f
         cy = GH / 2f
@@ -225,15 +234,24 @@ fun CivCanvas(
                 cam.transform(centroid.x, centroid.y, pan.x, pan.y, zoom)
             }
         }
-        .pointerInput(cam, onTapTile != null) {
+        .pointerInput(cam, sim) {
             detectTapGestures(
                 onDoubleTap = { cam.home() },
                 onTap = { p ->
                     val cb = tapCb
-                    if (cb != null && cam.ts > 0f) {
+                    if (cam.ts > 0f) {
                         val tx = (p.x - cam.ox) / cam.ts
                         val ty = (p.y - cam.oy) / cam.ts
-                        if (tx >= 0f && ty >= 0f && tx < GW && ty < GH) cb(tx, ty)
+                        // a tap on a villager follows them; a tap on the same villager lets go
+                        val hit = sim.villagers
+                            .minByOrNull { Math.hypot((it.x - tx).toDouble(), (it.y - 0.55f - ty).toDouble()) }
+                        if (hit != null && Math.hypot((hit.x - tx).toDouble(), (hit.y - 0.55f - ty).toDouble()) < 1.1) {
+                            if (cam.followId == hit.id) cam.followId = -1
+                            else {
+                                cam.followId = hit.id
+                                cam.zoom = max(cam.zoom, 1.7f)
+                            }
+                        } else if (cb != null && tx >= 0f && ty >= 0f && tx < GW && ty < GH) cb(tx, ty)
                     }
                 },
             )
@@ -341,6 +359,16 @@ private fun DrawScope.drawWorld(
     sim: CivSim, art: CivArt, cart: CritterArt, cam: CivCamera, cover: Boolean, labels: Boolean,
     textPaint: Paint, bubblePaint: Paint, namePaint: Paint,
 ) {
+    if (cam.followId >= 0) {
+        val fv = sim.villagers.firstOrNull { it.id == cam.followId }
+        if (fv == null) cam.followId = -1
+        else {
+            // glide toward the villager so the view never jerks
+            val k = 0.14f
+            cam.cx += (fv.x - cam.cx) * k
+            cam.cy += (fv.y - 0.4f - cam.cy) * k
+        }
+    }
     cam.layout(size.width, size.height, cover)
     val ts = cam.ts
     val shk = sim.shake()
@@ -1132,7 +1160,8 @@ fun VillageScreen(vm: MainViewModel, fullscreen: Boolean, onFullscreen: (Boolean
     if (fullscreen) {
         Box(Modifier.fillMaxSize()) {
             CivCanvas(sim, Modifier.fillMaxSize(), cover = true, labels = true, cam = cam)
-            ZoomButtons(cam, Modifier.align(Alignment.CenterEnd).padding(16.dp))
+            ZoomButtons(cam, Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 88.dp))
+            if (cam.followId >= 0) VillagerPanel(sim, cam.followId, tick, Modifier.align(Alignment.TopEnd).padding(top = 52.dp, end = 16.dp))
             GlassButton("Exit fullscreen", { onFullscreen(false) }, modifier = Modifier.align(Alignment.TopStart).padding(16.dp))
             GlassButton("Speed ${sim.speed}x", { sim.speed = nextSpeed(sim.speed) }, modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp))
             Text(
@@ -1180,7 +1209,8 @@ fun VillageScreen(vm: MainViewModel, fullscreen: Boolean, onFullscreen: (Boolean
                 GlassCard(Modifier.weight(1f).fillMaxWidth(), corner = 24.dp) {
                     Box(Modifier.fillMaxSize()) {
                         CivCanvas(sim, Modifier.fillMaxSize(), cover = false, labels = true, cam = cam)
-                        ZoomButtons(cam, Modifier.align(Alignment.CenterEnd).padding(10.dp))
+                        ZoomButtons(cam, Modifier.align(Alignment.BottomEnd).padding(10.dp))
+                        if (cam.followId >= 0) VillagerPanel(sim, cam.followId, tick, Modifier.align(Alignment.TopEnd).padding(10.dp))
                         ThreatChip(sim, tick, Modifier.align(Alignment.TopCenter).padding(top = 12.dp))
                         StatsChip(sim, tick, Modifier.align(Alignment.BottomStart).padding(12.dp))
                     }

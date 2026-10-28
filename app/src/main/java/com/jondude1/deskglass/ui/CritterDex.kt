@@ -121,7 +121,7 @@ fun CritterDexScreen(sim: CivSim, onBack: () -> Unit) {
 }
 
 @Composable
-private fun Sprite(cart: CritterArt, id: Int, dp: Int, tint: Color? = null) {
+internal fun Sprite(cart: CritterArt, id: Int, dp: Int, tint: Color? = null) {
     // bigger species fill more of the box, small ones stay small, as they are in the village
     val img = if (tint == null) cart.frame(id, 0) else cart.white(id)
     val scale = (img.width / 2f) / 30f
