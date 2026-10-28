@@ -131,7 +131,7 @@ fun DrawScope.drawCritters(sim: CivSim, art: CivArt, cart: CritterArt, g: Geo, s
     }
 
     for (c in cw.critters.toList()) {
-        if (cw.evolving(c) != null) continue
+        if (cw.evolving(c) != null || cw.packed(c)) continue
         if (cw.encounters.any { (it.mine === c || it.mine2 === c) && it.state != "walk" }) continue
         val b = cw.bodies[c.uid] ?: continue
         actors.add(Actor(b.y) { drawKeptCritter(cw, c, b.x, b.y, b.facing, b.moving, cart, art, g, sun) })
@@ -853,7 +853,7 @@ fun DrawScope.critterTexts(
 
         if (labels) {
             for (cr in cw.critters.toList()) {
-                if (cw.evolving(cr) != null) continue
+                if (cw.evolving(cr) != null || cw.packed(cr)) continue
                 if (cw.encounters.any { (it.mine === cr || it.mine2 === cr) && it.state != "walk" }) continue
                 val b = cw.bodies[cr.uid] ?: continue
                 val txt = (if (cr.companion) "★ " else "") + cr.name + " Lv" + cr.level

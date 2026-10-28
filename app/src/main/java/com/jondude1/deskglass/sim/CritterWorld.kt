@@ -111,6 +111,7 @@ class CritterWorld(private val sim: CivSim) {
     private var triggerClock = 4f
     private var anchorClock = 0f
     private val cooldown = HashMap<Int, Double>()
+    private val lastSwap = HashMap<Int, Double>()
     private val anchors = HashMap<CType, FloatArray>()
 
     // ---- public lookups ----
@@ -118,6 +119,9 @@ class CritterWorld(private val sim: CivSim) {
     fun companionOf(v: Villager): Critter? = critters.firstOrNull { it.owner == v.id && it.companion }
 
     fun ownedBy(v: Villager): List<Critter> = critters.filter { it.owner == v.id }
+
+    /** Each villager has one critter out at a time (the companion). The rest of theirs rest in the pack. */
+    fun packed(c: Critter): Boolean = c.owner >= 0 && !c.companion
 
     fun ownerName(c: Critter): String = sim.villagers.firstOrNull { it.id == c.owner }?.name ?: ""
 
@@ -146,6 +150,7 @@ class CritterWorld(private val sim: CivSim) {
         seen.clear()
         caught.clear()
         cooldown.clear()
+        lastSwap.clear()
         anchors.clear()
         yardX = -1f
         yardY = -1f
@@ -415,6 +420,7 @@ class CritterWorld(private val sim: CivSim) {
                 sim.note("$was stays on in the village.")
             }
         }
+        teamTick()
         for (c in critters) {
             val body = bodyFor(c)
             // tiredness and healing
@@ -424,7 +430,7 @@ class CritterWorld(private val sim: CivSim) {
                     c.hp = max(c.hp, (c.maxHp * 0.4f).toInt())
                 }
             } else if (c.hp < c.maxHp && !inEncounter(c)) {
-                c.regen += c.maxHp * 0.012f * dt
+                c.regen += c.maxHp * (if (packed(c)) 0.03f else 0.012f) * dt
                 if (c.regen >= 1f) {
                     val n = c.regen.toInt()
                     c.regen -= n
@@ -432,6 +438,10 @@ class CritterWorld(private val sim: CivSim) {
                 }
             }
             if (inEncounter(c) || evolving(c) != null) continue
+            if (packed(c)) {
+                body.moving = false
+                continue
+            }
             val owner = if (c.companion) sim.villagers.firstOrNull { it.id == c.owner } else null
             if (c.faintedUntil > 0.0) {
                 body.moving = false
@@ -473,6 +483,48 @@ class CritterWorld(private val sim: CivSim) {
                 }
             }
         }
+    }
+
+    /** Keeps exactly one critter out per villager, and trades them over now and then so the whole pack gets a turn. */
+    private fun teamTick() {
+        for (v in sim.villagers) {
+            val mine = critters.filter { it.owner == v.id }
+            if (mine.isEmpty()) continue
+            val out = mine.firstOrNull { it.companion }
+            val fit = mine.filter {
+                !it.companion && it.faintedUntil <= 0.0 && it.hpFrac >= 0.5f && !inEncounter(it) && evolving(it) == null
+            }
+            if (out == null) {
+                val pick = fit.maxByOrNull { it.level } ?: mine.maxByOrNull { it.hpFrac } ?: continue
+                bringOut(v, pick, null)
+                continue
+            }
+            if (busy(v) || inEncounter(out) || evolving(out) != null || fit.isEmpty()) continue
+            val since = sim.time - (lastSwap[v.id] ?: sim.time.also { lastSwap[v.id] = it })
+            val tired = out.faintedUntil > 0.0 || out.hpFrac < 0.3f
+            if (!tired && since < 150.0) continue
+            val order = mine.sortedBy { it.uid }
+            val at = order.indexOf(out)
+            val next = (1..order.size).map { order[(at + it) % order.size] }.firstOrNull { it in fit } ?: continue
+            bringOut(v, next, out)
+        }
+    }
+
+    private fun bringOut(v: Villager, c: Critter, old: Critter?) {
+        lastSwap[v.id] = sim.time
+        if (old != null) {
+            old.companion = false
+            val ob = bodyFor(old)
+            pop(ob.x, ob.y - 0.9f, "rests", old.species.t1.color)
+        }
+        c.companion = true
+        val b = bodyFor(c)
+        b.x = v.x - v.facing * 0.9f
+        b.y = v.y + 0.25f
+        b.tx = b.x
+        b.ty = b.y
+        b.moving = false
+        pop(b.x, b.y - 0.9f, "${c.name} out", c.species.t1.color)
     }
 
     private fun produce(c: Critter, type: CType, body: Body) {
@@ -560,7 +612,7 @@ class CritterWorld(private val sim: CivSim) {
         var sum = 0f
         val night = sim.isNight()
         for (c in critters) {
-            if (c.faintedUntil > 0.0 || inEncounter(c)) continue
+            if (c.faintedUntil > 0.0 || inEncounter(c) || packed(c)) continue
             val b = bodies[c.uid] ?: continue
             val d = hypot(b.x - px, b.y - py)
             val t = c.species.t1
@@ -1057,7 +1109,7 @@ class CritterWorld(private val sim: CivSim) {
         b.ty = b.y
         val newSpecies = caught.add(foe.sp)
         seen.add(foe.sp)
-        val role = if (foe.companion) "as a companion" else "to help in the village"
+        val role = if (foe.companion) "as a companion" else "to its pack"
         sim.note(
             if (how == "berries") "${v.name} wins over a wild ${foe.species.name} with berries and takes it $role."
             else "${v.name} catches a wild ${foe.species.name} (Lv ${foe.level}) $role."

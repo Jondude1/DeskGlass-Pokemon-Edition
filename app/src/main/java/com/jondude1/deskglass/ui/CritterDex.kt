@@ -55,7 +55,7 @@ fun CritterDexScreen(sim: CivSim, onBack: () -> Unit) {
                         )
                         val owner = cw.ownerName(c)
                         Text(
-                            c.species.typeText + (if (owner.isNotEmpty()) " · ${owner}'s " + (if (c.companion) "companion" else "helper") else "") +
+                            c.species.typeText + (if (owner.isNotEmpty()) (if (c.companion) " · out with $owner" else " · resting in ${owner}'s pack") else " · helps around the village") +
                                 (if (cw.isTired(c)) " · resting" else ""),
                             color = Glass.InkDim, fontSize = 13.sp,
                         )
