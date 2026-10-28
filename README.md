@@ -1,6 +1,6 @@
 # DeskGlass Pokemon Edition
 
-A fork of [DeskGlass](https://github.com/Jondude1/DeskGlass), the frosted-glass desk companion with a self-running village. In this edition the villagers meet wild creatures, catch them, train them, battle with them, and keep them as helpers and companions.
+A fork of [DeskGlass](https://github.com/Jondude1/DeskGlass), the frosted-glass desk companion with a self-running village. In this edition, inspired by Taran Matharu's Summoner books, gifted villagers read scrolls at a pentacle circle to summon critters from rifts, bind weakened wild ones, cast glyph spells, train, battle, and keep them as helpers and companions.
 
 It installs next to the original app (separate app id) and updates itself from this repo's releases.
 

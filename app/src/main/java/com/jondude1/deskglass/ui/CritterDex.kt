@@ -39,11 +39,26 @@ fun CritterDexScreen(sim: CivSim, onBack: () -> Unit) {
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 4.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text("Seen ${cw.seen.size} · caught ${cw.caught.size} of ${Dex.COUNT}", color = Glass.InkDim, fontSize = 14.sp)
+            Text("Seen ${cw.seen.size} · summoned ${cw.caught.size} of ${Dex.COUNT}", color = Glass.InkDim, fontSize = 14.sp)
 
+            Text("SUMMONERS", color = Glass.InkFaint, fontSize = 13.sp, letterSpacing = 3.sp, modifier = Modifier.padding(top = 8.dp))
+            val gifted = sim.villagers.filter { cw.mageOf(it).talent }
+            if (gifted.isEmpty()) {
+                Text("No one in the village has the gift yet.", color = Glass.InkFaint, fontSize = 13.sp)
+            }
+            for (v in gifted.sortedByDescending { cw.mageOf(it).lv }) {
+                val m = cw.mageOf(v)
+                Column {
+                    Text("${v.name}  ·  Summoner Lv ${m.lv}", color = Glass.Ink, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                    Text(
+                        "Mana ${m.mana.toInt()}/${m.maxMana.toInt()} · bonded levels ${cw.budgetUsed(v)}/${m.capacity} · XP ${m.xp}/${m.xpNeed()}",
+                        color = Glass.InkDim, fontSize = 12.sp,
+                    )
+                }
+            }
             Text("IN THE VILLAGE", color = Glass.InkFaint, fontSize = 13.sp, letterSpacing = 3.sp, modifier = Modifier.padding(top = 8.dp))
             if (cw.critters.isEmpty()) {
-                Text("No critters yet. Villagers meet wild ones as the days pass.", color = Glass.InkFaint, fontSize = 13.sp)
+                Text("No critters yet. Wild ones slip through rifts; a gifted villager with a scroll can answer.", color = Glass.InkFaint, fontSize = 13.sp)
             }
             for (c in cw.critters.toList().sortedByDescending { it.level }) {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -55,7 +70,7 @@ fun CritterDexScreen(sim: CivSim, onBack: () -> Unit) {
                         )
                         val owner = cw.ownerName(c)
                         Text(
-                            c.species.typeText + (if (owner.isNotEmpty()) (if (c.companion) " · out with $owner" else " · resting in ${owner}'s pack") else " · helps around the village") +
+                            c.species.typeText + (if (owner.isNotEmpty()) (if (c.companion) " · bonded, out with $owner" else " · infused in ${owner}'s palm") else " · helps around the village") +
                                 (if (cw.isTired(c)) " · resting" else ""),
                             color = Glass.InkDim, fontSize = 13.sp,
                         )

@@ -15,6 +15,8 @@ import androidx.compose.ui.unit.IntSize
 import com.jondude1.deskglass.sim.CType
 import com.jondude1.deskglass.sim.CivSim
 import com.jondude1.deskglass.sim.Critter
+import com.jondude1.deskglass.sim.Swap
+import com.jondude1.deskglass.sim.Villager
 import com.jondude1.deskglass.sim.CritterWorld
 import com.jondude1.deskglass.sim.Dex
 import com.jondude1.deskglass.sim.Enc
@@ -28,12 +30,10 @@ import kotlin.math.min
 import kotlin.math.sin
 import kotlin.math.sqrt
 
-// Drawing for the critters: wild ones, helpers and companions, battles with their move effects, snares, berry offers
-// and evolution. Everything is drawn in the same pixel units (ps) as the rest of the village.
+// Drawing for the critters: wild ones, helpers and companions, battles with their move effects, summoning rituals, bindings,
+// glyph spells, infusion and evolution. Everything is drawn in the same pixel units (ps) as the rest of the village.
 
 private const val TURN_IMPACT = 1.0f
-private const val SNARE_TIME = 4.2f
-private const val OFFER_TIME = 3.4f
 
 private fun smooth(x: Float): Float { val c = x.coerceIn(0f, 1f); return c * c * (3f - 2f * c) }
 private fun lerpF(a: Float, b: Float, t: Float) = a + (b - a) * t
@@ -57,7 +57,8 @@ private class Pose(var x: Float, var y: Float) {
     var alpha = 1f
     var flash = 0f
     var rot = 0f
-    var shrinkIn = 0f   // 0..1 how far it has been pulled into a snare
+    var shrinkIn = 0f   // 0..1 how far it has been pulled into a binding
+    var whiteMix = 0f   // 0..1 how much of the white summoning light is still on it
     var show = true
 }
 
@@ -111,6 +112,8 @@ fun DrawScope.drawCritters(sim: CivSim, art: CivArt, cart: CritterArt, g: Geo, s
     val t = g.t
     val actors = ArrayList<Actor>()
     val baseOf = { y: Float -> g.oy + (y + 0.45f) * ts }
+
+    if (cw.circleX >= 0f) actors.add(Actor(-5f) { circleSite(sim, g) })
 
     // the practice dummy stands at the yard unless a lesson is using it
     if (cw.yardX >= 0f && cw.encounters.none { it.kind == "train" && it.state != "walk" }) {
@@ -173,6 +176,7 @@ private fun DrawScope.drawWildCritter(w: Wild, cart: CritterArt, art: CivArt, g:
         drawCircle(glow.copy(alpha = 0.16f * alpha), ts * 0.9f, Offset(cx, base - ht * 0.5f))
         drawCircle(glow.copy(alpha = 0.18f * alpha), ts * 0.5f, Offset(cx, base - ht * 0.5f))
     }
+    if (alpha < 0.98f) riftFx(w.x, w.y, sin(alpha.coerceIn(0f, 1f) * PI.toFloat()), g)
     critShadow(art, img, cx, base, wd, ht, sun, ps, alpha)
     spr(img, cx, base - hop, wd, ht, w.facing, alpha)
     if (species.rarity >= 3 && alpha > 0.5f) {
@@ -241,6 +245,7 @@ private fun pose(e: Enc, side: Int, sim: CivSim): Pose {
     val dir = if (ox >= bx) 1f else -1f
     val p = Pose(bx, by)
     val other = 1 - side
+    if (e.kind == "summon" && side == 1 && e.state == "intro") p.show = false
     when (e.state) {
         "intro" -> {
             p.alpha = smooth(e.clock / 0.6f)
@@ -288,15 +293,13 @@ private fun pose(e: Enc, side: Int, sim: CivSim): Pose {
                 else -> p.alpha = smooth((t - 3.4f) / 0.35f)
             }
         }
-        "offer" -> if (side == 1) {
-            val t = e.offerT
-            if (t in 0.8f..2.6f) {
-                p.sy = 1f + 0.05f * sin(t * 9f)
-                p.x += -dir * 0.05f * sin(t * 4f)
-            } else if (t >= 2.6f && !e.offerWon) {
-                p.x += sin(t * 28f) * 0.04f
-            } else if (t >= 2.6f) {
-                p.y -= abs(sin((t - 2.6f) * 8f)) * 0.14f
+        "ritual" -> if (side == 1) {
+            val c = e.clock
+            if (c < 3.2f) p.show = false
+            else {
+                p.alpha = smooth((c - 3.2f) / 0.5f)
+                p.whiteMix = 1f - smooth((c - 3.4f) / 0.7f)
+                if (c < 4.2f) p.y -= sin(smooth((c - 3.2f) / 1.0f) * PI.toFloat()) * 0.08f
             }
         }
         "result" -> {
@@ -311,9 +314,10 @@ private fun pose(e: Enc, side: Int, sim: CivSim): Pose {
                     p.rot = 82f * smooth(c / 0.5f)
                 }
                 "caught" -> if (side == 1) p.show = false
-                "refused" -> if (side == 1 && c > 0.8f) {
-                    p.alpha = (1f - (c - 0.8f) / 1.2f).coerceIn(0f, 1f)
-                    p.x += -dir * 0.6f * (c - 0.8f)
+                "failed" -> if (side == 1) {
+                    p.alpha = (1f - c / 1.0f).coerceIn(0f, 1f)
+                    p.whiteMix = smooth(c / 0.7f)
+                    p.sy = 1f - 0.35f * smooth(c / 1.0f)
                 }
                 "spar" -> {
                     val win = e.battle?.winner ?: 0
@@ -334,14 +338,14 @@ private fun DrawScope.drawFighter(e: Enc, side: Int, sp: Int, p: Pose, cart: Cri
     val t = g.t
     val bx = if (side == 0) e.ax else e.bx
     val ox = if (side == 0) e.bx else e.ax
-    val dir = if (ox >= bx) 1 else -1
+    val dir = if (e.kind == "summon") (if (e.vx >= e.bx) 1 else -1) else if (ox >= bx) 1 else -1
     val img = cart.frame(sp, if (sp == 0) 0 else idleFrame(t, sp + side, false))
     val wd = img.lw * ps
     val ht = img.lh * ps
     val cx = g.ox + p.x * ts
     val base = g.oy + (p.y + 0.45f) * ts
     if (p.shrinkIn > 0f) {
-        // pulled into the snare as a white shape that melts toward the ball
+        // pulled into the binding as a white shape
         val k = p.shrinkIn
         val s = 1f - 0.85f * smooth(k)
         spr(cart.white(sp), cx, base - ht * 0.2f * smooth(k), wd, ht, dir, 1f - 0.2f * k, s, s)
@@ -350,20 +354,29 @@ private fun DrawScope.drawFighter(e: Enc, side: Int, sp: Int, p: Pose, cart: Cri
     critShadow(art, img, cx, base, wd, ht, sun, ps, p.alpha)
     spr(img, cx, base, wd, ht, dir, p.alpha, p.sx, p.sy, p.rot * (if (dir == 1) 1f else 1f))
     if (p.flash > 0f) spr(cart.white(sp), cx, base, wd, ht, dir, 0.7f, p.sx, p.sy, p.rot)
+    if (p.whiteMix > 0.01f) spr(cart.white(sp), cx, base, wd, ht, dir, p.whiteMix * p.alpha, p.sx, p.sy, p.rot)
 }
 
-/** Everything drawn over the villagers: move effects, snares, berries, ground rings and HP bars. */
+/** Everything drawn over the villagers: move effects, rituals, bindings, glyph spells, ground rings and HP bars. */
 fun DrawScope.drawCritterEffects(sim: CivSim, cart: CritterArt, g: Geo) {
     val cw = sim.critters
     for (e in cw.encounters.toList()) {
         if (e.state == "walk") continue
-        ring(e, g)
-        if (e.state == "turn") moveFx(e, g)
-        if (e.state == "snare") snareFx(e, g)
-        if (e.state == "offer") offerFx(e, g)
-        if (e.state == "result" && e.result == "caught") caughtFx(e, g)
-        hpBars(e, cart, g, sim)
+        if (e.kind != "summon") ring(e, g)
+        when (e.state) {
+            "turn" -> moveFx(e, g)
+            "snare" -> bindFx(e, g)
+            "ritual" -> ritualFx(e, g)
+            "cast" -> castFx(e, g)
+            "result" -> {
+                if (e.result == "caught") caughtFx(e, g)
+                if (e.result == "failed") ritualFx(e, g, fading = true)
+            }
+        }
+        shieldFx(e, g)
+        if (e.kind != "summon") hpBars(e, cart, g, sim)
     }
+    for (s in cw.swaps.toList()) swapFx(sim, s, cart, g)
     for (s in cw.evolutions.toList()) evolutionOverlay(sim, s, g)
 }
 
@@ -628,108 +641,370 @@ private fun DrawScope.moveFx(e: Enc, g: Geo) {
     }
 }
 
-// ---- snares and berries ----
+// ---- summoning magic ----
 
-private fun DrawScope.ball(x: Float, y: Float, r: Float, rot: Float, ps: Float) {
-    withTransform({ rotate(rot, Offset(x, y)) }) {
-        drawCircle(Color(0xFF5E4222), r + ps * 0.6f, Offset(x, y))
-        drawCircle(Color(0xFFC49A56), r, Offset(x, y))
-        drawCircle(Color(0xFFE2BE7C), r * 0.55f, Offset(x - r * 0.25f, y - r * 0.3f))
-        drawLine(Color(0xFF5E4222), Offset(x - r, y), Offset(x + r, y), strokeWidth = ps * 0.8f)
-        drawLine(Color(0xFF5E4222), Offset(x, y - r), Offset(x, y + r), strokeWidth = ps * 0.8f)
-        drawRect(Color(0xFFE5483C), Offset(x - ps * 0.9f, y - ps * 0.9f), Size(ps * 1.8f, ps * 1.8f))
+private val VIOLET = Color(0xFFB48CFF)
+
+private fun DrawScope.handOf(v: Villager, g: Geo): Offset =
+    Offset(g.ox + (v.x + v.facing * 0.38f) * g.ts, g.oy + (v.y + 0.45f) * g.ts - g.ts * 0.62f)
+
+/** A pentacle laid flat on the ground, drawn stroke by stroke as [prog] goes from 0 to 1. */
+private fun DrawScope.pentacle(cx: Float, cy: Float, r: Float, prog: Float, col: Color, alpha: Float, rot: Float, w: Float) {
+    if (alpha <= 0.01f || prog <= 0f) return
+    val n = 40
+    val twoPi = 2f * PI.toFloat()
+    fun pt(a: Float) = Offset(cx + cos(a) * r, cy + sin(a) * r * 0.5f)
+    val ringP = (prog / 0.45f).coerceIn(0f, 1f)
+    val segs = (n * ringP).toInt()
+    for (i in 0 until segs) {
+        drawLine(col.copy(alpha = alpha), pt(rot + i * twoPi / n), pt(rot + (i + 1) * twoPi / n), strokeWidth = w)
+    }
+    val starP = ((prog - 0.45f) / 0.55f).coerceIn(0f, 1f)
+    if (starP > 0f) {
+        val order = intArrayOf(0, 2, 4, 1, 3, 0)
+        for (k in 0 until 5) {
+            val kp = (starP * 5f - k).coerceIn(0f, 1f)
+            if (kp <= 0f) continue
+            val p0 = pt(rot - PI.toFloat() / 2f + order[k] * twoPi / 5f)
+            val p1 = pt(rot - PI.toFloat() / 2f + order[k + 1] * twoPi / 5f)
+            drawLine(col.copy(alpha = alpha), p0, Offset(lerpF(p0.x, p1.x, kp), lerpF(p0.y, p1.y, kp)), strokeWidth = w)
+        }
+    }
+    if (prog >= 1f) {
+        for (i in 0 until 5) {
+            val q = pt(rot - PI.toFloat() / 2f + i * twoPi / 5f)
+            drawRect(Color.White.copy(alpha = alpha), Offset(q.x - w * 0.7f, q.y - w * 0.7f), Size(w * 1.4f, w * 1.4f))
+        }
     }
 }
 
-private fun DrawScope.snareFx(e: Enc, g: Geo) {
+private fun glyphStrokes(kind: String): List<List<Pair<Float, Float>>> = when (kind) {
+    "heal" -> listOf(
+        listOf(0f to -1f, 0f to 1f), listOf(-1f to 0f, 1f to 0f),
+        listOf(0f to -0.6f, 0.6f to 0f, 0f to 0.6f, -0.6f to 0f, 0f to -0.6f),
+    )
+    "shield" -> listOf(listOf(-0.8f to -0.8f, 0.8f to -0.8f, 0.8f to 0.1f, 0f to 1f, -0.8f to 0.1f, -0.8f to -0.8f), listOf(0f to -0.6f, 0f to 0.5f))
+    "fire" -> listOf(listOf(0f to -1f, 0.5f to -0.2f, 0.3f to 0.2f, 0.6f to 0.7f, 0f to 1f, -0.6f to 0.7f, -0.4f to 0.1f, -0.5f to -0.3f, 0f to -1f))
+    "lightning" -> listOf(listOf(0.3f to -1f, -0.4f to -0.1f, 0.1f to -0.1f, -0.3f to 1f, 0.5f to 0.1f, 0f to 0.1f, 0.3f to -1f))
+    else -> listOf(
+        (0..14).map { i ->
+            val a = i * 0.55f
+            val r = 0.1f + i * 0.06f
+            (cos(a) * r) to (sin(a) * r)
+        },
+        listOf(-1f to -1f, 1f to -1f, 1f to 1f, -1f to 1f, -1f to -1f),
+    )
+}
+
+/** A glyph traced in the air, stroke by stroke. */
+private fun DrawScope.glyph(kind: String, cx: Float, cy: Float, size: Float, prog: Float, col: Color, alpha: Float, w: Float) {
+    val strokes = glyphStrokes(kind)
+    var total = 0
+    for (st in strokes) total += st.size - 1
+    var budget = prog.coerceIn(0f, 1f) * total
+    for (st in strokes) {
+        for (i in 0 until st.size - 1) {
+            val f = budget.coerceIn(0f, 1f)
+            budget -= 1f
+            if (f <= 0f) return
+            val a = st[i]
+            val b = st[i + 1]
+            val p0 = Offset(cx + a.first * size, cy + a.second * size)
+            val p1 = Offset(cx + lerpF(a.first, b.first, f) * size, cy + lerpF(a.second, b.second, f) * size)
+            drawLine(col.copy(alpha = 0.35f * alpha), p0, p1, strokeWidth = w * 3f)
+            drawLine(col.copy(alpha = alpha), p0, p1, strokeWidth = w)
+            drawLine(Color.White.copy(alpha = alpha * 0.8f), p0, p1, strokeWidth = w * 0.4f)
+        }
+    }
+}
+
+private fun glyphColor(kind: String): Color = when (kind) {
+    "heal" -> Color(0xFF6BE08A)
+    "shield" -> Color(0xFF9FD8FF)
+    "fire" -> Color(0xFFFF9A4A)
+    "lightning" -> Color(0xFFFFE066)
+    else -> Color(0xFFC9B8FF)
+}
+
+private fun DrawScope.scrollIcon(at: Offset, ps: Float, glow: Float) {
+    if (glow > 0.01f) drawCircle(VIOLET.copy(alpha = 0.3f * glow), ps * 5f, at)
+    drawRect(Color(0xFF6B4A2B), Offset(at.x - ps * 3.4f, at.y - ps * 2.2f), Size(ps * 6.8f, ps * 4.4f))
+    drawRect(Color(0xFFE9D9A8), Offset(at.x - ps * 2.8f, at.y - ps * 1.8f), Size(ps * 5.6f, ps * 3.6f))
+    for (i in 0 until 3) {
+        drawRect(Color(0xFF7A4B24).copy(alpha = 0.8f), Offset(at.x - ps * 2.2f, at.y - ps * 1.1f + i * ps * 1.1f), Size(ps * (3.6f - i * 0.5f), ps * 0.45f))
+    }
+    if (glow > 0.01f) drawRect(VIOLET.copy(alpha = glow), Offset(at.x - ps * 0.6f, at.y - ps * 0.6f), Size(ps * 1.2f, ps * 1.2f))
+}
+
+/** The village's summoning circle, always there on the ground, brighter at night. */
+internal fun DrawScope.circleSite(sim: CivSim, g: Geo) {
+    val cw = sim.critters
+    if (cw.circleX < 0f) return
+    if (cw.encounters.any { it.kind == "summon" && it.state != "walk" }) return
+    val ground = Offset(g.ox + cw.circleX * g.ts, g.oy + (cw.circleY + 0.45f) * g.ts)
+    val glow = 0.2f + 0.3f * g.dark + 0.06f * sin(g.t * 1.6f)
+    drawOval(VIOLET.copy(alpha = 0.06f + 0.1f * g.dark), Offset(ground.x - g.ts * 1.1f, ground.y - g.ts * 0.6f), Size(g.ts * 2.2f, g.ts * 1.1f))
+    pentacle(ground.x, ground.y - g.ps * 1.5f, g.ts * 1.05f, 1f, VIOLET, glow, 0f, g.ps * 1.1f)
+    if (g.dark > 0.3f) {
+        for (i in 0 until 4) {
+            val u = (g.t * 0.25f + i * 0.25f) % 1f
+            drawRect(Color.White.copy(alpha = 0.5f * (1f - u) * g.dark), Offset(ground.x + (i - 1.5f) * g.ps * 5f, ground.y - u * g.ts * 0.9f), Size(g.ps * 1.1f, g.ps * 1.1f))
+        }
+    }
+}
+
+/** A wild critter slipping through (or back into) a rift: a violet whirl on the ground and a thin column of light. */
+private fun DrawScope.riftFx(x: Float, y: Float, open: Float, g: Geo) {
+    if (open <= 0.02f) return
+    val c = Offset(g.ox + x * g.ts, g.oy + (y + 0.45f) * g.ts)
+    val r = g.ts * (0.3f + 0.45f * open)
+    drawOval(VIOLET.copy(alpha = 0.25f * open), Offset(c.x - r, c.y - r * 0.5f), Size(r * 2f, r), style = Stroke(width = g.ps * 1.6f))
+    drawOval(Color.White.copy(alpha = 0.3f * open), Offset(c.x - r * 0.6f, c.y - r * 0.3f), Size(r * 1.2f, r * 0.6f), style = Stroke(width = g.ps))
+    for (i in 0 until 5) {
+        val a = g.t * 4f + i * 1.26f
+        drawRect(VIOLET.copy(alpha = 0.8f * open), Offset(c.x + cos(a) * r * 0.9f - g.ps * 0.6f, c.y + sin(a) * r * 0.45f - g.ps * 0.6f), Size(g.ps * 1.2f, g.ps * 1.2f))
+    }
+    drawRect(Color.White.copy(alpha = 0.16f * open), Offset(c.x - g.ps * 1.5f, c.y - g.ts * 1.4f * open), Size(g.ps * 3f, g.ts * 1.4f * open))
+}
+
+private fun DrawScope.ritualFx(e: Enc, g: Geo, fading: Boolean = false) {
+    val ts = g.ts
+    val ps = g.ps
+    val c = if (fading) 5.4f + e.clock else e.clock
+    val ground = Offset(g.ox + e.bx * ts, g.oy + (e.by + 0.45f) * ts)
+    val hand = handOf(e.v, g)
+    val prog = (c / 1.5f).coerceIn(0f, 1f)
+    val fail = !e.ritualWon
+    val flick = if (fail && c > 3.2f && ((c * 16f).toInt() and 1) == 0) 0.35f else 1f
+    val out = if (c > 4.8f) (1f - (c - 4.8f) / 0.6f).coerceIn(0f, 1f) else 1f
+    val pulse = 0.85f + 0.15f * sin(c * 7f)
+    drawOval(VIOLET.copy(alpha = 0.12f * out * prog), Offset(ground.x - ts * 1.2f, ground.y - ts * 0.65f), Size(ts * 2.4f, ts * 1.3f))
+    pentacle(ground.x, ground.y - ps * 1.5f, ts * 1.1f, prog, VIOLET, 0.95f * flick * out * pulse, c * 0.5f, ps * 1.3f)
+    if (c < 3.4f) {
+        val glow = if (c in 1.2f..3.2f) 0.6f + 0.4f * sin(c * 9f) else 0f
+        scrollIcon(Offset(hand.x, hand.y - ps * 2f), ps, glow)
+        if (c in 1.4f..3.3f) {
+            // runes lift off the scroll and drift to the circle
+            for (i in 0 until 7) {
+                val u = ((c - 1.4f) * 0.7f + i / 7f) % 1f
+                val px = lerpF(hand.x, ground.x, smooth(u))
+                val py = lerpF(hand.y, ground.y - ts * 0.3f, smooth(u)) - sin(u * PI.toFloat()) * ts * 0.7f
+                drawRect(VIOLET.copy(alpha = 1f - u * 0.5f), Offset(px - ps * 0.7f, py - ps * 0.7f), Size(ps * 1.4f, ps * 1.4f))
+            }
+        }
+    }
+    if (c in 2.0f..4.1f) {
+        val up = smooth((c - 2.0f) / 1.2f)
+        val dn = if (c > 3.5f) (1f - (c - 3.5f) / 0.6f).coerceIn(0f, 1f) else 1f
+        val h = ts * 3.2f * up
+        val colr = if (fail && c > 3.2f) Color(0xFFFF6A7A) else VIOLET
+        drawRect(colr.copy(alpha = 0.12f * dn), Offset(ground.x - ts * 0.55f, ground.y - h), Size(ts * 1.1f, h))
+        drawRect(colr.copy(alpha = 0.2f * dn), Offset(ground.x - ts * 0.32f, ground.y - h), Size(ts * 0.64f, h))
+        drawRect(Color.White.copy(alpha = 0.45f * dn), Offset(ground.x - ts * 0.12f, ground.y - h), Size(ts * 0.24f, h))
+        for (i in 0 until 10) {
+            val a = c * 5f + i * 0.63f
+            val u = (c * 0.6f + i * 0.1f) % 1f
+            drawRect(Color.White.copy(alpha = 0.7f * dn * (1f - u)), Offset(ground.x + cos(a) * ts * 0.7f * (1f - u) - ps * 0.6f, ground.y - u * h - ps * 0.6f), Size(ps * 1.2f, ps * 1.2f))
+        }
+    }
+    if (c in 3.2f..3.8f) {
+        val u = (c - 3.2f) / 0.6f
+        drawCircle(Color.White.copy(alpha = 0.85f * (1f - u)), ts * (0.3f + 1.1f * u), Offset(ground.x, ground.y - ts * 0.4f))
+    }
+    if (fail && c > 3.3f) {
+        val u = ((c - 3.3f) / 1.2f).coerceIn(0f, 1f)
+        for (i in 0 until 5) {
+            val a = i * 1.26f + 0.4f
+            val len = ts * (0.4f + 0.7f * u)
+            drawLine(Color(0xFFFF6A7A).copy(alpha = 0.8f * (1f - u * 0.4f) * out), Offset(ground.x, ground.y - ps * 1.5f),
+                Offset(ground.x + cos(a) * len, ground.y - ps * 1.5f + sin(a) * len * 0.5f), strokeWidth = ps)
+        }
+    }
+    if (!fail && c in 3.9f..5.4f) {
+        // the bond: a thread of light between summoner and critter, with pulses running along it
+        val to = Offset(ground.x, ground.y - ts * 0.45f)
+        val chest = Offset(hand.x, hand.y)
+        val a = (0.35f + 0.25f * sin(c * 8f)) * out
+        drawLine(VIOLET.copy(alpha = a), chest, to, strokeWidth = ps * 1.6f)
+        for (i in 0 until 3) {
+            val u = (c * 1.3f + i / 3f) % 1f
+            drawCircle(Color.White.copy(alpha = out), ps * 1.1f, Offset(lerpF(chest.x, to.x, u), lerpF(chest.y, to.y, u)))
+        }
+    }
+}
+
+private fun DrawScope.bindFx(e: Enc, g: Geo) {
     val ts = g.ts
     val ps = g.ps
     val t = e.snareT
-    val from = Offset(g.ox + e.v.x * ts, g.oy + (e.v.y + 0.45f) * ts - ts * 0.8f)
-    val target = Offset(g.ox + e.bx * ts, g.oy + (e.by + 0.45f) * ts - ts * 0.3f)
-    val ground = Offset(g.ox + e.bx * ts, g.oy + (e.by + 0.45f) * ts - ps * 3.2f)
-    val r = ps * 3.6f
+    val c = Offset(g.ox + e.bx * ts, g.oy + (e.by + 0.45f) * ts)
+    val orb = Offset(c.x, c.y - ts * 0.4f)
+    val hand = handOf(e.v, g)
+    val prog = (t / 0.7f).coerceIn(0f, 1f)
+    val out = if (t > 3.7f) (1f - (t - 3.7f) / 0.5f).coerceIn(0f, 1f) else 1f
+    pentacle(c.x, c.y - ps * 1.5f, ts * 0.9f, prog, VIOLET, 0.95f * out, t * 0.9f, ps * 1.2f)
+    if (t < 1.2f) {
+        val u = (t / 0.5f).coerceIn(0f, 1f)
+        drawLine(VIOLET.copy(alpha = 0.55f * (1f - t / 1.2f)), hand, Offset(lerpF(hand.x, c.x, u), lerpF(hand.y, c.y - ts * 0.3f, u)), strokeWidth = ps * 1.5f)
+    }
     when {
-        t < 0.7f -> {
-            val u = t / 0.7f
-            val px = lerpF(from.x, target.x, smooth(u))
-            val py = lerpF(from.y, target.y, smooth(u)) - sin(u * PI.toFloat()) * ts * 1.1f
-            ball(px, py, r, u * 540f, ps)
-        }
+        t < 0.7f -> {}
         t < 1.0f -> {
             val u = (t - 0.7f) / 0.3f
-            drawCircle(Color.White.copy(alpha = 0.6f * (1f - u)), ts * (0.25f + 0.4f * u), target)
-            val bp = Offset(lerpF(target.x, ground.x, smooth(u)), lerpF(target.y, ground.y, smooth(u)))
-            ball(bp.x, bp.y, r, 0f, ps)
+            drawCircle(VIOLET.copy(alpha = 0.35f), ps * (2f + 5f * u), orb)
+            drawCircle(Color.White, ps * (0.8f + 2.4f * u), orb)
         }
         t < 3.4f -> {
-            var rot = 0f
+            val hum = 0.85f + 0.15f * sin(t * 12f)
+            drawCircle(VIOLET.copy(alpha = 0.35f * out), ps * 6f * hum, orb)
+            drawCircle(Color.White.copy(alpha = out), ps * 3.2f, orb)
             for (b in 0 until 3) {
                 val s = 1.1f + b * 0.8f
-                if (t in s..(s + 0.5f)) rot = sin((t - s) / 0.5f * 2f * PI.toFloat()) * 24f
+                if (t in s..(s + 0.5f)) {
+                    val u = (t - s) / 0.5f
+                    drawCircle(Color.White.copy(alpha = 0.7f * (1f - u)), ps * (3f + 9f * u), orb, style = Stroke(width = ps * 1.2f))
+                }
             }
-            ball(ground.x, ground.y, r, rot, ps)
-            val blink = (sin(t * 6f) * 0.5f + 0.5f)
-            drawRect(Color(0xFFFFE066).copy(alpha = 0.15f + 0.3f * blink), Offset(ground.x - ps * 0.6f, ground.y - r - ps * 3f), Size(ps * 1.2f, ps * 1.2f))
         }
         else -> {
             val u = ((t - 3.4f) / 0.8f).coerceIn(0f, 1f)
             if (e.snareWon) {
-                ball(ground.x, ground.y, r, 0f, ps)
-                drawCircle(Color(0xFFFFE066).copy(alpha = 0.8f * (1f - u)), ts * (0.2f + 0.8f * u), ground, style = Stroke(width = ps * 1.6f))
-                sparks(ground.x, ground.y - r, u, Color(0xFFFFF4B0), 12, ts * 0.9f, ps, 41)
+                val pos = Offset(lerpF(orb.x, hand.x, smooth(u)), lerpF(orb.y, hand.y, smooth(u)) - sin(u * PI.toFloat()) * ts * 0.4f)
+                drawCircle(VIOLET.copy(alpha = 0.4f * (1f - u * 0.4f)), ps * 6f * (1f - u * 0.5f), pos)
+                drawCircle(Color.White, ps * 3f * (1f - u * 0.6f), pos)
+                sparks(hand.x, hand.y, ((u - 0.6f) / 0.4f).coerceIn(0f, 1f), Color(0xFFE8DAFF), 8, ts * 0.5f, ps, 71)
             } else {
-                if (u < 0.45f) ball(ground.x, ground.y, r * (1f + u), (u * 60f), ps)
-                drawCircle(Color.White.copy(alpha = 0.7f * (1f - u)), ts * (0.2f + 0.6f * u), ground)
-                sparks(ground.x, ground.y, u, Color.White, 10, ts * 0.8f, ps, 43)
+                drawCircle(Color.White.copy(alpha = 0.7f * (1f - u)), ts * (0.2f + 0.7f * u), orb, style = Stroke(width = ps * 1.4f))
+                sparks(orb.x, orb.y, u, Color(0xFFFF8A9A), 12, ts * 0.9f, ps, 73)
             }
         }
     }
-    @Suppress("UNUSED_VARIABLE") val unused = SNARE_TIME
 }
 
-private fun DrawScope.berry(x: Float, y: Float, ps: Float) {
-    drawCircle(Color(0xFF7A1F2B), ps * 2.1f, Offset(x, y))
-    drawCircle(Color(0xFFE0405A), ps * 1.7f, Offset(x, y))
-    drawCircle(Color(0xFFFF9FB2), ps * 0.6f, Offset(x - ps * 0.6f, y - ps * 0.6f))
-    drawRect(Color(0xFF3E8E41), Offset(x - ps * 0.4f, y - ps * 2.6f), Size(ps * 1.6f, ps * 1f))
-}
-
-private fun DrawScope.offerFx(e: Enc, g: Geo) {
+private fun DrawScope.castFx(e: Enc, g: Geo) {
     val ts = g.ts
     val ps = g.ps
-    val t = e.offerT
-    val dirToV = if (e.v.x >= e.bx) 1f else -1f
-    val from = Offset(g.ox + e.v.x * ts, g.oy + (e.v.y + 0.45f) * ts - ts * 0.7f)
-    val restBase = Offset(g.ox + (e.bx + dirToV * 0.75f) * ts, g.oy + (e.by + 0.45f) * ts - ps * 2f)
-    val foe = Offset(g.ox + e.bx * ts, g.oy + (e.by + 0.45f) * ts - ts * 0.55f)
-    for (i in 0 until 3) {
-        val rest = Offset(restBase.x + (i - 1) * ps * 4.2f * dirToV, restBase.y + (i % 2) * ps * 1.4f)
-        val u = ((t - i * 0.12f) / 0.65f)
-        if (u < 0f) continue
-        if (t < 2.6f || !e.offerWon) {
-            if (u < 1f) {
-                val px = lerpF(from.x, rest.x, smooth(u))
-                val py = lerpF(from.y, rest.y, smooth(u)) - sin(u * PI.toFloat()) * ts * 0.6f
-                berry(px, py, ps)
-            } else berry(rest.x, rest.y, ps)
-        } else {
-            val q = ((t - 2.6f) / 0.8f).coerceIn(0f, 1f)
-            sparks(rest.x, rest.y, q, Color(0xFFFF9FB2), 5, ts * 0.4f, ps, i)
+    val k = e.spellT
+    val col = glyphColor(e.spell)
+    val hand = handOf(e.v, g)
+    val gc = Offset(hand.x, hand.y - ts * 0.55f)
+    val fade = if (k > 1.5f) ((1.7f - k) / 0.2f).coerceIn(0f, 1f) else 1f
+    val a = Offset(g.ox + e.ax * ts, g.oy + (e.ay + 0.45f) * ts - ts * 0.4f)
+    val b = Offset(g.ox + e.bx * ts, g.oy + (e.by + 0.45f) * ts - ts * 0.4f)
+    drawCircle(col.copy(alpha = 0.16f * fade), ts * 0.55f, gc)
+    glyph(e.spell, gc.x, gc.y, ts * 0.34f, k / 0.7f, col, fade, ps * 1.1f)
+    if (k < 0.7f) {
+        // the fingertip leaves a trail of sparks while the glyph is drawn
+        for (i in 0 until 3) {
+            val u = (k * 3f + i / 3f) % 1f
+            drawRect(Color.White.copy(alpha = 1f - u), Offset(gc.x + (i - 1) * ps * 2.5f, gc.y - ts * 0.34f + u * ps * 5f), Size(ps, ps))
         }
     }
-    if (t >= 2.6f) {
-        val q = ((t - 2.6f) / 0.8f).coerceIn(0f, 1f)
-        if (e.offerWon) {
-            for (i in 0 until 3) {
-                val u = (q + i * 0.18f) % 1f
-                icon(ICON_HEART, Color(0xFFFF5A7A).copy(alpha = 1f - u), foe.x + (i - 1) * ps * 5f, foe.y - ts * 0.3f - u * ts * 0.9f, ps * 1.1f)
+    val u = ((k - 0.8f) / 0.9f).coerceIn(0f, 1f)
+    if (k < 0.8f) return
+    when (e.spell) {
+        "heal" -> {
+            drawCircle(col.copy(alpha = 0.5f * (1f - u)), ts * (0.2f + 0.6f * u), a, style = Stroke(width = ps * 1.6f))
+            for (i in 0 until 9) {
+                val q = (u + i * 0.11f) % 1f
+                drawRect(col.copy(alpha = 1f - q), Offset(a.x + (i - 4) * ps * 2.2f, a.y + ts * 0.2f - q * ts * 0.9f), Size(ps * 1.3f, ps * 1.3f))
             }
-        } else {
-            icon(ICON_Q, Color(0xFFE8E8F0).copy(alpha = 1f - q * 0.6f), foe.x - ps * 3f, foe.y - ts * 0.6f - q * ps * 3f, ps * 1.2f)
+        }
+        "shield" -> {
+            drawOval(col.copy(alpha = 0.18f * (1f - u * 0.4f)), Offset(a.x - ts * 0.8f, a.y - ts * 0.7f * (0.3f + 0.7f * u)), Size(ts * 1.6f, ts * 1.4f * (0.3f + 0.7f * u)))
+            sparks(a.x, a.y, u, col, 10, ts * 0.8f, ps, 81)
+        }
+        "fire" -> {
+            if (u < 0.6f) {
+                val q = u / 0.6f
+                val px = lerpF(gc.x, b.x, smooth(q))
+                val py = lerpF(gc.y, b.y, smooth(q)) - sin(q * PI.toFloat()) * ts * 0.3f
+                bit(CType.EMBER, px, py, ps * 3.2f, 0f, g.t)
+            } else {
+                val q = (u - 0.6f) / 0.4f
+                drawCircle(Color(0xFFFFD94A).copy(alpha = 0.7f * (1f - q)), ts * (0.2f + 0.6f * q), b)
+                sparks(b.x, b.y, q, Color(0xFFFF9A4A), 12, ts * 0.9f, ps, 83)
+            }
+        }
+        "lightning" -> {
+            if (u < 0.7f) {
+                val frame = (k * 24f).toInt()
+                var prev = Offset(gc.x, gc.y)
+                for (i in 1..8) {
+                    val f = i / 8f
+                    val jx = if (i == 8) 0f else ((hashI(i, frame) % 100) / 100f - 0.5f) * ts * 0.55f
+                    val jy = if (i == 8) 0f else ((hashI(i + 9, frame) % 100) / 100f - 0.5f) * ts * 0.45f
+                    val n = Offset(lerpF(gc.x, b.x, f) + jx, lerpF(gc.y, b.y, f) + jy)
+                    drawLine(col.copy(alpha = 0.4f), prev, n, strokeWidth = ps * 4.5f)
+                    drawLine(Color.White, prev, n, strokeWidth = ps * 1.2f)
+                    prev = n
+                }
+            } else sparks(b.x, b.y, (u - 0.7f) / 0.3f, col, 10, ts * 0.8f, ps, 85)
+        }
+        else -> {
+            for (i in 0 until 3) {
+                val q = (u - i * 0.15f).coerceIn(0f, 1f)
+                if (q > 0f) drawCircle(col.copy(alpha = 0.8f * (1f - q)), ts * (0.15f + 0.9f * q), b, style = Stroke(width = ps * (2.4f - q)))
+            }
+            sparks(b.x, b.y, u, Color.White, 8, ts * 0.8f, ps, 87)
         }
     }
-    @Suppress("UNUSED_VARIABLE") val unused = OFFER_TIME
+}
+
+/** While a shield glyph holds, a faint dome stays around the summoner's critter. */
+private fun DrawScope.shieldFx(e: Enc, g: Geo) {
+    val left = e.battle?.shield ?: 0
+    if (left <= 0 || e.state == "result") return
+    val a = Offset(g.ox + e.ax * g.ts, g.oy + (e.ay + 0.45f) * g.ts - g.ts * 0.4f)
+    val flick = 0.7f + 0.3f * sin(g.t * 9f)
+    drawOval(Color(0xFF9FD8FF).copy(alpha = 0.12f * flick), Offset(a.x - g.ts * 0.8f, a.y - g.ts * 0.75f), Size(g.ts * 1.6f, g.ts * 1.5f))
+    drawOval(Color(0xFFCDEBFF).copy(alpha = 0.5f * flick), Offset(a.x - g.ts * 0.8f, a.y - g.ts * 0.75f), Size(g.ts * 1.6f, g.ts * 1.5f), style = Stroke(width = g.ps))
+}
+
+/** Infusion: a critter dissolves into its summoner's palm, or is called back out of it. */
+private fun DrawScope.swapFx(sim: CivSim, s: Swap, cart: CritterArt, g: Geo) {
+    val owner = sim.villagers.firstOrNull { it.id == s.owner } ?: return
+    val ts = g.ts
+    val ps = g.ps
+    val age = (sim.time - s.born).toFloat()
+    val img = cart.frame(s.sp, 0)
+    val wd = img.lw * ps
+    val ht = img.lh * ps
+    val hand = handOf(owner, g)
+    val base = Offset(g.ox + s.x * ts, g.oy + (s.y + 0.45f) * ts)
+    if (s.kind == "in") {
+        if (age < 0f) {
+            // still standing there, just called into being
+            spr(img, base.x, base.y, wd, ht, 1)
+            return
+        }
+        val p = (age / 1.1f).coerceIn(0f, 1f)
+        if (p >= 1f) return
+        val ease = smooth(p)
+        val cx = lerpF(base.x, hand.x, ease)
+        val cy = lerpF(base.y - ht * 0.4f, hand.y, ease) - sin(p * PI.toFloat()) * ts * 0.5f
+        val sc = 1f - 0.85f * ease
+        spr(cart.white(s.sp), cx, cy + ht * 0.4f * sc, wd, ht, 1, 1f - p * 0.3f, sc, sc)
+        val tc = typeColor(Dex.byId(s.sp).t1)
+        for (i in 0 until 6) {
+            val q = (p - i * 0.06f).coerceIn(0f, 1f)
+            val px = lerpF(base.x, hand.x, smooth(q))
+            val py = lerpF(base.y - ht * 0.4f, hand.y, smooth(q)) - sin(q * PI.toFloat()) * ts * 0.5f
+            drawRect(tc.copy(alpha = 0.7f * (1f - i / 6f)), Offset(px - ps * 0.8f, py - ps * 0.8f), Size(ps * 1.6f, ps * 1.6f))
+        }
+        pentacle(hand.x, hand.y + ps * 2.5f, ps * 5f, 1f, VIOLET, 0.8f * (if (p > 0.6f) (1f - p) / 0.4f else p / 0.6f), age * 3f, ps * 0.9f)
+        if (p > 0.85f) sparks(hand.x, hand.y, (p - 0.85f) / 0.15f, Color.White, 6, ts * 0.35f, ps, 91)
+    } else {
+        if (age < 0f || age > 1.4f) return
+        val p = age / 1.4f
+        pentacle(base.x, base.y - ps * 1.5f, ts * 0.75f, (age / 0.5f).coerceIn(0f, 1f), VIOLET, 0.9f * (1f - p), age * 1.5f, ps)
+        val h = ts * 2.2f * smooth((age / 0.5f).coerceIn(0f, 1f))
+        val dn = (1f - p).coerceIn(0f, 1f)
+        drawRect(VIOLET.copy(alpha = 0.2f * dn), Offset(base.x - ts * 0.4f, base.y - h), Size(ts * 0.8f, h))
+        drawRect(Color.White.copy(alpha = 0.45f * dn), Offset(base.x - ts * 0.14f, base.y - h), Size(ts * 0.28f, h))
+        spr(cart.white(s.sp), base.x, base.y, wd, ht, 1, (1f - age / 0.7f).coerceIn(0f, 1f))
+        sparks(base.x, base.y - ht * 0.4f, p, Color.White, 10, ts * 0.8f, ps, 93)
+    }
 }
 
 private fun DrawScope.caughtFx(e: Enc, g: Geo) {
@@ -887,6 +1162,7 @@ fun DrawScope.critterTexts(
                 if (e.state == "snare" && side == 1 && e.snareT > 0.7f) continue
                 val sp = fighterSprite(e, side) ?: continue
                 val p = pose(e, side, sim)
+                if (!p.show) continue
                 val ht = (if (sp == 0) 16f else Dex.byId(sp).let { max(10f, 8f + it.stage * 5f) }) * ps
                 val nm = if (sp == 0) "Training Dummy" else cr.name + " Lv" + cr.level
                 tag(nm, g.ox + p.x * ts, g.oy + (p.y + 0.45f) * ts - ht - ps * 9f, 0xFFFFFFFF.toInt())

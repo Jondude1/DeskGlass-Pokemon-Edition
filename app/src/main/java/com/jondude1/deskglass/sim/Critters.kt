@@ -393,6 +393,10 @@ class Turn(
 /** Turn-by-turn fight between two critters. The caller plays each turn out on screen. */
 class Battle(val a: Critter, val b: Critter, private val rnd: Random) {
     private val queue = ArrayDeque<Int>()
+
+    /** Hits side 0 can still take at half strength from a shield glyph. */
+    var shield = 0
+
     var over = false
         private set
     var winner = -1
@@ -458,6 +462,10 @@ class Battle(val a: Critter, val b: Critter, private val rnd: Random) {
             d *= eff
             if (crit) d *= 1.5f
             d *= 0.88f + rnd.nextFloat() * 0.12f
+            if (s == 1 && shield > 0) {
+                d *= 0.5f
+                shield--
+            }
             dmg = max(1, d.toInt())
             def.hp = max(0, def.hp - dmg)
         }

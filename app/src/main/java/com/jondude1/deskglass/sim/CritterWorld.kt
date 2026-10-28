@@ -28,6 +28,20 @@ class Wild(val c: Critter, x: Float, y: Float) : Mover(x, y) {
     var leaving = false
 }
 
+/** A villager's summoning gift. Inherited; levels up with use; mana fuels rituals, bindings and glyph spells. */
+class Mage(var talent: Boolean, var lv: Int = 1) {
+    var xp = 0
+    var mana = 30f
+    val maxMana: Float get() = 30f + lv * 6f
+
+    /** The total level of critters a summoner can keep bonded at once. */
+    val capacity: Int get() = 14 + lv * 7
+    fun xpNeed(): Int = 10 + lv * lv
+}
+
+/** A critter being infused into its summoner ("in") or called out of the pack ("out"), played out on screen. */
+class Swap(val kind: String, val sp: Int, val x: Float, val y: Float, val owner: Int, val born: Double)
+
 /** A bit of floating text: damage, XP, what a helper brought home. */
 class Pop(val x: Float, val y: Float, val text: String, val color: Long, val born: Double, val life: Float = 1.6f)
 
@@ -39,7 +53,7 @@ class EvolveScene(val uid: Int, val from: Int, val to: Int, var x: Float, var y:
     }
 }
 
-/** One meeting between a villager and a critter: a catch, a berry offering, a friendly bout or training. */
+/** One meeting between a villager and a critter: a summoning ritual, a battle with a binding, a friendly bout or training. */
 class Enc(val kind: String, val v: Villager) {
     var v2: Villager? = null
     var mine: Critter? = null
@@ -47,7 +61,7 @@ class Enc(val kind: String, val v: Villager) {
     var foe: Critter? = null
     var wild: Wild? = null
 
-    /** walk | intro | turn | snare | offer | result */
+    /** walk | intro | ritual | turn | cast | snare | result */
     var state = "walk"
     var clock = 0f
     var battle: Battle? = null
@@ -75,12 +89,15 @@ class Enc(val kind: String, val v: Villager) {
     var subT = 0f
     val pops = ArrayList<Pop>()
 
+    var spell = ""
+    var spellT = 0f
+    var spellDone = false
+    var ritualWon = false
+    var ritualStep = 0
+
     var snareTry = 0
     var snareT = 0f
     var snareWon = false
-    var offerTry = 0
-    var offerT = 0f
-    var offerWon = false
     var spent = false
 
     var result = ""
@@ -90,7 +107,7 @@ class Enc(val kind: String, val v: Villager) {
 }
 
 /**
- * The critters of the village: wild ones that wander in, villagers who befriend, catch, train and battle them,
+ * The critters of the village: wild ones that slip in through rifts, summoners who call, bind, train and battle them,
  * helpers that work for the settlement, and the evolution of them all.
  */
 class CritterWorld(private val sim: CivSim) {
@@ -102,8 +119,12 @@ class CritterWorld(private val sim: CivSim) {
     val seen = HashSet<Int>()
     val caught = HashSet<Int>()
     val bodies = HashMap<Int, Body>()
+    val mages = HashMap<Int, Mage>()
+    val swaps = ArrayList<Swap>()
     var yardX = -1f
     var yardY = -1f
+    var circleX = -1f
+    var circleY = -1f
 
     private var nextUid = 1
     private val rnd = Random()
@@ -112,6 +133,7 @@ class CritterWorld(private val sim: CivSim) {
     private var anchorClock = 0f
     private val cooldown = HashMap<Int, Double>()
     private val lastSwap = HashMap<Int, Double>()
+    private val summonReady = HashMap<Int, Double>()
     private val anchors = HashMap<CType, FloatArray>()
 
     // ---- public lookups ----
@@ -122,6 +144,47 @@ class CritterWorld(private val sim: CivSim) {
 
     /** Each villager has one critter out at a time (the companion). The rest of theirs rest in the pack. */
     fun packed(c: Critter): Boolean = c.owner >= 0 && !c.companion
+
+    /** The summoning gift of a villager, rolled the first time they are looked at. */
+    fun mageOf(v: Villager): Mage = mages.getOrPut(v.id) { rollMage(v) }
+
+    private fun rollMage(v: Villager): Mage {
+        val talent: Boolean
+        if (critters.any { it.owner == v.id }) {
+            talent = true
+        } else if (v.parents.isBlank()) {
+            talent = rnd.nextFloat() < 0.6f
+        } else {
+            val names = v.parents.split(" and ").map { it.trim() }
+            val parents = sim.villagers.filter { it !== v && it.name in names }
+            if (parents.any { mageOf(it).talent }) {
+                // the gift runs in the blood: always the firstborn, sometimes the younger ones
+                val older = sim.villagers.any { it !== v && it.parents == v.parents && it.born < v.born }
+                talent = !older || rnd.nextFloat() < 0.25f
+            } else {
+                talent = rnd.nextFloat() < (if (parents.isEmpty()) 0.15f else 0.03f)
+            }
+        }
+        val lv = if (talent && v.parents.isBlank()) 1 + rnd.nextInt(3) else 1
+        return Mage(talent, lv)
+    }
+
+    fun budgetUsed(v: Villager): Int = critters.filter { it.owner == v.id }.sumOf { it.level }
+
+    private fun mageGain(v: Villager, amount: Int) {
+        val m = mageOf(v)
+        if (!m.talent || m.lv >= 30) return
+        m.xp += amount
+        while (m.lv < 30 && m.xp >= m.xpNeed()) {
+            m.xp -= m.xpNeed()
+            m.lv++
+            m.mana = m.maxMana
+            v.happiness = min(100f, v.happiness + 6f)
+            pop(v.x, v.y - 0.9f, "Summoner Lv ${m.lv}", 0xFFFFE066)
+            sim.note("${v.name} grows into a level ${m.lv} summoner.")
+            if (m.lv % 5 == 0) sim.mark("${v.name} reached summoner level ${m.lv}.")
+        }
+    }
 
     fun ownerName(c: Critter): String = sim.villagers.firstOrNull { it.id == c.owner }?.name ?: ""
 
@@ -136,7 +199,9 @@ class CritterWorld(private val sim: CivSim) {
     /** A line a villager can say about their companion, built only from facts. */
     fun factFor(v: Villager): String? {
         val c = companionOf(v) ?: return null
-        return "Your companion is ${c.name}, a level ${c.level} ${c.species.typeText} critter" +
+        val m = mageOf(v)
+        return "You are a level ${m.lv} summoner; your bonded critters total ${budgetUsed(v)} of ${m.capacity} levels. " +
+            "Your companion is ${c.name}, a level ${c.level} ${c.species.typeText} critter" +
             (if (c.species.evolveTo > 0) " that will evolve at level ${c.species.evolveLv}" else "") + "."
     }
 
@@ -151,6 +216,11 @@ class CritterWorld(private val sim: CivSim) {
         caught.clear()
         cooldown.clear()
         lastSwap.clear()
+        summonReady.clear()
+        mages.clear()
+        swaps.clear()
+        circleX = -1f
+        circleY = -1f
         anchors.clear()
         yardX = -1f
         yardY = -1f
@@ -280,6 +350,7 @@ class CritterWorld(private val sim: CivSim) {
             for (e in encounters.toList()) encTick(e, dt)
             evoTick()
             pops.removeAll { sim.time - it.born > it.life }
+            swaps.removeAll { sim.time - it.born > 2.4 }
         } catch (e: Exception) {
             lastError = e
             sim.guard(e)
@@ -310,8 +381,8 @@ class CritterWorld(private val sim: CivSim) {
         w.pause = 1f + rnd.nextFloat() * 2f
         wilds.add(w)
         if (seen.add(sp.id)) {
-            sim.note("A wild ${sp.name} is spotted near the village.")
-            if (seen.size == 1) sim.mark("The first wild critter was seen near the village.")
+            sim.note("A rift opens and a wild ${sp.name} slips through from the ether.")
+            if (seen.size == 1) sim.mark("The first rift from the ether opened near the village.")
         }
     }
 
@@ -420,7 +491,7 @@ class CritterWorld(private val sim: CivSim) {
                 sim.note("$was stays on in the village.")
             }
         }
-        teamTick()
+        teamTick(dt)
         for (c in critters) {
             val body = bodyFor(c)
             // tiredness and healing
@@ -486,7 +557,19 @@ class CritterWorld(private val sim: CivSim) {
     }
 
     /** Keeps exactly one critter out per villager, and trades them over now and then so the whole pack gets a turn. */
-    private fun teamTick() {
+    private fun teamTick(dt: Float) {
+        for (v in sim.villagers) mageOf(v)
+        val adults = sim.villagers.filter { !sim.isChild(it) }
+        if (adults.size >= 2 && adults.none { mageOf(it).talent }) {
+            val pick = adults[rnd.nextInt(adults.size)]
+            mages[pick.id] = Mage(true, 1 + rnd.nextInt(2))
+            sim.mark("${pick.name} discovers a gift for summoning.")
+        }
+        // mana comes back with time, faster while critters rest infused in the summoner
+        for ((id, m) in mages) {
+            val resting = critters.count { it.owner == id && !it.companion }
+            m.mana = min(m.maxMana, m.mana + dt * (0.3f + 0.1f * resting))
+        }
         for (v in sim.villagers) {
             val mine = critters.filter { it.owner == v.id }
             if (mine.isEmpty()) continue
@@ -515,7 +598,7 @@ class CritterWorld(private val sim: CivSim) {
         if (old != null) {
             old.companion = false
             val ob = bodyFor(old)
-            pop(ob.x, ob.y - 0.9f, "rests", old.species.t1.color)
+            swaps.add(Swap("in", old.sp, ob.x, ob.y, v.id, sim.time))
         }
         c.companion = true
         val b = bodyFor(c)
@@ -524,7 +607,7 @@ class CritterWorld(private val sim: CivSim) {
         b.tx = b.x
         b.ty = b.y
         b.moving = false
-        pop(b.x, b.y - 0.9f, "${c.name} out", c.species.t1.color)
+        swaps.add(Swap("out", c.sp, b.x, b.y, v.id, sim.time))
     }
 
     private fun produce(c: Critter, type: CType, body: Body) {
@@ -631,11 +714,16 @@ class CritterWorld(private val sim: CivSim) {
     /** Villagers only snare a species when the village has room and fewer than two of it already. */
     private fun wantsMore(v: Villager, foe: Critter): Boolean {
         if (critters.size >= maxKept() || critters.count { it.sp == foe.sp } >= 2) return false
+        val mage = mageOf(v)
         val owned = critters.count { it.owner == v.id }
-        if (owned < MAX_TEAM) return true
-        // a full team only makes room for something clearly better than its weakest resting member
-        val weak = weakestSwappable(v) ?: return false
-        return worth(foe) >= worth(weak) + 3
+        var room = mage.capacity - budgetUsed(v)
+        if (owned >= MAX_TEAM) {
+            // a full team only makes room for something clearly better than its weakest resting member
+            val weak = weakestSwappable(v) ?: return false
+            if (worth(foe) < worth(weak) + 3) return false
+            room += weak.level
+        }
+        return foe.level <= room
     }
 
     /** How good a critter is to keep: level, how far it has evolved and how rare it is. */
@@ -658,18 +746,16 @@ class CritterWorld(private val sim: CivSim) {
                 it.hunger < 75f && it.hp > 40f && it.energy > 20f
         }.shuffled(rnd)
         for (v in idle) {
+            val mage = mageOf(v)
+            if (!mage.talent) continue
             val comp = companionOf(v)
+            if (summonWanted(v, mage, comp) && startSummon(v, mage)) return
             val wild = wilds.filter { it.claimed < 0 && it.fade >= 1f && !it.leaving && hypot(it.x - v.x, it.y - v.y) < 16f }
                 .minByOrNull { hypot(it.x - v.x, it.y - v.y) }
             if (wild != null) {
                 val bold = v.job == "Hunter" || v.job == "Scout" || v.job == "Forager"
                 val p = if (bold) 0.55f else 0.3f
-                if (comp == null) {
-                    if (sim.food >= 2 && critters.size < maxKept() && rnd.nextFloat() < p) {
-                        startBefriend(v, wild)
-                        return
-                    }
-                } else if (ready(comp) && rnd.nextFloat() < p) {
+                if (comp != null && ready(comp) && rnd.nextFloat() < p) {
                     startWild(v, comp, wild)
                     return
                 }
@@ -706,20 +792,64 @@ class CritterWorld(private val sim: CivSim) {
         v.sayLeft = 3f
     }
 
-    private fun startBefriend(v: Villager, w: Wild) {
-        val goal = cellNear(w.x, w.y, v.x, v.y)
-        if (goal < 0) return
-        val e = Enc("befriend", v)
-        e.foe = w.c
-        e.wild = w
+    /** A summoner is ready for a ritual when they have a scroll's worth of hide, mana, room in their team and in their level budget. */
+    private fun summonWanted(v: Villager, mage: Mage, comp: Critter?): Boolean {
+        if (sim.hides < 1 || mage.mana < SUMMON_COST || critters.size >= maxKept()) return false
+        if (critters.count { it.owner == v.id } >= MAX_TEAM) return false
+        if (mage.capacity - budgetUsed(v) < 3) return false
+        if (sim.time < (summonReady[v.id] ?: 0.0)) return false
+        return comp == null || rnd.nextFloat() < 0.3f
+    }
+
+    /** Walks to the summoning circle to read a scroll. The critter is chosen now and appears when the ritual ends. */
+    private fun startSummon(v: Villager, mage: Mage): Boolean {
+        ensureCircle()
+        val goal = cellNear(circleX, circleY, v.x, v.y)
+        if (goal < 0) return false
+        val night = sim.darkness() > 0.3f
+        val month = java.time.LocalDate.now().monthValue
+        val winter = month == 12 || month <= 2
+        var sp = Dex.lineOf(Dex.pickWild(rnd, sim.age, night, winter).id).first()
+        for (n in 0 until 6) {
+            if (critters.count { it.sp == sp.id } < 2) break
+            sp = Dex.lineOf(Dex.pickWild(rnd, sim.age, night, winter).id).first()
+        }
+        val room = mage.capacity - budgetUsed(v)
+        val lv = min(Dex.wildLevel(rnd, sp, sim.age), max(2, min(room, mage.lv + 3)))
+        val c = Critter(nextUid++, sp.id, lv)
+        c.heal()
+        val e = Enc("summon", v)
+        e.foe = c
         encounters.add(e)
-        if (!sim.walkTo(v, "critter_befriend", goal)) {
+        if (!sim.walkTo(v, "critter_summon", goal)) {
             encounters.remove(e)
+            return false
+        }
+        summonReady[v.id] = sim.time + 240.0
+        v.say = "Time to call something from the ether."
+        v.sayLeft = 3f
+        return true
+    }
+
+    private fun ensureCircle() {
+        if (circleX >= 0f) return
+        ensureYard()
+        val c = centre()
+        for (n in 0 until 80) {
+            val a = rnd.nextFloat() * 6.28f
+            val r = 2.5f + rnd.nextFloat() * 2.5f
+            val x = (c[0] + Math.cos(a.toDouble()).toFloat() * r).toInt()
+            val y = (c[1] + Math.sin(a.toDouble()).toFloat() * r).toInt()
+            if (x < 3 || y < 3 || x > GW - 4 || y > GH - 4) continue
+            if (!walkable(x, y) || sim.tiles[y * GW + x] != T.GRASS) continue
+            if (sim.buildings.any { abs(it.x - x) <= 2 && abs(it.y - y) <= 2 }) continue
+            if (hypot(x + 0.5f - yardX, y + 0.5f - yardY) < 4f) continue
+            circleX = x + 0.5f
+            circleY = y + 0.5f
             return
         }
-        w.claimed = v.id
-        v.say = "Maybe it likes berries."
-        v.sayLeft = 3f
+        circleX = c[0] - 3f
+        circleY = c[1] + 3f
     }
 
     private fun startSpar(v: Villager, v2: Villager, c1: Critter, c2: Critter): Boolean {
@@ -805,7 +935,19 @@ class CritterWorld(private val sim: CivSim) {
         e.clock = 0f
         e.state = "intro"
         when (e.kind) {
-            "wild", "befriend" -> {
+            "summon" -> {
+                ensureCircle()
+                val dir = if (v.x >= circleX) 1 else -1
+                e.bx = circleX
+                e.by = circleY
+                e.ax = circleX
+                e.ay = circleY
+                e.vx = clampX(circleX + dir * 1.9f)
+                e.vy = circleY + 0.15f
+                e.banner = "${v.name} unrolls a summoning scroll"
+                e.bannerT = 1.6f
+            }
+            "wild" -> {
                 val w = e.wild!!
                 val dir = if (v.x >= w.x) 1 else -1
                 e.bx = w.x
@@ -816,13 +958,7 @@ class CritterWorld(private val sim: CivSim) {
                 e.ay = w.y + 0.1f
                 e.vx = clampX(if (ax > w.x) ax + 1.1f else ax - 1.1f)
                 e.vy = w.y + 0.25f
-                if (e.kind == "befriend") {
-                    e.vx = clampX(w.x + dir * 1.5f)
-                    e.vy = w.y + 0.1f
-                    e.banner = "${v.name} holds out some berries"
-                } else {
-                    e.banner = "A wild ${w.c.name} (Lv ${w.c.level}) appears!"
-                }
+                e.banner = "A rift opens: a wild ${w.c.name} (Lv ${w.c.level}) appears!"
                 e.bannerT = 1.5f
                 seeFoe(e)
             }
@@ -954,20 +1090,35 @@ class CritterWorld(private val sim: CivSim) {
         }
         when (e.state) {
             "intro" -> if (e.clock >= 1.7f) {
-                if (e.kind == "befriend") {
-                    e.state = "offer"
+                if (e.kind == "summon") {
+                    e.state = "ritual"
                     e.clock = 0f
-                    e.offerTry = 0
-                    e.offerT = 0f
+                    e.ritualStep = 0
+                    val mage = mageOf(v)
                     if (!e.spent) {
                         e.spent = true
-                        sim.food -= 2
+                        sim.hides = max(0, sim.hides - 1)
+                        mage.mana = max(0f, mage.mana - SUMMON_COST)
                     }
-                    startOffer(e)
+                    val foe = e.foe!!
+                    // a critter far above the summoner's level can slip the bond
+                    val resist = (0.05f + max(0, foe.level - mage.lv) * 0.05f).coerceAtMost(0.45f)
+                    e.ritualWon = rnd.nextFloat() >= resist
+                    e.banner = "${v.name} reads the summoning scroll aloud"
+                    e.bannerT = 2.6f
                 } else {
                     e.battle = Battle(e.a!!, e.b!!, rnd)
                     e.state = "turn"
                     nextTurn(e)
+                }
+            }
+            "ritual" -> ritualTick(e)
+            "cast" -> {
+                e.spellT += dt
+                if (!e.spellDone && e.spellT >= 0.8f) applySpell(e)
+                if (e.spellT >= 1.7f) {
+                    e.state = "turn"
+                    continueAfter(e, e.turn)
                 }
             }
             "turn" -> {
@@ -976,7 +1127,6 @@ class CritterWorld(private val sim: CivSim) {
                 if (e.turnT >= TURN) afterTurn(e)
             }
             "snare" -> snareTick(e, dt)
-            "offer" -> offerTick(e, dt)
             "result" -> if (e.clock >= e.resultLen) finish(e)
         }
     }
@@ -1032,12 +1182,88 @@ class CritterWorld(private val sim: CivSim) {
             toResult(e)
             return
         }
+        if (e.kind == "wild" && tryCast(e, t)) return
+        continueAfter(e, t)
+    }
+
+    private fun continueAfter(e: Enc, t: Turn?) {
         val b = e.b!!
-        if (e.kind == "wild" && t != null && t.side == 0 && b.hpFrac <= 0.45f && e.snareTry < 3 && wantsMore(e.v, e.foe!!)) {
+        val foe = e.foe
+        if (e.kind == "wild" && foe != null && t != null && t.side == 0 && b.hpFrac <= 0.45f && e.snareTry < 3 &&
+            mageOf(e.v).mana >= BIND_COST && wantsMore(e.v, foe)
+        ) {
             startSnare(e)
             return
         }
         nextTurn(e)
+    }
+
+    // ---- glyph spells: the summoner traces a glyph in the air and spends mana ----
+
+    private fun tryCast(e: Enc, t: Turn?): Boolean {
+        val mage = mageOf(e.v)
+        if (!mage.talent || mage.mana < SPELL_COST || t == null) return false
+        val a = e.a ?: return false
+        val b = e.b ?: return false
+        val bt = e.battle ?: return false
+        var spell = ""
+        if (a.hp > 0 && a.hpFrac < 0.4f && rnd.nextFloat() < 0.8f) {
+            spell = "heal"
+        } else if (t.side == 1 && a.hpFrac < 0.65f && bt.shield == 0 && rnd.nextFloat() < 0.5f) {
+            spell = "shield"
+        } else if (t.side == 0 && b.hpFrac > 0.5f && rnd.nextFloat() < 0.3f) {
+            val known = ArrayList<String>()
+            known.add("fire")
+            if (mage.lv >= 3) known.add("lightning")
+            if (mage.lv >= 5) known.add("kinetic")
+            spell = known[rnd.nextInt(known.size)]
+        }
+        if (spell.isEmpty()) return false
+        mage.mana -= SPELL_COST
+        e.spell = spell
+        e.spellT = 0f
+        e.spellDone = false
+        e.state = "cast"
+        e.banner = when (spell) {
+            "heal" -> "${e.v.name} traces a healing glyph"
+            "shield" -> "${e.v.name} traces a shield glyph"
+            "fire" -> "${e.v.name} traces a fire glyph"
+            "lightning" -> "${e.v.name} traces a lightning glyph"
+            else -> "${e.v.name} traces a force glyph"
+        }
+        e.bannerT = 1.6f
+        return true
+    }
+
+    private fun applySpell(e: Enc) {
+        e.spellDone = true
+        val a = e.a ?: return
+        val b = e.b ?: return
+        val mage = mageOf(e.v)
+        when (e.spell) {
+            "heal" -> {
+                val n = max(4, (a.maxHp * (0.28f + mage.lv * 0.01f)).toInt())
+                val before = a.hp
+                a.hp = min(a.maxHp, a.hp + n)
+                e.pops.add(Pop(e.ax, e.ay - 1.1f, "+${a.hp - before}", 0xFF6BE08A, sim.time))
+            }
+            "shield" -> {
+                e.battle?.shield = 2
+                e.pops.add(Pop(e.ax, e.ay - 1.1f, "Shielded", 0xFF9FD8FF, sim.time))
+            }
+            else -> {
+                val dmg = 4 + mage.lv * 2 + a.level / 2
+                val real = min(dmg, b.hp - 1)
+                if (real > 0) {
+                    b.hp -= real
+                    e.hurtSide = 1
+                    e.hurtT = 0.4f
+                    val col = if (e.spell == "fire") 0xFFFF9A4A else if (e.spell == "lightning") 0xFFFFE066 else 0xFFC9B8FF
+                    e.pops.add(Pop(e.bx, e.by - 1.1f, "$real", col, sim.time))
+                }
+            }
+        }
+        mageGain(e.v, 2)
     }
 
     private fun startSnare(e: Enc) {
@@ -1045,9 +1271,12 @@ class CritterWorld(private val sim: CivSim) {
         e.snareTry++
         e.snareT = 0f
         val foe = e.foe!!
-        val bonus = if (e.v.job == "Hunter" || e.v.job == "Scout") 0.08f else 0f
+        val mage = mageOf(e.v)
+        mage.mana = max(0f, mage.mana - BIND_COST)
+        // a summoner well above the critter's level binds it more easily
+        val bonus = min(0.25f, max(0, mage.lv - foe.level) * 0.03f) + (if (e.v.job == "Hunter" || e.v.job == "Scout") 0.06f else 0f)
         e.snareWon = rnd.nextFloat() < Dex.catchChance(foe.species, foe.level, foe.hpFrac, bonus)
-        e.banner = "${e.v.name} throws a snare!"
+        e.banner = "${e.v.name} draws a binding pentacle!"
         e.bannerT = 1.6f
     }
 
@@ -1055,45 +1284,37 @@ class CritterWorld(private val sim: CivSim) {
         e.snareT += dt
         if (e.snareT < SNARE_LEN) return
         if (e.snareWon) {
-            keep(e, e.foe!!, "snare")
+            keep(e, e.foe!!, "binding")
         } else {
-            e.banner = "${e.foe!!.name} broke free!"
+            e.banner = "${e.foe!!.name} breaks the binding!"
             e.bannerT = 1.5f
             e.state = "turn"
             nextTurn(e)
         }
     }
 
-    private fun startOffer(e: Enc) {
-        e.offerTry++
-        e.offerT = 0f
+    private fun ritualTick(e: Enc) {
+        val c = e.clock
         val foe = e.foe!!
-        val bonus = if (e.v.job == "Forager" || e.v.job == "Hunter") 0.08f else 0f
-        e.offerWon = rnd.nextFloat() < Dex.befriendChance(foe.species, foe.level) + bonus
-        e.banner = if (e.offerTry == 1) "${foe.name} sniffs the berries..." else "${e.v.name} tries again..."
-        e.bannerT = 1.6f
-    }
-
-    private fun offerTick(e: Enc, dt: Float) {
-        e.offerT += dt
-        if (e.offerT < OFFER_LEN) return
-        if (e.offerWon) {
-            keep(e, e.foe!!, "berries")
-        } else if (e.offerTry < 3) {
-            startOffer(e)
-        } else {
-            e.state = "result"
-            e.clock = 0f
-            e.result = "refused"
-            e.resultLen = 2.4f
-            e.banner = "${e.foe!!.name} eats the berries and wanders off."
-            e.bannerT = 2.4f
-            e.wild?.let {
-                it.claimed = -1
-                it.leaving = true
+        if (e.ritualStep == 0 && c >= 3.2f) {
+            e.ritualStep = 1
+            e.banner = if (e.ritualWon) "${foe.species.name} answers the call!" else "Something powerful pulls against the circle..."
+            e.bannerT = 2.2f
+        }
+        if (c >= 5.4f) {
+            if (e.ritualWon) {
+                keep(e, foe, "ritual")
+            } else {
+                e.state = "result"
+                e.clock = 0f
+                e.result = "failed"
+                e.resultLen = 2.6f
+                e.banner = "The summoning slips away. The scroll crumbles to ash."
+                e.bannerT = 2.6f
+                e.v.say = "Next time, then."
+                e.v.sayLeft = 3f
+                sim.note("${e.v.name}'s summoning fails; the scroll is lost.")
             }
-            e.v.say = "Maybe next time."
-            e.v.sayLeft = 3f
         }
     }
 
@@ -1120,6 +1341,8 @@ class CritterWorld(private val sim: CivSim) {
         } else if (old != null && foe.level >= old.level + 3) {
             old.companion = false
             foe.companion = true
+            val ob = bodyFor(old)
+            swaps.add(Swap("in", old.sp, ob.x, ob.y, v.id, sim.time + 1.2))
         }
         critters.add(foe)
         val b = bodyFor(foe)
@@ -1129,11 +1352,13 @@ class CritterWorld(private val sim: CivSim) {
         b.ty = b.y
         val newSpecies = caught.add(foe.sp)
         seen.add(foe.sp)
-        val role = if (foe.companion) "as a companion" else "to its pack"
+        val role = if (foe.companion) "as a companion" else "infused into the pack"
         sim.note(
-            if (how == "berries") "${v.name} wins over a wild ${foe.species.name} with berries and takes it $role."
-            else "${v.name} catches a wild ${foe.species.name} (Lv ${foe.level}) $role."
+            if (how == "ritual") "${v.name} summons a ${foe.species.name} (Lv ${foe.level}) from the ether, bonded $role."
+            else "${v.name} binds a wild ${foe.species.name} (Lv ${foe.level}), $role."
         )
+        if (!foe.companion) swaps.add(Swap("in", foe.sp, e.bx, e.by, v.id, sim.time + (if (how == "ritual") 2.0 else 1.2)))
+        mageGain(v, if (how == "ritual") 8 + foe.level / 2 else 10 + foe.level)
         if (newSpecies) sim.mark("${v.name} added ${foe.species.name} to the village (${caught.size}/${Dex.COUNT} critters).")
         v.happiness = min(100f, v.happiness + 12f)
         v.remember("caught a ${foe.species.name}")
@@ -1147,7 +1372,7 @@ class CritterWorld(private val sim: CivSim) {
         e.clock = 0f
         e.result = "caught"
         e.resultLen = 3.4f
-        e.banner = "${foe.species.name} joins the village!"
+        e.banner = if (how == "ritual") "${foe.species.name} is bonded to ${v.name}!" else "${foe.species.name} is bound to ${v.name}!"
         e.bannerT = 3.2f
     }
 
@@ -1174,6 +1399,7 @@ class CritterWorld(private val sim: CivSim) {
                         e.subT = 2.6f
                     }
                     v.happiness = min(100f, v.happiness + 8f)
+                    mageGain(v, 6 + foe.level / 2)
                     v.remember("won a battle with ${mine.name}")
                     v.say = "Well fought, ${mine.name}!"
                     v.sayLeft = 4f
@@ -1303,6 +1529,12 @@ class CritterWorld(private val sim: CivSim) {
         val o = JSONObject()
         o.put("next", nextUid)
         o.put("yx", yardX.toDouble()).put("yy", yardY.toDouble())
+        o.put("cx", circleX.toDouble()).put("cy", circleY.toDouble())
+        val ms = JSONArray()
+        for ((id, m) in mages) {
+            ms.put(JSONObject().put("id", id).put("t", m.talent).put("lv", m.lv).put("xp", m.xp).put("mana", m.mana.toDouble()))
+        }
+        o.put("mages", ms)
         val arr = JSONArray()
         for (c in critters) {
             arr.put(
@@ -1323,6 +1555,18 @@ class CritterWorld(private val sim: CivSim) {
             nextUid = o.optInt("next", 1)
             yardX = o.optDouble("yx", -1.0).toFloat()
             yardY = o.optDouble("yy", -1.0).toFloat()
+            circleX = o.optDouble("cx", -1.0).toFloat()
+            circleY = o.optDouble("cy", -1.0).toFloat()
+            val ms = o.optJSONArray("mages")
+            if (ms != null) {
+                for (i in 0 until ms.length()) {
+                    val j = ms.getJSONObject(i)
+                    val m = Mage(j.optBoolean("t", false), j.optInt("lv", 1).coerceIn(1, 30))
+                    m.xp = j.optInt("xp", 0)
+                    m.mana = j.optDouble("mana", 30.0).toFloat().coerceIn(0f, m.maxMana)
+                    mages[j.getInt("id")] = m
+                }
+            }
             val arr = o.optJSONArray("critters")
             if (arr != null) {
                 for (i in 0 until arr.length()) {
@@ -1348,6 +1592,8 @@ class CritterWorld(private val sim: CivSim) {
             for (c in critters) {
                 caught.add(c.sp)
                 seen.add(c.sp)
+                // anyone who already keeps critters from before has the gift
+                if (c.owner >= 0) mages.getOrPut(c.owner) { Mage(true, 1) }.talent = true
             }
         } catch (e: Exception) {
             // A damaged critter save should never stop the village from loading.
@@ -1356,9 +1602,11 @@ class CritterWorld(private val sim: CivSim) {
 
     companion object {
         const val MAX_TEAM = 6
+        const val SUMMON_COST = 20f
+        const val BIND_COST = 15f
+        const val SPELL_COST = 12f
         const val TURN = 2.2f
         const val IMPACT = 1.0f
         const val SNARE_LEN = 4.2f
-        const val OFFER_LEN = 3.4f
     }
 }
