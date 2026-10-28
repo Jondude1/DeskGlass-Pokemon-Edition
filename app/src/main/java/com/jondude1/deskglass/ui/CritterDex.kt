@@ -42,14 +42,21 @@ fun CritterDexScreen(sim: CivSim, onBack: () -> Unit) {
             Text("Seen ${cw.seen.size} · summoned ${cw.caught.size} of ${Dex.COUNT}", color = Glass.InkDim, fontSize = 14.sp)
 
             Text("SUMMONERS", color = Glass.InkFaint, fontSize = 13.sp, letterSpacing = 3.sp, modifier = Modifier.padding(top = 8.dp))
-            val gifted = sim.villagers.filter { cw.mageOf(it).talent }
+            val gifted = sim.villagers.filter { cw.gifted(it) }
+            val waiting = sim.villagers.count { !cw.mageOf(it).revealed }
             if (gifted.isEmpty()) {
                 Text("No one in the village has the gift yet.", color = Glass.InkFaint, fontSize = 13.sp)
             }
+            Text(
+                "Scrolls: ${cw.scrolls[0]} common · ${cw.scrolls[1]} fine · ${cw.scrolls[2]} rare" +
+                    (if (waiting > 0) " · $waiting child(ren) await the gift test" else ""),
+                color = Glass.InkDim, fontSize = 12.sp,
+            )
             for (v in gifted.sortedByDescending { cw.mageOf(it).lv }) {
                 val m = cw.mageOf(v)
                 Column {
-                    Text("${v.name}  ·  Summoner Lv ${m.lv}", color = Glass.Ink, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                    val teacher = sim.villagers.firstOrNull { it.id == m.mentor }
+                    Text("${v.name}  ·  Summoner Lv ${m.lv}" + (if (teacher != null) "  ·  taught by ${teacher.name}" else ""), color = Glass.Ink, fontSize = 15.sp, fontWeight = FontWeight.Medium)
                     Text(
                         "Mana ${m.mana.toInt()}/${m.maxMana.toInt()} · bonded levels ${cw.budgetUsed(v)}/${m.capacity} · XP ${m.xp}/${m.xpNeed()}",
                         color = Glass.InkDim, fontSize = 12.sp,

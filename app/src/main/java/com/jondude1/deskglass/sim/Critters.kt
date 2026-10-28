@@ -363,9 +363,12 @@ class Critter(val uid: Int, var sp: Int, var level: Int) {
     }
 
     /** True when it is old enough to change shape. */
+    /** Levels shaved off evolution by a deep bond. */
+    fun bondSpeed(): Int = if (bond >= 40) 2 else if (bond >= 20) 1 else 0
+
     fun readyToEvolve(): Boolean {
         val s = species
-        return s.evolveTo > 0 && level >= s.evolveLv
+        return s.evolveTo > 0 && level >= s.evolveLv - bondSpeed()
     }
 
     /** Becomes its next form. HP keeps its share of the new maximum. */

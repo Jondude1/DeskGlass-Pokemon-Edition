@@ -30,6 +30,10 @@ class Wild(val c: Critter, x: Float, y: Float) : Mover(x, y) {
 
 /** A villager's summoning gift. Inherited; levels up with use; mana fuels rituals, bindings and glyph spells. */
 class Mage(var talent: Boolean, var lv: Int = 1) {
+    /** A child's gift stays hidden until the gift test at the circle on coming of age. */
+    var revealed = true
+    /** The villager id of the older summoner who teaches this one, or -1. */
+    var mentor = -1
     var xp = 0
     var mana = 30f
     val maxMana: Float get() = 30f + lv * 6f
@@ -94,6 +98,7 @@ class Enc(val kind: String, val v: Villager) {
     var spellDone = false
     var ritualWon = false
     var ritualStep = 0
+    var tier = 0
 
     var snareTry = 0
     var snareT = 0f
@@ -121,6 +126,15 @@ class CritterWorld(private val sim: CivSim) {
     val bodies = HashMap<Int, Body>()
     val mages = HashMap<Int, Mage>()
     val swaps = ArrayList<Swap>()
+
+    /** Scrolls in the village's keeping: common, fine, rare. */
+    val scrolls = intArrayOf(1, 0, 0)
+    private class Errand(val kind: String, val other: Int, val endAt: Double)
+    private val errands = HashMap<Int, Errand>()
+    private val lessonReady = HashMap<Int, Double>()
+    private val scribeReady = HashMap<Int, Double>()
+    private var bondAcc = 0f
+    private var evoClock = 0f
     var yardX = -1f
     var yardY = -1f
     var circleX = -1f
@@ -148,6 +162,11 @@ class CritterWorld(private val sim: CivSim) {
     /** The summoning gift of a villager, rolled the first time they are looked at. */
     fun mageOf(v: Villager): Mage = mages.getOrPut(v.id) { rollMage(v) }
 
+    /** Gifted and past the gift test: the only ones who can summon, bind or cast. */
+    fun gifted(v: Villager): Boolean = mageOf(v).let { it.talent && it.revealed }
+
+    fun scrollTotal(): Int = scrolls[0] + scrolls[1] + scrolls[2]
+
     private fun rollMage(v: Villager): Mage {
         val talent: Boolean
         if (critters.any { it.owner == v.id }) {
@@ -166,7 +185,10 @@ class CritterWorld(private val sim: CivSim) {
             }
         }
         val lv = if (talent && v.parents.isBlank()) 1 + rnd.nextInt(3) else 1
-        return Mage(talent, lv)
+        val m = Mage(talent, lv)
+        // children carry the gift unseen until the test
+        if (sim.isChild(v)) m.revealed = false
+        return m
     }
 
     fun budgetUsed(v: Villager): Int = critters.filter { it.owner == v.id }.sumOf { it.level }
@@ -186,6 +208,39 @@ class CritterWorld(private val sim: CivSim) {
         }
     }
 
+    private fun bestTeacher(v: Villager): Villager? =
+        sim.villagers.filter { it !== v && !sim.isChild(it) && gifted(it) && mageOf(it).mentor != v.id }
+            .maxByOrNull { mageOf(it).lv + (if (v.parents.contains(it.name)) 100 else 0) }
+
+    private fun assignMentor(v: Villager) {
+        val m = mageOf(v)
+        val t = bestTeacher(v)
+        if (t != null && mageOf(t).lv > m.lv) m.mentor = t.id
+    }
+
+    /** At coming of age a child stands in the circle: it flares for the gifted and stays dark for the rest. */
+    private fun giftTest(v: Villager, m: Mage) {
+        m.revealed = true
+        ensureCircle()
+        if (m.talent) {
+            m.lv = max(m.lv, 1)
+            m.mana = m.maxMana
+            assignMentor(v)
+            val t = sim.villagers.firstOrNull { it.id == m.mentor }
+            sim.note("The circle flares for ${v.name}: the gift is real." + (if (t != null) " ${t.name} will teach them." else ""))
+            sim.mark("${v.name} passed the gift test and became a summoner.")
+            pop(v.x, v.y - 0.9f, "Gifted!", 0xFFB48CFF)
+            v.happiness = min(100f, v.happiness + 12f)
+            v.say = "I felt it pull at me!"
+            v.sayLeft = 4f
+        } else {
+            sim.note("The circle stays dark for ${v.name}. They will find other ways to help.")
+            v.happiness = max(0f, v.happiness - 4f)
+            v.say = "Not for me, then. I'll scribe scrolls."
+            v.sayLeft = 4f
+        }
+    }
+
     fun ownerName(c: Critter): String = sim.villagers.firstOrNull { it.id == c.owner }?.name ?: ""
 
     fun inEncounter(c: Critter): Boolean = encounters.any { it.mine === c || it.mine2 === c }
@@ -200,7 +255,9 @@ class CritterWorld(private val sim: CivSim) {
     fun factFor(v: Villager): String? {
         val c = companionOf(v) ?: return null
         val m = mageOf(v)
-        return "You are a level ${m.lv} summoner; your bonded critters total ${budgetUsed(v)} of ${m.capacity} levels. " +
+        val mentor = sim.villagers.firstOrNull { it.id == m.mentor }
+        return "You are a level ${m.lv} summoner" + (if (mentor != null) ", taught by ${mentor.name}" else "") +
+            "; your bonded critters total ${budgetUsed(v)} of ${m.capacity} levels. " +
             "Your companion is ${c.name}, a level ${c.level} ${c.species.typeText} critter" +
             (if (c.species.evolveTo > 0) " that will evolve at level ${c.species.evolveLv}" else "") + "."
     }
@@ -219,6 +276,10 @@ class CritterWorld(private val sim: CivSim) {
         summonReady.clear()
         mages.clear()
         swaps.clear()
+        errands.clear()
+        lessonReady.clear()
+        scribeReady.clear()
+        scrolls[0] = 1; scrolls[1] = 0; scrolls[2] = 0
         circleX = -1f
         circleY = -1f
         anchors.clear()
@@ -560,9 +621,25 @@ class CritterWorld(private val sim: CivSim) {
     private fun teamTick(dt: Float) {
         for (v in sim.villagers) mageOf(v)
         val adults = sim.villagers.filter { !sim.isChild(it) }
-        if (adults.size >= 2 && adults.none { mageOf(it).talent }) {
+        for (v in sim.villagers) {
+            val m = mageOf(v)
+            if (!m.revealed && !sim.isChild(v)) giftTest(v, m)
+        }
+        bondAcc += dt
+        if (bondAcc >= 60f) {
+            bondAcc = 0f
+            for (c in critters) if (c.companion && c.faintedUntil <= 0.0) c.bond++
+        }
+        evoClock += dt
+        if (evoClock >= 2f) {
+            evoClock = 0f
+            for (c in critters.toList()) if (c.readyToEvolve()) checkEvolve(c)
+        }
+        for (id in errands.keys.toList()) if (sim.villagers.none { it.id == id }) errands.remove(id)
+        if (adults.size >= 2 && adults.none { gifted(it) }) {
             val pick = adults[rnd.nextInt(adults.size)]
             mages[pick.id] = Mage(true, 1 + rnd.nextInt(2))
+            assignMentor(pick)
             sim.mark("${pick.name} discovers a gift for summoning.")
         }
         // mana comes back with time, faster while critters rest infused in the summoner
@@ -747,7 +824,11 @@ class CritterWorld(private val sim: CivSim) {
         }.shuffled(rnd)
         for (v in idle) {
             val mage = mageOf(v)
-            if (!mage.talent) continue
+            if (!(mage.talent && mage.revealed)) {
+                if (maybeScribe(v, mage)) return
+                continue
+            }
+            if (maybeLesson(v, mage)) return
             val comp = companionOf(v)
             if (summonWanted(v, mage, comp) && startSummon(v, mage)) return
             val wild = wilds.filter { it.claimed < 0 && it.fade >= 1f && !it.leaving && hypot(it.x - v.x, it.y - v.y) < 16f }
@@ -793,8 +874,134 @@ class CritterWorld(private val sim: CivSim) {
     }
 
     /** A summoner is ready for a ritual when they have a scroll's worth of hide, mana, room in their team and in their level budget. */
+    // ---- lessons and scribing: errands that are not full encounters ----
+
+    private fun tierCost(t: Int): Boolean = when (t) {
+        0 -> sim.hides >= 1
+        1 -> sim.hides >= 2 && sim.wood >= 2
+        else -> sim.hides >= 3 && sim.metal >= 1
+    }
+
+    private fun payTier(t: Int) {
+        when (t) {
+            0 -> sim.hides -= 1
+            1 -> { sim.hides -= 2; sim.wood -= 2 }
+            else -> { sim.hides -= 3; sim.metal -= 1 }
+        }
+    }
+
+    /** Anyone without the gift (or a summoner short of scrolls) can sit at the circle and copy a scroll. */
+    private fun maybeScribe(v: Villager, mage: Mage): Boolean {
+        if (scrollTotal() >= 3 || sim.time < (scribeReady[v.id] ?: 0.0)) return false
+        val want = if (mage.talent && mage.revealed) (if (scrollTotal() == 0) 0.8f else 0.1f) else 0.45f
+        if (rnd.nextFloat() > want) return false
+        var tier = 0
+        if (sim.age >= 2 && scrolls[2] < 1 && tierCost(2) && rnd.nextFloat() < 0.5f) tier = 2
+        else if (sim.age >= 1 && scrolls[1] < 2 && tierCost(1) && rnd.nextFloat() < 0.5f) tier = 1
+        if (!tierCost(tier)) return false
+        ensureCircle()
+        val goal = cellNear(circleX, circleY, v.x, v.y)
+        if (goal < 0) return false
+        if (!sim.walkTo(v, "critter_scribe", goal)) return false
+        scribeReady[v.id] = sim.time + 150.0
+        errands[v.id] = Errand("scribe$tier", -1, Double.MAX_VALUE)
+        v.say = "I'll copy out another scroll."
+        v.sayLeft = 3f
+        return true
+    }
+
+    /** A young summoner walks over to their mentor for a lesson. */
+    private fun maybeLesson(v: Villager, mage: Mage): Boolean {
+        if (sim.time < (lessonReady[v.id] ?: 0.0)) return false
+        var t = sim.villagers.firstOrNull { it.id == mage.mentor }
+        if (t == null || !gifted(t) || mageOf(t).lv <= mage.lv) {
+            assignMentor(v)
+            t = sim.villagers.firstOrNull { it.id == mage.mentor } ?: return false
+        }
+        if (mageOf(t).lv <= mage.lv || mage.lv >= 20 || busy(t)) return false
+        if (rnd.nextFloat() > 0.5f) return false
+        val goal = cellNear(t.x, t.y, v.x, v.y)
+        if (goal < 0) return false
+        if (!sim.walkTo(v, "critter_lesson", goal)) return false
+        lessonReady[v.id] = sim.time + 210.0
+        errands[v.id] = Errand("lesson", t.id, Double.MAX_VALUE)
+        v.say = "${t.name}, will you teach me?"
+        v.sayLeft = 3f
+        return true
+    }
+
+    private fun arriveErrand(v: Villager, er: Errand) {
+        v.phase = "working"
+        v.workLeft = 999f
+        val dur = if (er.kind == "lesson") 9.0 else 8.0
+        errands[v.id] = Errand(er.kind, er.other, sim.time + dur)
+        if (er.kind == "lesson") {
+            val t = sim.villagers.firstOrNull { it.id == er.other }
+            if (t != null && hypot(t.x - v.x, t.y - v.y) < 6f) {
+                v.say = "Show me the pattern again."
+                v.sayLeft = 4f
+                t.say = "Slowly. Feel it before you shape it."
+                t.sayLeft = 4f
+            }
+        } else {
+            pop(v.x, v.y - 0.9f, "inking a scroll", 0xFFE9D9A8)
+        }
+    }
+
+    private fun finishErrand(v: Villager, er: Errand) {
+        errands.remove(v.id)
+        if (er.kind == "lesson") {
+            val t = sim.villagers.firstOrNull { it.id == er.other }
+            if (t != null && hypot(t.x - v.x, t.y - v.y) < 6f && sim.villagers.contains(t)) {
+                mageGain(v, 12 + mageOf(t).lv / 2)
+                mageGain(t, 3)
+                mageOf(v).mana = min(mageOf(v).maxMana, mageOf(v).mana + 8f)
+                pop(v.x, v.y - 0.9f, "lesson learned", 0xFFB48CFF)
+                sim.note("${t.name} teaches ${v.name} a new pattern.")
+                for (c in critters) if (c.owner == v.id) c.bond++
+            }
+        } else if (er.kind.startsWith("scribe")) {
+            val tier = er.kind.last() - '0'
+            if (tierCost(tier)) {
+                payTier(tier)
+                scrolls[tier]++
+                val label = arrayOf("common", "fine", "rare")[tier]
+                pop(v.x, v.y - 0.9f, "$label scroll", 0xFFE9D9A8)
+                sim.note("${v.name} finishes a $label summoning scroll.")
+            }
+        }
+        sim.releaseVillager(v)
+    }
+
+    /** The best scroll this summoner is skilled enough to use, or -1. */
+    private fun scrollFor(mage: Mage): Int {
+        for (t in 2 downTo 0) if (scrolls[t] > 0 && mage.lv >= TIER_LV[t]) return t
+        return -1
+    }
+
+    private fun tierOk(tier: Int, sp: Species): Boolean {
+        val top = Dex.lineOf(sp.id).last()
+        return when (tier) {
+            0 -> top.rarity < 4 && top.stage >= 3     // the three-stage village lines
+            1 -> top.rarity < 4 && top.stage == 2     // the rarer dual-type lines
+            else -> top.rarity >= 4                   // the lone legends
+        }
+    }
+
+    private fun pickForTier(tier: Int, night: Boolean, winter: Boolean): Species {
+        if (tier == 0) {
+            for (n in 0 until 12) {
+                val sp = Dex.lineOf(Dex.pickWild(rnd, sim.age, night, winter).id).first()
+                if (tierOk(0, sp) && critters.count { it.sp == sp.id } < 2) return sp
+            }
+        }
+        val pool = Dex.lines().map { it.first() }.filter { tierOk(tier, it) && critters.count { c -> c.sp == it.id } < 2 }
+        if (pool.isNotEmpty()) return pool[rnd.nextInt(pool.size)]
+        return Dex.lineOf(Dex.pickWild(rnd, sim.age, night, winter).id).first()
+    }
+
     private fun summonWanted(v: Villager, mage: Mage, comp: Critter?): Boolean {
-        if (sim.hides < 1 || mage.mana < SUMMON_COST || critters.size >= maxKept()) return false
+        if (scrollFor(mage) < 0 || mage.mana < SUMMON_COST || critters.size >= maxKept()) return false
         if (critters.count { it.owner == v.id } >= MAX_TEAM) return false
         if (mage.capacity - budgetUsed(v) < 3) return false
         if (sim.time < (summonReady[v.id] ?: 0.0)) return false
@@ -809,16 +1016,15 @@ class CritterWorld(private val sim: CivSim) {
         val night = sim.darkness() > 0.3f
         val month = java.time.LocalDate.now().monthValue
         val winter = month == 12 || month <= 2
-        var sp = Dex.lineOf(Dex.pickWild(rnd, sim.age, night, winter).id).first()
-        for (n in 0 until 6) {
-            if (critters.count { it.sp == sp.id } < 2) break
-            sp = Dex.lineOf(Dex.pickWild(rnd, sim.age, night, winter).id).first()
-        }
+        val tier = scrollFor(mage)
+        if (tier < 0) return false
+        val sp = pickForTier(tier, night, winter)
         val room = mage.capacity - budgetUsed(v)
         val lv = min(Dex.wildLevel(rnd, sp, sim.age), max(2, min(room, mage.lv + 3)))
         val c = Critter(nextUid++, sp.id, lv)
         c.heal()
         val e = Enc("summon", v)
+        e.tier = tier
         e.foe = c
         encounters.add(e)
         if (!sim.walkTo(v, "critter_summon", goal)) {
@@ -913,6 +1119,12 @@ class CritterWorld(private val sim: CivSim) {
 
     /** A villager on an encounter walk has arrived. */
     fun onArrive(v: Villager) {
+        errands[v.id]?.let {
+            if (v.action == "critter_lesson" || v.action == "critter_scribe") {
+                arriveErrand(v, it)
+                return
+            }
+        }
         val e = encounters.firstOrNull { it.v === v && it.state == "walk" }
         if (e == null) {
             sim.releaseVillager(v)
@@ -925,6 +1137,10 @@ class CritterWorld(private val sim: CivSim) {
 
     /** Called while a villager is "working" on an encounter. Frees anyone left stranded. */
     fun onWork(v: Villager) {
+        errands[v.id]?.let {
+            if (sim.time >= it.endAt) finishErrand(v, it)
+            return
+        }
         if (!busy(v)) sim.releaseVillager(v)
     }
 
@@ -1097,14 +1313,16 @@ class CritterWorld(private val sim: CivSim) {
                     val mage = mageOf(v)
                     if (!e.spent) {
                         e.spent = true
-                        sim.hides = max(0, sim.hides - 1)
+                        scrolls[e.tier] = max(0, scrolls[e.tier] - 1)
                         mage.mana = max(0f, mage.mana - SUMMON_COST)
                     }
                     val foe = e.foe!!
                     // a critter far above the summoner's level can slip the bond
-                    val resist = (0.05f + max(0, foe.level - mage.lv) * 0.05f).coerceAtMost(0.45f)
+                    val mine = critters.filter { it.owner == v.id }
+                    val trust = if (mine.isEmpty()) 0f else min(0.1f, mine.map { it.bond }.average().toFloat() / 200f)
+                    val resist = (0.05f + max(0, foe.level - mage.lv) * 0.05f - e.tier * 0.03f - trust).coerceIn(0.02f, 0.45f)
                     e.ritualWon = rnd.nextFloat() >= resist
-                    e.banner = "${v.name} reads the summoning scroll aloud"
+                    e.banner = "${v.name} reads the ${arrayOf("common", "fine", "rare")[e.tier]} summoning scroll aloud"
                     e.bannerT = 2.6f
                 } else {
                     e.battle = Battle(e.a!!, e.b!!, rnd)
@@ -1202,7 +1420,7 @@ class CritterWorld(private val sim: CivSim) {
 
     private fun tryCast(e: Enc, t: Turn?): Boolean {
         val mage = mageOf(e.v)
-        if (!mage.talent || mage.mana < SPELL_COST || t == null) return false
+        if (!(mage.talent && mage.revealed) || mage.mana < SPELL_COST || t == null) return false
         val a = e.a ?: return false
         val b = e.b ?: return false
         val bt = e.battle ?: return false
@@ -1482,6 +1700,17 @@ class CritterWorld(private val sim: CivSim) {
 
     private fun checkEvolve(c: Critter) {
         if (!c.readyToEvolve() || evolving(c) != null) return
+        val owner = sim.villagers.firstOrNull { it.id == c.owner }
+        if (owner != null && mageOf(owner).talent) {
+            // evolution is a rite: the summoner must stand beside the critter and pour mana into it
+            if (!c.companion || c.faintedUntil > 0.0 || inEncounter(c)) return
+            val ob = bodyFor(c)
+            val m = mageOf(owner)
+            if (hypot(owner.x - ob.x, owner.y - ob.y) > 7f || busy(owner) || m.mana < EVOLVE_COST) return
+            m.mana -= EVOLVE_COST
+            sim.note("${owner.name} channels mana into ${c.name}.")
+            pop(owner.x, owner.y - 0.9f, "-${EVOLVE_COST.toInt()} mana", 0xFFB48CFF)
+        }
         val b = bodyFor(c)
         evolutions.add(EvolveScene(c.uid, c.sp, c.species.evolveTo, b.x, b.y, sim.time))
     }
@@ -1532,9 +1761,10 @@ class CritterWorld(private val sim: CivSim) {
         o.put("cx", circleX.toDouble()).put("cy", circleY.toDouble())
         val ms = JSONArray()
         for ((id, m) in mages) {
-            ms.put(JSONObject().put("id", id).put("t", m.talent).put("lv", m.lv).put("xp", m.xp).put("mana", m.mana.toDouble()))
+            ms.put(JSONObject().put("id", id).put("t", m.talent).put("rv", m.revealed).put("mt", m.mentor).put("lv", m.lv).put("xp", m.xp).put("mana", m.mana.toDouble()))
         }
         o.put("mages", ms)
+        o.put("scrolls", JSONArray(scrolls.toList()))
         val arr = JSONArray()
         for (c in critters) {
             arr.put(
@@ -1562,11 +1792,14 @@ class CritterWorld(private val sim: CivSim) {
                 for (i in 0 until ms.length()) {
                     val j = ms.getJSONObject(i)
                     val m = Mage(j.optBoolean("t", false), j.optInt("lv", 1).coerceIn(1, 30))
+                    m.revealed = j.optBoolean("rv", true)
+                    m.mentor = j.optInt("mt", -1)
                     m.xp = j.optInt("xp", 0)
                     m.mana = j.optDouble("mana", 30.0).toFloat().coerceIn(0f, m.maxMana)
                     mages[j.getInt("id")] = m
                 }
             }
+            o.optJSONArray("scrolls")?.let { a -> for (i in 0 until min(3, a.length())) scrolls[i] = a.getInt(i) }
             val arr = o.optJSONArray("critters")
             if (arr != null) {
                 for (i in 0 until arr.length()) {
@@ -1605,6 +1838,8 @@ class CritterWorld(private val sim: CivSim) {
         const val SUMMON_COST = 20f
         const val BIND_COST = 15f
         const val SPELL_COST = 12f
+        const val EVOLVE_COST = 15f
+        val TIER_LV = intArrayOf(1, 5, 12)
         const val TURN = 2.2f
         const val IMPACT = 1.0f
         const val SNARE_LEN = 4.2f
