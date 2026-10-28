@@ -629,7 +629,20 @@ class CritterWorld(private val sim: CivSim) {
     // ---- who goes looking for trouble ----
 
     /** Villagers only snare a species when the village has room and fewer than two of it already. */
-    private fun wantsMore(sp: Int): Boolean = critters.size < maxKept() && critters.count { it.sp == sp } < 2
+    private fun wantsMore(v: Villager, foe: Critter): Boolean {
+        if (critters.size >= maxKept() || critters.count { it.sp == foe.sp } >= 2) return false
+        val owned = critters.count { it.owner == v.id }
+        if (owned < MAX_TEAM) return true
+        // a full team only makes room for something clearly better than its weakest resting member
+        val weak = weakestSwappable(v) ?: return false
+        return worth(foe) >= worth(weak) + 3
+    }
+
+    /** How good a critter is to keep: level, how far it has evolved and how rare it is. */
+    private fun worth(c: Critter): Int = c.level + c.species.stage * 4 + c.species.rarity * 3
+
+    private fun weakestSwappable(v: Villager): Critter? =
+        critters.filter { it.owner == v.id && !it.companion && !inEncounter(it) && evolving(it) == null }.minByOrNull { worth(it) }
 
     private fun busy(v: Villager): Boolean = encounters.any { it.v === v || it.v2 === v }
 
@@ -1020,7 +1033,7 @@ class CritterWorld(private val sim: CivSim) {
             return
         }
         val b = e.b!!
-        if (e.kind == "wild" && t != null && t.side == 0 && b.hpFrac <= 0.45f && e.snareTry < 3 && wantsMore(e.foe!!.sp)) {
+        if (e.kind == "wild" && t != null && t.side == 0 && b.hpFrac <= 0.45f && e.snareTry < 3 && wantsMore(e.v, e.foe!!)) {
             startSnare(e)
             return
         }
@@ -1090,6 +1103,13 @@ class CritterWorld(private val sim: CivSim) {
         e.wild?.let {
             wilds.remove(it)
             it.claimed = -1
+        }
+        if (critters.count { it.owner == v.id } >= MAX_TEAM) {
+            weakestSwappable(v)?.let { weak ->
+                weak.owner = -1
+                weak.companion = false
+                sim.note("${v.name} swaps ${weak.name} for the new ${foe.species.name}; ${weak.name} stays on in the village.")
+            }
         }
         foe.owner = v.id
         foe.hp = max(foe.hp, (foe.maxHp * 0.35f).toInt())
@@ -1335,6 +1355,7 @@ class CritterWorld(private val sim: CivSim) {
     }
 
     companion object {
+        const val MAX_TEAM = 6
         const val TURN = 2.2f
         const val IMPACT = 1.0f
         const val SNARE_LEN = 4.2f
