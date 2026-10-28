@@ -13,8 +13,13 @@ import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 
-const val GW = 48
-const val GH = 27
+/** The world: four times the area of the first versions. The village starts at the centre. */
+const val GW = 96
+const val GH = 54
+
+/** The size of the original world, and of the stretch around the village where daily life still happens. */
+const val OLD_GW = 48
+const val OLD_GH = 27
 const val DAY_LEN = 420.0
 private const val SPEED = 2.3f
 private const val YEAR = DAY_LEN * 2
@@ -664,8 +669,8 @@ class CivSim(
             }
             "explore" -> {
                 for (k in 0 until 14) {
-                    val x = rnd.nextInt(GW - 2) + 1
-                    val y = rnd.nextInt(GH - 2) + 1
+                    val x = (GW / 2 + rnd.nextInt(OLD_GW + 20) - (OLD_GW + 20) / 2).coerceIn(1, GW - 2)
+                    val y = (GH / 2 + rnd.nextInt(OLD_GH + 10) - (OLD_GH + 10) / 2).coerceIn(1, GH - 2)
                     val i = y * GW + x
                     if (blocked(i) || hypot(x + 0.5f - v.x, y + 0.5f - v.y) < 12f) continue
                     if (go(v, "explore", i)) return true
@@ -1176,7 +1181,7 @@ class CivSim(
         childrenOf(v).firstOrNull()?.let { out.add("${it.name} is ${ageYears(it)} already. They grow fast.") }
         critters.companionOf(v)?.let { c ->
             out.add("${c.name} is level ${c.level} now.")
-            if (c.species.evolveTo > 0) out.add("${c.name} will change shape at level ${c.species.evolveLv}.")
+            if (c.species.evolveTo > 0) out.add("${c.name} will change shape once the bond with them reaches ${c.trustNeeded()} (now ${c.bond}).")
         }
         v.memories.lastOrNull()?.let { out.add("I keep remembering that ${it.take(50)}.") }
         nearby(v).firstOrNull()?.let { out.add("${it.name} is busy ${doing(it)}.") }
@@ -1731,8 +1736,8 @@ class CivSim(
         val fire = buildings.firstOrNull { it.type == "campfire" }
         repeat(n) {
             for (attempt in 0 until 12) {
-                val edgeX = if (rnd.nextBoolean()) 1.5f else GW - 2.5f
-                val y = 2f + rnd.nextFloat() * (GH - 4f)
+                val edgeX = if (rnd.nextBoolean()) GW / 2f - OLD_GW / 2f + 1.5f else GW / 2f + OLD_GW / 2f - 2.5f
+                val y = GH / 2f - OLD_GH / 2f + 2f + rnd.nextFloat() * (OLD_GH - 4f)
                 if (tiles[y.toInt() * GW + edgeX.toInt()] == T.WATER) continue
                 if (fire != null && hypot(edgeX - fire.x, y - fire.y) < 9f) continue
                 predators.add(Predator(kind, edgeX, y).also { it.angle = rnd.nextFloat() * 6.28f })
@@ -1815,10 +1820,10 @@ class CivSim(
             val speed = (when (p.kind) { "bear" -> 1.5f; "boar" -> 2.4f; else -> 2.1f }) * dt
             if (p.life > 150f && prey == null) {
                 // the hunt is over: slip away toward the nearest map edge
-                val tx = if (p.x < GW / 2f) 0f else GW.toFloat()
+                val tx = if (p.x < GW / 2f) GW / 2f - OLD_GW / 2f - 1f else GW / 2f + OLD_GW / 2f + 1f
                 val d = max(0.1f, abs(tx - p.x))
                 stepPredator(p, (tx - p.x) / d * speed, 0f)
-                if (p.x < 0.8f || p.x > GW - 1.2f) {
+                if (abs(p.x - tx) < 1.2f) {
                     predators.remove(p)
                     if (predators.isEmpty()) event("The ${p.kind}s slink back into the woods. The village breathes again.")
                 }
@@ -2187,6 +2192,12 @@ class CivSim(
             if (!saveFile.exists()) return false
             val o = JSONObject(saveFile.readText())
             seed = o.getLong("seed")
+            // a village from the smaller world is carried into the middle of the big one
+            val oldTiles = o.getString("tiles")
+            val migrate = oldTiles.length == OLD_GW * OLD_GH
+            val mx = (GW - OLD_GW) / 2
+            val my = GH / 2 - OLD_GH / 2
+            if (migrate) generate()
             time = o.getDouble("time")
             wood = o.getInt("wood")
             stone = o.getInt("stone")
@@ -2198,17 +2209,28 @@ class CivSim(
             nextId = o.optInt("nextId", 1)
             val t = o.getString("tiles")
             val a = o.getString("amt")
-            if (t.length != tiles.size || a.length != amt.size) return false
-            for (i in tiles.indices) {
-                tiles[i] = t[i] - '0'
-                amt[i] = a[i] - '0'
+            if (migrate) {
+                if (a.length != OLD_GW * OLD_GH) return false
+                for (y in 0 until OLD_GH) for (x in 0 until OLD_GW) {
+                    val ni = (y + my) * GW + x + mx
+                    tiles[ni] = t[y * OLD_GW + x] - '0'
+                    amt[ni] = a[y * OLD_GW + x] - '0'
+                }
+            } else {
+                if (t.length != tiles.size || a.length != amt.size) return false
+                for (i in tiles.indices) {
+                    tiles[i] = t[i] - '0'
+                    amt[i] = a[i] - '0'
+                }
             }
+            val shx = if (migrate) mx else 0
+            val shy = if (migrate) my else 0
             occupied.fill(false)
             buildings.clear()
             val bs = o.getJSONArray("buildings")
             for (i in 0 until bs.length()) {
                 val b = bs.getJSONObject(i)
-                addBuilding(b.getString("t"), b.getInt("x"), b.getInt("y"), b.optInt("e", 1))
+                addBuilding(b.getString("t"), b.getInt("x") + shx, b.getInt("y") + shy, b.optInt("e", 1))
             }
             age = o.optInt("age", if (buildings.any { it.type == "farm" }) 1 else 0)
             if (age >= 2 && tiles.none { it == T.ORE }) ensure(T.ORE, 5, 8)
@@ -2222,8 +2244,8 @@ class CivSim(
                 val j = vs.getJSONObject(i)
                 val v = Villager(j.getInt("id"), j.getString("name"), j.optString("job", JOBS[i % JOBS.size]), j.optInt("p", i))
                 v.happiness = j.optDouble("happy", 60.0).toFloat()
-                v.x = j.getDouble("x").toFloat()
-                v.y = j.getDouble("y").toFloat()
+                v.x = j.getDouble("x").toFloat() + shx
+                v.y = j.getDouble("y").toFloat() + shy
                 v.hunger = j.getDouble("hunger").toFloat()
                 v.energy = j.getDouble("energy").toFloat()
                 v.hp = j.getDouble("hp").toFloat()
@@ -2235,7 +2257,7 @@ class CivSim(
             val lg = o.optJSONArray("log")
             if (lg != null) for (i in 0 until lg.length()) log.add(lg.getString(i))
             hides = o.optInt("hides", 0)
-            critters.fromJson(o.optJSONObject("critters"))
+            critters.fromJson(o.optJSONObject("critters"), shx, shy)
             drops.clear()
             rels.clear()
             rnd = Random(seed xor time.toLong())

@@ -82,7 +82,8 @@ fun CritterDexScreen(sim: CivSim, onBack: () -> Unit) {
                             color = Glass.InkDim, fontSize = 13.sp,
                         )
                         Text(
-                            "HP ${c.hp}/${c.maxHp} · XP ${c.xp}/${Dex.xpNeed(c.level)} · ${c.wins} wins · " + c.species.t1.job,
+                            "HP ${c.hp}/${c.maxHp} · XP ${c.xp}/${Dex.xpNeed(c.level)} · ${c.wins} wins" +
+                                (if (c.species.evolveTo > 0 && c.owner >= 0) " · trust ${c.bond}/${c.trustNeeded()}" else " · trust ${c.bond}") + " · " + c.species.t1.job,
                             color = Glass.InkFaint, fontSize = 12.sp,
                         )
                     }
@@ -106,7 +107,7 @@ fun CritterDexScreen(sim: CivSim, onBack: () -> Unit) {
                                 color = if (known) Color(s.t1.color) else Glass.InkFaint, fontSize = 11.sp,
                             )
                             if (known && s.evolveTo > 0) {
-                                Text("evolves at Lv ${s.evolveLv}", color = Glass.InkFaint, fontSize = 10.sp)
+                                Text("evolves with trust ${if (s.stage >= 2) 40 else 18}", color = Glass.InkFaint, fontSize = 10.sp)
                             }
                         }
                     }

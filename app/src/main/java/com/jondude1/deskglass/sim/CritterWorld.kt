@@ -30,7 +30,7 @@ class Wild(val c: Critter, x: Float, y: Float) : Mover(x, y) {
 
 /** A villager's summoning gift. Inherited; levels up with use; mana fuels rituals, bindings and glyph spells. */
 class Mage(var talent: Boolean, var lv: Int = 1) {
-    /** A child's gift stays hidden until the gift test at the circle on coming of age. */
+    /** A child's gift stays hidden until the gift test at the rift gate on coming of age. */
     var revealed = true
     /** The villager id of the older summoner who teaches this one, or -1. */
     var mentor = -1
@@ -134,6 +134,7 @@ class CritterWorld(private val sim: CivSim) {
     private val lessonReady = HashMap<Int, Double>()
     private val scribeReady = HashMap<Int, Double>()
     private var bondAcc = 0f
+    private var restAcc = 0f
     private var evoClock = 0f
     var yardX = -1f
     var yardY = -1f
@@ -218,7 +219,7 @@ class CritterWorld(private val sim: CivSim) {
         if (t != null && mageOf(t).lv > m.lv) m.mentor = t.id
     }
 
-    /** At coming of age a child stands in the circle: it flares for the gifted and stays dark for the rest. */
+    /** At coming of age a child stands before the rift gate: it flares for the gifted and stays dark for the rest. */
     private fun giftTest(v: Villager, m: Mage) {
         m.revealed = true
         ensureCircle()
@@ -227,14 +228,14 @@ class CritterWorld(private val sim: CivSim) {
             m.mana = m.maxMana
             assignMentor(v)
             val t = sim.villagers.firstOrNull { it.id == m.mentor }
-            sim.note("The circle flares for ${v.name}: the gift is real." + (if (t != null) " ${t.name} will teach them." else ""))
+            sim.note("The rift gate flares for ${v.name}: the gift is real." + (if (t != null) " ${t.name} will teach them." else ""))
             sim.mark("${v.name} passed the gift test and became a summoner.")
             pop(v.x, v.y - 0.9f, "Gifted!", 0xFFB48CFF)
             v.happiness = min(100f, v.happiness + 12f)
             v.say = "I felt it pull at me!"
             v.sayLeft = 4f
         } else {
-            sim.note("The circle stays dark for ${v.name}. They will find other ways to help.")
+            sim.note("The rift gate stays dark for ${v.name}. They will find other ways to help.")
             v.happiness = max(0f, v.happiness - 4f)
             v.say = "Not for me, then. I'll scribe scrolls."
             v.sayLeft = 4f
@@ -259,7 +260,7 @@ class CritterWorld(private val sim: CivSim) {
         return "You are a level ${m.lv} summoner" + (if (mentor != null) ", taught by ${mentor.name}" else "") +
             "; your bonded critters total ${budgetUsed(v)} of ${m.capacity} levels. " +
             "Your companion is ${c.name}, a level ${c.level} ${c.species.typeText} critter" +
-            (if (c.species.evolveTo > 0) " that will evolve at level ${c.species.evolveLv}" else "") + "."
+            (if (c.species.evolveTo > 0) " whose bond with you is ${c.bond} of the ${c.trustNeeded()} it needs to change shape" else "") + "."
     }
 
     fun reset() {
@@ -324,8 +325,9 @@ class CritterWorld(private val sim: CivSim) {
         val c = centre()
         for (pass in 0..2) {
             for (n in 0 until 70) {
-                val x = 1 + rnd.nextInt(GW - 2)
-                val y = 1 + rnd.nextInt(GH - 2)
+                // rifts open in the stretch of land around the village, not across the whole wide world
+                val x = (c[0].toInt() + rnd.nextInt(OLD_GW) - OLD_GW / 2).coerceIn(1, GW - 2)
+                val y = (c[1].toInt() + rnd.nextInt(OLD_GH) - OLD_GH / 2).coerceIn(1, GH - 2)
                 if (!walkable(x, y)) continue
                 if (hypot(x + 0.5f - c[0], y + 0.5f - c[1]) < 7f) continue
                 if (pass < 2 && !habitatOk(sp.habitat, x, y, winter, pass == 1)) continue
@@ -629,6 +631,11 @@ class CritterWorld(private val sim: CivSim) {
         if (bondAcc >= 60f) {
             bondAcc = 0f
             for (c in critters) if (c.companion && c.faintedUntil <= 0.0) c.bond++
+        }
+        restAcc += dt
+        if (restAcc >= 150f) {
+            restAcc = 0f
+            for (c in critters) if (c.owner >= 0 && !c.companion) c.bond++
         }
         evoClock += dt
         if (evoClock >= 2f) {
@@ -1494,7 +1501,7 @@ class CritterWorld(private val sim: CivSim) {
         // a summoner well above the critter's level binds it more easily
         val bonus = min(0.25f, max(0, mage.lv - foe.level) * 0.03f) + (if (e.v.job == "Hunter" || e.v.job == "Scout") 0.06f else 0f)
         e.snareWon = rnd.nextFloat() < Dex.catchChance(foe.species, foe.level, foe.hpFrac, bonus)
-        e.banner = "${e.v.name} draws a binding pentacle!"
+        e.banner = "${e.v.name} calls up binding runes!"
         e.bannerT = 1.6f
     }
 
@@ -1516,7 +1523,7 @@ class CritterWorld(private val sim: CivSim) {
         val foe = e.foe!!
         if (e.ritualStep == 0 && c >= 3.2f) {
             e.ritualStep = 1
-            e.banner = if (e.ritualWon) "${foe.species.name} answers the call!" else "Something powerful pulls against the circle..."
+            e.banner = if (e.ritualWon) "${foe.species.name} answers the call!" else "Something powerful strains against the gate..."
             e.bannerT = 2.2f
         }
         if (c >= 5.4f) {
@@ -1736,7 +1743,7 @@ class CritterWorld(private val sim: CivSim) {
                 caught.add(to.id)
                 seen.add(to.id)
                 val who = if (c.owner >= 0) "${ownerName(c)}'s ${from.name}" else from.name
-                sim.note("$who evolved into ${to.name}!")
+                sim.note("$who evolved into ${to.name}, their bond deep enough at last!")
                 sim.mark("$who evolved into ${to.name}.")
                 sim.villagers.firstOrNull { it.id == c.owner }?.let {
                     it.happiness = min(100f, it.happiness + 15f)
@@ -1778,7 +1785,7 @@ class CritterWorld(private val sim: CivSim) {
         return o
     }
 
-    fun fromJson(o: JSONObject?) {
+    fun fromJson(o: JSONObject?, shx: Int = 0, shy: Int = 0) {
         reset()
         if (o == null) return
         try {
@@ -1787,6 +1794,8 @@ class CritterWorld(private val sim: CivSim) {
             yardY = o.optDouble("yy", -1.0).toFloat()
             circleX = o.optDouble("cx", -1.0).toFloat()
             circleY = o.optDouble("cy", -1.0).toFloat()
+            if (yardX >= 0f) { yardX += shx; yardY += shy }
+            if (circleX >= 0f) { circleX += shx; circleY += shy }
             val ms = o.optJSONArray("mages")
             if (ms != null) {
                 for (i in 0 until ms.length()) {

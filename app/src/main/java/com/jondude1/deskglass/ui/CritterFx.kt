@@ -648,34 +648,80 @@ private val VIOLET = Color(0xFFB48CFF)
 private fun DrawScope.handOf(v: Villager, g: Geo): Offset =
     Offset(g.ox + (v.x + v.facing * 0.38f) * g.ts, g.oy + (v.y + 0.45f) * g.ts - g.ts * 0.62f)
 
-/** A pentacle laid flat on the ground, drawn stroke by stroke as [prog] goes from 0 to 1. */
-private fun DrawScope.pentacle(cx: Float, cy: Float, r: Float, prog: Float, col: Color, alpha: Float, rot: Float, w: Float) {
+/** A ring of floating runes around a point on the ground. [prog] 0..1 lights the runes one after another. */
+private fun DrawScope.runeRing(cx: Float, cy: Float, r: Float, prog: Float, col: Color, alpha: Float, spin: Float, ps: Float) {
     if (alpha <= 0.01f || prog <= 0f) return
-    val n = 40
+    val n = 10
     val twoPi = 2f * PI.toFloat()
-    fun pt(a: Float) = Offset(cx + cos(a) * r, cy + sin(a) * r * 0.5f)
-    val ringP = (prog / 0.45f).coerceIn(0f, 1f)
-    val segs = (n * ringP).toInt()
-    for (i in 0 until segs) {
-        drawLine(col.copy(alpha = alpha), pt(rot + i * twoPi / n), pt(rot + (i + 1) * twoPi / n), strokeWidth = w)
-    }
-    val starP = ((prog - 0.45f) / 0.55f).coerceIn(0f, 1f)
-    if (starP > 0f) {
-        val order = intArrayOf(0, 2, 4, 1, 3, 0)
-        for (k in 0 until 5) {
-            val kp = (starP * 5f - k).coerceIn(0f, 1f)
-            if (kp <= 0f) continue
-            val p0 = pt(rot - PI.toFloat() / 2f + order[k] * twoPi / 5f)
-            val p1 = pt(rot - PI.toFloat() / 2f + order[k + 1] * twoPi / 5f)
-            drawLine(col.copy(alpha = alpha), p0, Offset(lerpF(p0.x, p1.x, kp), lerpF(p0.y, p1.y, kp)), strokeWidth = w)
+    drawOval(col.copy(alpha = 0.3f * alpha), Offset(cx - r, cy - r * 0.5f), Size(r * 2f, r), style = Stroke(width = ps * 0.8f))
+    for (i in 0 until n) {
+        if (i.toFloat() / n > prog) break
+        val a = spin + i * twoPi / n
+        val x = cx + cos(a) * r
+        val y = cy + sin(a) * r * 0.5f - ps * 1.2f * (0.5f + 0.5f * sin(spin * 2f + i))
+        val sz = ps * 1.5f
+        // a tiny rune: a bar and a stroke crossing it, different for odd and even
+        if (i % 2 == 0) {
+            drawRect(col.copy(alpha = alpha), Offset(x - sz / 2f, y - sz * 1.4f), Size(sz, sz * 2.8f))
+            drawRect(Color.White.copy(alpha = alpha * 0.8f), Offset(x - sz * 1.2f, y - sz * 0.4f), Size(sz * 2.4f, sz * 0.8f))
+        } else {
+            drawRect(col.copy(alpha = alpha), Offset(x - sz * 1.2f, y - sz * 0.5f), Size(sz * 2.4f, sz))
+            drawRect(Color.White.copy(alpha = alpha * 0.8f), Offset(x - sz * 0.4f, y - sz * 1.4f), Size(sz * 0.8f, sz * 2.8f))
         }
     }
-    if (prog >= 1f) {
-        for (i in 0 until 5) {
-            val q = pt(rot - PI.toFloat() / 2f + i * twoPi / 5f)
-            drawRect(Color.White.copy(alpha = alpha), Offset(q.x - w * 0.7f, q.y - w * 0.7f), Size(w * 1.4f, w * 1.4f))
+}
+
+/**
+ * The rift gate: two rune-carved standing stones with a veil of violet light between them. [open] 0..1 is how far the
+ * veil has been drawn open, [lit] 0..1 how many of the runes on the stones have woken.
+ */
+private fun DrawScope.riftGate(cx: Float, baseY: Float, ts: Float, ps: Float, open: Float, lit: Float, col: Color, alpha: Float, t: Float) {
+    if (alpha <= 0.01f) return
+    val half = ts * 0.95f
+    val ph = ts * 1.75f
+    val pw = ts * 0.3f
+    val stone = Color(0xFF6C7080)
+    val stoneLite = Color(0xFF9096A6)
+    val stoneDark = Color(0xFF454957)
+    // the veil first, so the stones stand in front of it
+    if (open > 0.02f) {
+        val vh = (ph - ts * 0.1f) * (0.25f + 0.75f * open)
+        val vw = (half * 2f - pw) * (0.45f + 0.55f * open)
+        val top = baseY - vh
+        drawOval(col.copy(alpha = 0.18f * alpha * open), Offset(cx - vw / 2f - ps * 2f, top - ps * 2f), Size(vw + ps * 4f, vh + ps * 4f))
+        drawOval(col.copy(alpha = 0.32f * alpha * open), Offset(cx - vw / 2f, top), Size(vw, vh))
+        drawOval(Color.White.copy(alpha = 0.22f * alpha * open), Offset(cx - vw * 0.32f, top + vh * 0.12f), Size(vw * 0.64f, vh * 0.76f))
+        for (i in 0 until 9) {
+            val a = t * 2.6f + i * 0.7f
+            val k = (i / 9f)
+            val rr = (0.15f + 0.85f * k)
+            drawRect(
+                Color.White.copy(alpha = (0.35f + 0.5f * sin(a * 1.7f + i).let { it * it }) * alpha * open),
+                Offset(cx + cos(a) * vw * 0.42f * rr - ps * 0.6f, top + vh * 0.5f + sin(a) * vh * 0.42f * rr - ps * 0.6f),
+                Size(ps * 1.2f, ps * 1.2f),
+            )
         }
     }
+    for (side in intArrayOf(-1, 1)) {
+        val x0 = cx + side * half - pw / 2f
+        val top = baseY - ph
+        drawRect(Color.Black.copy(alpha = 0.22f * alpha), Offset(x0 - ps, baseY - ps * 1.5f), Size(pw + ps * 3f, ps * 3f))
+        drawRect(stone.copy(alpha = alpha), Offset(x0, top), Size(pw, ph))
+        drawRect(stoneLite.copy(alpha = alpha), Offset(x0, top), Size(pw * 0.3f, ph))
+        drawRect(stoneDark.copy(alpha = alpha), Offset(x0 + pw * 0.75f, top), Size(pw * 0.25f, ph))
+        drawRect(stoneLite.copy(alpha = alpha), Offset(x0 - ps, top - ps * 1.5f), Size(pw + ps * 2f, ps * 2f))
+        for (r in 0 until 4) {
+            val on = lit * 4f - r
+            if (on <= 0f) continue
+            val ry = top + ph * (0.2f + 0.19f * r)
+            val a = min(1f, on) * (0.75f + 0.25f * sin(t * 4f + r + side))
+            drawRect(col.copy(alpha = 0.35f * a * alpha), Offset(x0 + pw * 0.2f - ps, ry - ps), Size(pw * 0.6f + ps * 2f, ps * 3.6f))
+            drawRect(Color.White.copy(alpha = a * alpha), Offset(x0 + pw * 0.3f, ry), Size(pw * 0.4f, ps * 1.6f))
+        }
+    }
+    // a worn lintel stone between the tops, lit by the veil
+    drawRect(stone.copy(alpha = alpha), Offset(cx - half - pw / 2f, baseY - ph - ps * 3.5f), Size(half * 2f + pw, ps * 3.5f))
+    drawRect(stoneLite.copy(alpha = alpha), Offset(cx - half - pw / 2f, baseY - ph - ps * 3.5f), Size(half * 2f + pw, ps * 1.2f))
 }
 
 private fun glyphStrokes(kind: String): List<List<Pair<Float, Float>>> = when (kind) {
@@ -736,19 +782,18 @@ private fun DrawScope.scrollIcon(at: Offset, ps: Float, glow: Float) {
     if (glow > 0.01f) drawRect(VIOLET.copy(alpha = glow), Offset(at.x - ps * 0.6f, at.y - ps * 0.6f), Size(ps * 1.2f, ps * 1.2f))
 }
 
-/** The village's summoning circle, always there on the ground, brighter at night. */
+/** The village's rift gate, always standing where summoners work; its veil glows brighter at night. */
 internal fun DrawScope.circleSite(sim: CivSim, g: Geo) {
     val cw = sim.critters
     if (cw.circleX < 0f) return
     if (cw.encounters.any { it.kind == "summon" && it.state != "walk" }) return
     val ground = Offset(g.ox + cw.circleX * g.ts, g.oy + (cw.circleY + 0.45f) * g.ts)
-    val glow = 0.2f + 0.3f * g.dark + 0.06f * sin(g.t * 1.6f)
-    drawOval(VIOLET.copy(alpha = 0.06f + 0.1f * g.dark), Offset(ground.x - g.ts * 1.1f, ground.y - g.ts * 0.6f), Size(g.ts * 2.2f, g.ts * 1.1f))
-    pentacle(ground.x, ground.y - g.ps * 1.5f, g.ts * 1.05f, 1f, VIOLET, glow, 0f, g.ps * 1.1f)
+    val open = 0.14f + 0.18f * g.dark + 0.04f * sin(g.t * 1.6f)
+    riftGate(ground.x, ground.y, g.ts, g.ps, open, 0.55f + 0.45f * g.dark, VIOLET, 1f, g.t)
     if (g.dark > 0.3f) {
         for (i in 0 until 4) {
             val u = (g.t * 0.25f + i * 0.25f) % 1f
-            drawRect(Color.White.copy(alpha = 0.5f * (1f - u) * g.dark), Offset(ground.x + (i - 1.5f) * g.ps * 5f, ground.y - u * g.ts * 0.9f), Size(g.ps * 1.1f, g.ps * 1.1f))
+            drawRect(Color.White.copy(alpha = 0.5f * (1f - u) * g.dark), Offset(ground.x + (i - 1.5f) * g.ps * 5f, ground.y - u * g.ts * 1.2f), Size(g.ps * 1.1f, g.ps * 1.1f))
         }
     }
 }
@@ -777,47 +822,38 @@ private fun DrawScope.ritualFx(e: Enc, g: Geo, fading: Boolean = false) {
     val fail = !e.ritualWon
     val flick = if (fail && c > 3.2f && ((c * 16f).toInt() and 1) == 0) 0.35f else 1f
     val out = if (c > 4.8f) (1f - (c - 4.8f) / 0.6f).coerceIn(0f, 1f) else 1f
-    val pulse = 0.85f + 0.15f * sin(c * 7f)
-    drawOval(VIOLET.copy(alpha = 0.12f * out * prog), Offset(ground.x - ts * 1.2f, ground.y - ts * 0.65f), Size(ts * 2.4f, ts * 1.3f))
-    pentacle(ground.x, ground.y - ps * 1.5f, ts * 1.1f, prog, VIOLET, 0.95f * flick * out * pulse, c * 0.5f, ps * 1.3f)
+    val pulse = 0.9f + 0.1f * sin(c * 7f)
+    val open = when {
+        fail && c > 3.4f -> 1f - smooth((c - 3.4f) / 1.2f)
+        c > 3.6f -> 1f - smooth((c - 3.6f) / 1.0f)
+        else -> smooth((c - 0.8f) / 2.4f)
+    }
+    val gateCol = if (fail && c > 3.2f) Color(0xFFFF6A7A) else VIOLET
+    riftGate(ground.x, ground.y, ts, ps, open, prog, gateCol, flick * pulse, c)
     if (c < 3.4f) {
         val glow = if (c in 1.2f..3.2f) 0.6f + 0.4f * sin(c * 9f) else 0f
         scrollIcon(Offset(hand.x, hand.y - ps * 2f), ps, glow)
         if (c in 1.4f..3.3f) {
-            // runes lift off the scroll and drift to the circle
+            // runes lift off the scroll and drift into the gate
             for (i in 0 until 7) {
                 val u = ((c - 1.4f) * 0.7f + i / 7f) % 1f
                 val px = lerpF(hand.x, ground.x, smooth(u))
-                val py = lerpF(hand.y, ground.y - ts * 0.3f, smooth(u)) - sin(u * PI.toFloat()) * ts * 0.7f
+                val py = lerpF(hand.y, ground.y - ts * 0.8f, smooth(u)) - sin(u * PI.toFloat()) * ts * 0.7f
                 drawRect(VIOLET.copy(alpha = 1f - u * 0.5f), Offset(px - ps * 0.7f, py - ps * 0.7f), Size(ps * 1.4f, ps * 1.4f))
             }
         }
     }
-    if (c in 2.0f..4.1f) {
-        val up = smooth((c - 2.0f) / 1.2f)
-        val dn = if (c > 3.5f) (1f - (c - 3.5f) / 0.6f).coerceIn(0f, 1f) else 1f
-        val h = ts * 3.2f * up
-        val colr = if (fail && c > 3.2f) Color(0xFFFF6A7A) else VIOLET
-        drawRect(colr.copy(alpha = 0.12f * dn), Offset(ground.x - ts * 0.55f, ground.y - h), Size(ts * 1.1f, h))
-        drawRect(colr.copy(alpha = 0.2f * dn), Offset(ground.x - ts * 0.32f, ground.y - h), Size(ts * 0.64f, h))
-        drawRect(Color.White.copy(alpha = 0.45f * dn), Offset(ground.x - ts * 0.12f, ground.y - h), Size(ts * 0.24f, h))
-        for (i in 0 until 10) {
-            val a = c * 5f + i * 0.63f
-            val u = (c * 0.6f + i * 0.1f) % 1f
-            drawRect(Color.White.copy(alpha = 0.7f * dn * (1f - u)), Offset(ground.x + cos(a) * ts * 0.7f * (1f - u) - ps * 0.6f, ground.y - u * h - ps * 0.6f), Size(ps * 1.2f, ps * 1.2f))
-        }
-    }
     if (c in 3.2f..3.8f) {
         val u = (c - 3.2f) / 0.6f
-        drawCircle(Color.White.copy(alpha = 0.85f * (1f - u)), ts * (0.3f + 1.1f * u), Offset(ground.x, ground.y - ts * 0.4f))
+        drawCircle(Color.White.copy(alpha = 0.85f * (1f - u)), ts * (0.3f + 1.1f * u), Offset(ground.x, ground.y - ts * 0.8f))
     }
     if (fail && c > 3.3f) {
         val u = ((c - 3.3f) / 1.2f).coerceIn(0f, 1f)
         for (i in 0 until 5) {
             val a = i * 1.26f + 0.4f
             val len = ts * (0.4f + 0.7f * u)
-            drawLine(Color(0xFFFF6A7A).copy(alpha = 0.8f * (1f - u * 0.4f) * out), Offset(ground.x, ground.y - ps * 1.5f),
-                Offset(ground.x + cos(a) * len, ground.y - ps * 1.5f + sin(a) * len * 0.5f), strokeWidth = ps)
+            drawLine(Color(0xFFFF6A7A).copy(alpha = 0.8f * (1f - u * 0.4f) * out), Offset(ground.x, ground.y - ts * 0.8f),
+                Offset(ground.x + cos(a) * len, ground.y - ts * 0.8f + sin(a) * len), strokeWidth = ps)
         }
     }
     if (!fail && c in 3.9f..5.4f) {
@@ -842,7 +878,7 @@ private fun DrawScope.bindFx(e: Enc, g: Geo) {
     val hand = handOf(e.v, g)
     val prog = (t / 0.7f).coerceIn(0f, 1f)
     val out = if (t > 3.7f) (1f - (t - 3.7f) / 0.5f).coerceIn(0f, 1f) else 1f
-    pentacle(c.x, c.y - ps * 1.5f, ts * 0.9f, prog, VIOLET, 0.95f * out, t * 0.9f, ps * 1.2f)
+    runeRing(c.x, c.y - ps * 1.5f, ts * (1.25f - 0.35f * prog), prog, VIOLET, 0.95f * out, t * 1.4f, ps)
     if (t < 1.2f) {
         val u = (t / 0.5f).coerceIn(0f, 1f)
         drawLine(VIOLET.copy(alpha = 0.55f * (1f - t / 1.2f)), hand, Offset(lerpF(hand.x, c.x, u), lerpF(hand.y, c.y - ts * 0.3f, u)), strokeWidth = ps * 1.5f)
@@ -992,12 +1028,12 @@ private fun DrawScope.swapFx(sim: CivSim, s: Swap, cart: CritterArt, g: Geo) {
             val py = lerpF(base.y - ht * 0.4f, hand.y, smooth(q)) - sin(q * PI.toFloat()) * ts * 0.5f
             drawRect(tc.copy(alpha = 0.7f * (1f - i / 6f)), Offset(px - ps * 0.8f, py - ps * 0.8f), Size(ps * 1.6f, ps * 1.6f))
         }
-        pentacle(hand.x, hand.y + ps * 2.5f, ps * 5f, 1f, VIOLET, 0.8f * (if (p > 0.6f) (1f - p) / 0.4f else p / 0.6f), age * 3f, ps * 0.9f)
+        runeRing(hand.x, hand.y + ps * 2.5f, ps * 5f, 1f, VIOLET, 0.8f * (if (p > 0.6f) (1f - p) / 0.4f else p / 0.6f), age * 3f, ps * 0.9f)
         if (p > 0.85f) sparks(hand.x, hand.y, (p - 0.85f) / 0.15f, Color.White, 6, ts * 0.35f, ps, 91)
     } else {
         if (age < 0f || age > 1.4f) return
         val p = age / 1.4f
-        pentacle(base.x, base.y - ps * 1.5f, ts * 0.75f, (age / 0.5f).coerceIn(0f, 1f), VIOLET, 0.9f * (1f - p), age * 1.5f, ps)
+        runeRing(base.x, base.y - ps * 1.5f, ts * 0.75f, (age / 0.5f).coerceIn(0f, 1f), VIOLET, 0.9f * (1f - p), age * 2.5f, ps)
         val h = ts * 2.2f * smooth((age / 0.5f).coerceIn(0f, 1f))
         val dn = (1f - p).coerceIn(0f, 1f)
         drawRect(VIOLET.copy(alpha = 0.2f * dn), Offset(base.x - ts * 0.4f, base.y - h), Size(ts * 0.8f, h))

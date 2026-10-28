@@ -7,6 +7,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -56,12 +57,77 @@ import com.jondude1.deskglass.MainViewModel
 import com.jondude1.deskglass.sim.CivSim
 import com.jondude1.deskglass.sim.GH
 import com.jondude1.deskglass.sim.GW
+import com.jondude1.deskglass.sim.OLD_GH
+import com.jondude1.deskglass.sim.OLD_GW
 import com.jondude1.deskglass.sim.T
 import kotlin.math.max
 import kotlin.math.min
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+
+/**
+ * Where the view looks: a point on the map and how far in. Zoom 1 shows about the stretch of land the first version
+ * showed; pulling out shows the whole wide world. Plain fields, set by gestures and read every frame by the draw.
+ */
+class CivCamera {
+    var zoom = 1f
+    var cx = GW / 2f
+    var cy = GH / 2f
+
+    // filled in by the last draw
+    var ts = 1f
+    var ox = 0f
+    var oy = 0f
+    var baseTs = 1f
+    var zoomMin = 1f
+    var w = 1f
+    var h = 1f
+
+    fun layout(width: Float, height: Float, cover: Boolean) {
+        w = width
+        h = height
+        baseTs = if (cover) max(width / OLD_GW, height / OLD_GH) else min(width / OLD_GW, height / OLD_GH)
+        zoomMin = max(width / GW, height / GH) / baseTs
+        zoom = zoom.coerceIn(zoomMin, ZOOM_MAX)
+        ts = baseTs * zoom
+        val halfW = width / (2f * ts)
+        val halfH = height / (2f * ts)
+        cx = if (halfW * 2f >= GW) GW / 2f else cx.coerceIn(halfW, GW - halfW)
+        cy = if (halfH * 2f >= GH) GH / 2f else cy.coerceIn(halfH, GH - halfH)
+        ox = width / 2f - cx * ts
+        oy = height / 2f - cy * ts
+    }
+
+    /** Drag by [dx],[dy] pixels and zoom by [factor] around the screen point ([ax],[ay]). */
+    fun transform(ax: Float, ay: Float, dx: Float, dy: Float, factor: Float) {
+        if (ts <= 0f) return
+        cx -= dx / ts
+        cy -= dy / ts
+        zoomAround(ax, ay, factor)
+    }
+
+    fun zoomAround(ax: Float, ay: Float, factor: Float) {
+        val wx = cx + (ax - w / 2f) / ts
+        val wy = cy + (ay - h / 2f) / ts
+        zoom = (zoom * factor).coerceIn(zoomMin, ZOOM_MAX)
+        ts = baseTs * zoom
+        cx = wx - (ax - w / 2f) / ts
+        cy = wy - (ay - h / 2f) / ts
+    }
+
+    fun zoomStep(factor: Float) = zoomAround(w / 2f, h / 2f, factor)
+
+    fun home() {
+        zoom = 1f
+        cx = GW / 2f
+        cy = GH / 2f
+    }
+
+    companion object {
+        const val ZOOM_MAX = 4f
+    }
+}
 
 /** The village, drawn live. It also runs the simulation while it is on screen. */
 @Composable
@@ -71,6 +137,7 @@ fun CivCanvas(
     cover: Boolean = true,
     labels: Boolean = false,
     onTapTile: ((Float, Float) -> Unit)? = null,
+    cam: CivCamera = remember { CivCamera() },
 ) {
     val tapCb by rememberUpdatedState(onTapTile)
     val art = remember { CivArt() }
@@ -152,26 +219,28 @@ fun CivCanvas(
         }
     }
 
-    val tapMod = if (onTapTile != null) {
-        Modifier.pointerInput(cover) {
-            detectTapGestures { p ->
-                val cb = tapCb
-                if (cb != null) {
-                    val w = size.width.toFloat()
-                    val h = size.height.toFloat()
-                    val ts = if (cover) max(w / GW, h / GH) else min(w / GW, h / GH)
-                    val ox = (w - GW * ts) / 2f
-                    val oy = (h - GH * ts) / 2f
-                    val tx = (p.x - ox) / ts
-                    val ty = (p.y - oy) / ts
-                    if (tx >= 0f && ty >= 0f && tx < GW && ty < GH) cb(tx, ty)
-                }
+    val gestureMod = Modifier
+        .pointerInput(cam) {
+            detectTransformGestures { centroid, pan, zoom, _ ->
+                cam.transform(centroid.x, centroid.y, pan.x, pan.y, zoom)
             }
         }
-    } else Modifier
-    Canvas(modifier.then(tapMod)) {
+        .pointerInput(cam, onTapTile != null) {
+            detectTapGestures(
+                onDoubleTap = { cam.home() },
+                onTap = { p ->
+                    val cb = tapCb
+                    if (cb != null && cam.ts > 0f) {
+                        val tx = (p.x - cam.ox) / cam.ts
+                        val ty = (p.y - cam.oy) / cam.ts
+                        if (tx >= 0f && ty >= 0f && tx < GW && ty < GH) cb(tx, ty)
+                    }
+                },
+            )
+        }
+    Canvas(modifier.then(gestureMod)) {
         @Suppress("UNUSED_VARIABLE") val f = frame
-        drawWorld(sim, art, cart, cover, labels, textPaint, bubblePaint, namePaint)
+        drawWorld(sim, art, cart, cam, cover, labels, textPaint, bubblePaint, namePaint)
     }
 }
 
@@ -269,13 +338,19 @@ private fun DrawScope.banner(x: Float, baseY: Float, h: Float, c: Color, ps: Flo
 }
 
 private fun DrawScope.drawWorld(
-    sim: CivSim, art: CivArt, cart: CritterArt, cover: Boolean, labels: Boolean,
+    sim: CivSim, art: CivArt, cart: CritterArt, cam: CivCamera, cover: Boolean, labels: Boolean,
     textPaint: Paint, bubblePaint: Paint, namePaint: Paint,
 ) {
-    val ts = if (cover) max(size.width / GW, size.height / GH) else min(size.width / GW, size.height / GH)
+    cam.layout(size.width, size.height, cover)
+    val ts = cam.ts
     val shk = sim.shake()
-    val ox = (size.width - GW * ts) / 2f + kotlin.math.sin(sim.time * 70.0).toFloat() * ts * 0.18f * shk
-    val oy = (size.height - GH * ts) / 2f + kotlin.math.cos(sim.time * 63.0).toFloat() * ts * 0.18f * shk
+    val ox = cam.ox + kotlin.math.sin(sim.time * 70.0).toFloat() * ts * 0.18f * shk
+    val oy = cam.oy + kotlin.math.cos(sim.time * 63.0).toFloat() * ts * 0.18f * shk
+    // only the tiles on screen (with a margin for tall things) are walked each frame
+    val vx0 = (kotlin.math.floor(-ox / ts).toInt() - 2).coerceIn(0, GW)
+    val vx1 = (kotlin.math.ceil((size.width - ox) / ts).toInt() + 2).coerceIn(0, GW)
+    val vy0 = (kotlin.math.floor(-oy / ts).toInt() - 3).coerceIn(0, GH)
+    val vy1 = (kotlin.math.ceil((size.height - oy) / ts).toInt() + 3).coerceIn(0, GH)
     val ps = ts / 16f
     val t = sim.time.toFloat()
     val water = ((sim.time * 1.5).toInt()) and 1
@@ -293,7 +368,7 @@ private fun DrawScope.drawWorld(
     val gnd = art.ground
     if (gnd != null) img(gnd[water], ox, oy, GW * ts, GH * ts)
     // twinkles on the water and flowers in the grass
-    for (y in 0 until GH) for (x in 0 until GW) {
+    for (y in vy0 until vy1) for (x in vx0 until vx1) {
         val i = y * GW + x
         val h = cellHash(x, y)
         if (sim.tiles[i] == T.WATER && h % 5 == 0) {
@@ -322,7 +397,7 @@ private fun DrawScope.drawWorld(
     // kingdom territories: tinted ground and glowing borders
     val pulse = 0.65f + 0.2f * kotlin.math.sin(t * 2f)
     fun other(nx: Int, ny: Int, o: Int) = nx in 0 until GW && ny in 0 until GH && sim.owner[ny * GW + nx] != o
-    for (y in 0 until GH) for (x in 0 until GW) {
+    for (y in vy0 until vy1) for (x in vx0 until vx1) {
         val o = sim.owner[y * GW + x]
         if (o < 0) continue
         val kg = sim.kingdoms.getOrNull(o) ?: continue
@@ -369,8 +444,8 @@ private fun DrawScope.drawWorld(
 
     val wellHut = sim.buildings.firstOrNull { it.type == "hut" && it.era >= 1 }
     // things standing on the ground, row by row so lower ones overlap higher ones
-    for (y in 0 until GH) {
-        for (x in 0 until GW) {
+    for (y in vy0 until vy1) {
+        for (x in vx0 until vx1) {
             val i = y * GW + x
             val h = cellHash(x, y)
             var sp: ImageBitmap? = null
@@ -1039,6 +1114,7 @@ fun VillageScreen(vm: MainViewModel, fullscreen: Boolean, onFullscreen: (Boolean
     var whisper by remember { mutableStateOf("") }
     var confirmReset by remember { mutableStateOf(false) }
     var showDex by remember { mutableStateOf(false) }
+    val cam = remember { CivCamera() }
     LaunchedEffect(Unit) {
         while (true) {
             delay(500L)
@@ -1055,7 +1131,8 @@ fun VillageScreen(vm: MainViewModel, fullscreen: Boolean, onFullscreen: (Boolean
 
     if (fullscreen) {
         Box(Modifier.fillMaxSize()) {
-            CivCanvas(sim, Modifier.fillMaxSize(), cover = true, labels = true)
+            CivCanvas(sim, Modifier.fillMaxSize(), cover = true, labels = true, cam = cam)
+            ZoomButtons(cam, Modifier.align(Alignment.CenterEnd).padding(16.dp))
             GlassButton("Exit fullscreen", { onFullscreen(false) }, modifier = Modifier.align(Alignment.TopStart).padding(16.dp))
             GlassButton("Speed ${sim.speed}x", { sim.speed = nextSpeed(sim.speed) }, modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp))
             Text(
@@ -1102,7 +1179,8 @@ fun VillageScreen(vm: MainViewModel, fullscreen: Boolean, onFullscreen: (Boolean
             Column(mod, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 GlassCard(Modifier.weight(1f).fillMaxWidth(), corner = 24.dp) {
                     Box(Modifier.fillMaxSize()) {
-                        CivCanvas(sim, Modifier.fillMaxSize(), cover = false, labels = true)
+                        CivCanvas(sim, Modifier.fillMaxSize(), cover = false, labels = true, cam = cam)
+                        ZoomButtons(cam, Modifier.align(Alignment.CenterEnd).padding(10.dp))
                         ThreatChip(sim, tick, Modifier.align(Alignment.TopCenter).padding(top = 12.dp))
                         StatsChip(sim, tick, Modifier.align(Alignment.BottomStart).padding(12.dp))
                     }
@@ -1202,5 +1280,16 @@ fun VillageScreen(vm: MainViewModel, fullscreen: Boolean, onFullscreen: (Boolean
             }
         }
         }
+    }
+}
+
+
+/** Zoom in, zoom out, back to the village. Pinching and dragging work too, and a double tap goes home. */
+@Composable
+private fun ZoomButtons(cam: CivCamera, modifier: Modifier = Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        GlassButton("+", { cam.zoomStep(1.35f) })
+        GlassButton("−", { cam.zoomStep(1f / 1.35f) })
+        GlassButton("⌂", { cam.home() })
     }
 }

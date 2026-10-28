@@ -1,6 +1,6 @@
 # Summoner's Village
 
-A fork of [DeskGlass](https://github.com/Jondude1/DeskGlass), the frosted-glass desk companion with a self-running village. In this edition, inspired by Taran Matharu's Summoner books, gifted villagers read scrolls at a pentacle circle to summon critters from rifts, bind weakened wild ones, cast glyph spells, train, battle, and keep them as helpers and companions.
+A fork of [DeskGlass](https://github.com/Jondude1/DeskGlass), the frosted-glass desk companion with a self-running village. In this edition, inspired by Taran Matharu's Summoner books, gifted villagers read scrolls at a rune-carved rift gate to call critters through, bind weakened wild ones with rune chains, cast glyph spells, train, battle, and keep them as helpers and companions.
 
 It installs next to the original app (separate app id) and updates itself from this repo's releases.
 
@@ -12,7 +12,7 @@ The signing key in `keystore/` is committed on purpose so each new APK installs 
 
 ## How summoning works here
 
-- **The gift** runs in families. Children carry it unseen until they come of age, then stand in the summoning circle for the **gift test**. Gifted young summoners get a **mentor** and take lessons.
-- **Scrolls** come in three tiers (common, fine, rare), copied out at the circle by villagers (gifted or not) from hides, wood and metal. Better scrolls call rarer lines and need a higher summoner level.
-- **Bonds** grow while a critter is out with its summoner and after lessons and wins. A deep bond lowers resist chances and shaves levels off evolution.
-- **Evolution** is a rite: the summoner must be beside the critter and spend mana.
+- **The gift** runs in families. Children carry it unseen until they come of age, then stand before the rift gate for the **gift test**. Gifted young summoners get a **mentor** and take lessons.
+- **Scrolls** come in three tiers (common, fine, rare), copied out at the gate by villagers (gifted or not) from hides, wood and metal. Better scrolls call rarer lines and need a higher summoner level.
+- **Trust** grows while a critter is out with its summoner (and slowly while it rests in the pack), and from lessons and wins. Trust is the evolution milestone: 18 for a first evolution, 40 for a second. A deep bond also lowers resist chances when summoning.
+- **Evolution** is a rite: once trust is deep enough, the summoner must be beside the critter and spend mana.
