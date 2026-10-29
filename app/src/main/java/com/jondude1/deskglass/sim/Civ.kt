@@ -104,6 +104,7 @@ class Villager(val id: Int, val name: String, var job: String, val personaIdx: I
     val trait: String get() = persona.trait
     val colorIdx: Int get() = if (job == "Child") 6 else JOBS.indexOf(job).coerceAtLeast(0)
     var born = 0.0
+    var lastTalk = -999.0
     var lifespan = 60
     var parents = ""
     var harmedBy = ""
@@ -784,6 +785,7 @@ class CivSim(
                 return go(v, "sleep", b.y * GW + b.x)
             }
             "talk" -> {
+                if (time - v.lastTalk < 70.0) return false
                 val other = villagers.firstOrNull { it !== v && it.name.equals(target.trim(), ignoreCase = true) }
                     ?: friendFor(v) ?: return false
                 v.talkTo = other
@@ -889,6 +891,7 @@ class CivSim(
             }
             v.action == "talk" -> {
                 val o = v.talkTo
+                v.lastTalk = time
                 if (o != null) {
                     v.say = v.talkMsg.take(90)
                     v.sayLeft = 7f
@@ -1404,14 +1407,14 @@ class CivSim(
         if (isNight()) out.add("Hard to see anything at night.")
         wars().firstOrNull()?.let { out.add("Word is ${it.first.name} is at war with ${it.second.name}.") }
         if (time < plagueUntil) out.add("People are falling sick. Keep your distance.")
-        history(5).lastOrNull()?.let { out.add("I keep thinking about it: ${it.take(60)}") }
-        childrenOf(v).firstOrNull()?.let { out.add("${it.name} is ${ageYears(it)} already. They grow fast.") }
+        history(5).lastOrNull()?.let { out.add("I can't stop thinking about this: ${it.take(60)}") }
+        childrenOf(v).firstOrNull { ageYears(it) >= 1 }?.let { out.add("${it.name} is ${ageYears(it)} already. They grow fast.") }
         critters.companionOf(v)?.let { c ->
             out.add("${c.name} is level ${c.level} now.")
             if (c.species.evolveTo > 0) out.add("${c.name} will change shape once the bond with them reaches ${c.trustNeeded()} (now ${c.bond}).")
         }
-        v.memories.lastOrNull()?.let { out.add("I keep remembering that ${it.take(50)}.") }
-        nearby(v).firstOrNull()?.let { out.add("${it.name} is busy ${doing(it)}.") }
+        v.memories.lastOrNull { !it.contains(" said") && !it.contains("told ") && !it.contains("rude") }?.let { out.add("I keep remembering when I ${it.take(50).removePrefix("I ")}.") }
+        nearby(v).firstOrNull()?.let { out.add("${it.name} is ${doing(it)} over there.") }
         out.add("The ${ageInfo().name.lowercase()} suits us.")
         if (age > 0) out.add("${count("hut")} huts and ${count("farm")} farms. We've come far.")
         if (rnd.nextInt(4) == 0) out.addAll(JOB_LINES[v.job] ?: v.persona.lines)
@@ -1458,8 +1461,21 @@ class CivSim(
             m.contains("baby") || m.contains("born") || m.contains("child") -> "Good news for the village, ${from.name}."
             (m.contains("war") || m.contains("raid") || m.contains("kingdom")) && w != null ->
                 "Keep the village safe, ${from.name}. ${w.first.name} is fighting ${w.second.name}."
-            m.contains("?") -> "I'm not sure, ${from.name}. I'm busy ${doing(o)}."
-            else -> "I hear you, ${from.name}. " + lineFor(o)
+            m.contains("?") -> "I'm not sure, ${from.name}. I'm ${doing(o)} just now."
+            m.contains("level") || m.contains("bond") || m.contains("shape") ->
+                "They're coming along well, ${from.name}. Keep training them."
+            m.contains("fading") || m.contains("wind down") || m.contains("night") -> "Aye, it is time to rest soon, ${from.name}."
+            m.contains("grow fast") || m.contains("already") -> "They do grow fast, ${from.name}."
+            m.contains("come far") || m.contains("suits us") -> "We have, ${from.name}. Together."
+            m.contains("sick") || m.contains("keep your distance") -> "Stay well, ${from.name}."
+            m.contains("growling") || m.contains("sleep on my feet") -> "Take care of yourself, ${from.name}."
+            m.contains("cold") -> "Stay close to the fire, ${from.name}."
+            else -> when (rnd.nextInt(4)) {
+                0 -> "Aye, ${from.name}."
+                1 -> "That's fair, ${from.name}."
+                2 -> "I was thinking the same, ${from.name}."
+                else -> "Good to hear it, ${from.name}."
+            }
         }
         val out = if (Speech.similar(r, msg)) lineFor(o) else r
         return if (isChild(o)) Speech.kidify(out) else out
@@ -1481,12 +1497,13 @@ class CivSim(
         val others = villagers.filter { it !== v }
         val hasShore = nearestShore(v) >= 0
         val part = partOfDay()
+        val chat = if (time - v.lastTalk > 90.0) 1 else 0
         val starving = v.hunger >= 70f && food < 3
         if (v.hunger >= 60f && food > 0) return "eat" to ""
         if (v.energy < 25f || (isNight() && v.energy < 92f)) return "sleep" to ""
         if (isChild(v)) {
             if (alert()) return "huddle" to ""
-            return when (pick("play" to 6, "study" to (if (count("library") > 0) 4 else 0), "talk" to 3, "wander" to 2, "fetch_water" to (if (count("well") > 0) 1 else 0))) {
+            return when (pick("play" to 6, "study" to (if (count("library") > 0) 4 else 0), "talk" to chat, "wander" to 2, "fetch_water" to (if (count("well") > 0) 1 else 0))) {
                 "talk" -> "talk" to (friendFor(v)?.name ?: "")
                 "play" -> "play" to ""
                 "study" -> "study" to ""
@@ -1502,7 +1519,7 @@ class CivSim(
             if (!fighter && time < alertUntil && rnd.nextInt(4) == 0) return "huddle" to ""
         }
         if (festival()) {
-            return when (pick("dance" to 4, "talk" to 2, "tell_story" to (if (v.job == "Storyteller") 4 else 0))) {
+            return when (pick("dance" to 4, "talk" to chat, "tell_story" to (if (v.job == "Storyteller") 4 else 0))) {
                 "talk" -> "talk" to (friendFor(v)?.name ?: "")
                 "tell_story" -> "tell_story" to ""
                 else -> "dance" to ""
@@ -1536,7 +1553,7 @@ class CivSim(
         if (part == "evening") {
             if (v.job == "Storyteller") return "tell_story" to ""
             if (count("campfire") > 0 && rnd.nextInt(4) == 0) return "dance" to ""
-            if (others.isNotEmpty() && rnd.nextInt(3) == 0) return "talk" to (friendFor(v)?.name ?: "")
+            if (chat == 1 && others.isNotEmpty() && rnd.nextInt(6) == 0) return "talk" to (friendFor(v)?.name ?: "")
         }
         val ad = adults()
         val farms = age >= 1 && count("farm") > 0
@@ -1553,43 +1570,43 @@ class CivSim(
         val act = when (v.job) {
             "Woodcutter" -> pick(
                 "gather_wood" to (if (lowWood) 8 else 3), "gather_stone" to (if (lowStone) 3 else 0),
-                "talk" to 1, "wander" to 1, "gather_food" to (if (lowFood) 3 else 0),
+                "talk" to chat, "wander" to 1, "gather_food" to (if (lowFood) 3 else 0),
                 "craft" to (if (shop) 2 else 0), "trade" to (if (market) 2 else 0),
             )
             "Miner" -> pick(
                 "gather_stone" to (if (lowStone) 7 else 2),
                 "mine_ore" to (if (age >= 2 && ore < 30 && ore < 60) 4 else 0),
-                "gather_wood" to (if (lowWood) 3 else 1), "talk" to 1, "wander" to 1,
+                "gather_wood" to (if (lowWood) 3 else 1), "talk" to chat, "wander" to 1,
                 "craft" to (if (shop) 3 else 0),
             )
             "Forager" -> pick(
-                "gather_food" to (if (lowFood) 5 else 2), "fish" to (if (hasShore) 3 else 0), "talk" to 1, "wander" to 1,
+                "gather_food" to (if (lowFood) 5 else 2), "fish" to (if (hasShore) 3 else 0), "talk" to chat, "wander" to 1,
                 "haul" to (if (granary) 2 else 0),
                 "fetch_water" to (if (well) 2 else 0), "trade" to (if (market) 2 else 0),
             )
             "Hunter" -> pick(
-                "hunt" to (if (lowFood) 8 else 4), "drill" to (if (barracks) 3 else 0), "gather_food" to 1, "fish" to (if (hasShore) 1 else 0), "talk" to 1,
+                "hunt" to (if (lowFood) 8 else 4), "drill" to (if (barracks) 3 else 0), "gather_food" to 1, "fish" to (if (hasShore) 1 else 0), "talk" to chat,
                 "patrol" to (if (fighterOnWatch) 3 else 1), "wander" to 1,
             )
             "Farmer" -> pick(
                 "tend_farm" to (if (farms) 6 else 0), "haul" to (if (granary) 2 else 0), "fetch_water" to (if (well && farms) 3 else 0),
-                "gather_food" to 2, "gather_wood" to (if (farms) 0 else 4), "talk" to 1, "trade" to (if (market) 2 else 0),
+                "gather_food" to 2, "gather_wood" to (if (farms) 0 else 4), "talk" to chat, "trade" to (if (market) 2 else 0),
             )
             "Builder" -> pick(
                 "gather_wood" to (if (lowWood) 6 else 3), "gather_stone" to (if (lowStone) 4 else 1),
-                "craft" to (if (shop) 3 else 0), "study" to (if (library) 1 else 0), "talk" to 1, "wander" to 1,
+                "craft" to (if (shop) 3 else 0), "study" to (if (library) 1 else 0), "talk" to chat, "wander" to 1,
             )
             "Bronzesmith", "Blacksmith" ->
                 if (count("smelter") > 0) pick(
                     "smelt" to (if (ore >= 2 && wood >= 30 && metal < 150) 7 else 0),
                     "mine_ore" to (if (ore < 6) 6 else if (ore < 40) 1 else 0),
                     "gather_stone" to (if (stone < 20) 2 else 0),
-                    "gather_wood" to (if (wood < 60) 5 else 1), "talk" to 1,
+                    "gather_wood" to (if (wood < 60) 5 else 1), "talk" to chat,
                     "craft" to (if (shop) 3 else 0),
-                ) else pick("mine_ore" to 4, "gather_stone" to 3, "gather_wood" to 2, "talk" to 1)
-            "Scout" -> pick("explore" to 3, "patrol" to 3, "drill" to (if (barracks) 2 else 0), "gather_food" to 2, "talk" to 2, "wander" to 1)
+                ) else pick("mine_ore" to 4, "gather_stone" to 3, "gather_wood" to 2, "talk" to chat)
+            "Scout" -> pick("explore" to 3, "patrol" to 3, "drill" to (if (barracks) 2 else 0), "gather_food" to 2, "talk" to chat, "wander" to 1)
             else -> pick(
-                "talk" to 3, "gather_food" to 2, "tell_story" to (if (v.energy > 40f) 2 else 0), "wander" to 1,
+                "talk" to chat, "gather_food" to 2, "tell_story" to (if (v.energy > 40f) 2 else 0), "wander" to 1,
                 "study" to (if (library) 4 else 0),
                 "dance" to (if (count("campfire") > 0) 1 else 0), "fetch_water" to (if (well) 2 else 0),
                 "trade" to (if (market) 2 else 0), "craft" to (if (shop) 2 else 0),
@@ -1605,12 +1622,7 @@ class CivSim(
         // don't do the exact same thing four times in a row
         val survival = action == "eat" || action == "sleep"
         if (!survival && v.recent.size >= 3 && v.recent.takeLast(3).all { it == action }) {
-            if (others().isNotEmpty() && rnd.nextBoolean()) {
-                action = "talk"
-                target = friendFor(v)?.name ?: ""
-            } else {
-                action = "wander"
-            }
+            action = "wander"
         }
         val thoughtClean = Speech.clean(thought, 100)
         if (thoughtClean.isNotBlank()) v.thought = thoughtClean
@@ -1658,7 +1670,45 @@ class CivSim(
         else -> "dry"
     }
 
-    private fun doing(o: Villager) = if (o.action.isEmpty()) "idle" else o.action.replace('_', ' ')
+    private fun doing(o: Villager) = when (o.action) {
+        "" -> if (o.phase == "sleeping") "sleeping" else "resting"
+        "gather_wood" -> "cutting wood"
+        "gather_stone" -> "gathering stone"
+        "gather_food" -> "picking berries"
+        "mine_ore" -> "mining ore"
+        "smelt" -> "working the forge"
+        "fish" -> "fishing"
+        "hunt" -> "hunting"
+        "tend_farm" -> "tending the farm"
+        "explore" -> "scouting"
+        "tell_story" -> "telling a story"
+        "huddle" -> "keeping close to the fire"
+        "eat" -> "eating"
+        "sleep" -> "sleeping"
+        "talk" -> "chatting"
+        "wander" -> "strolling about"
+        "fetch_water" -> "fetching water"
+        "craft" -> "making things at the workshop"
+        "trade" -> "trading at the market"
+        "dance" -> "dancing"
+        "patrol" -> "keeping watch"
+        "play" -> "playing"
+        "haul" -> "filling the granary"
+        "drill" -> "drilling with the guard"
+        "study" -> "reading in the library"
+        "build_hut" -> "building a home"
+        "build_farm" -> "building a farm"
+        "build_campfire" -> "building a campfire"
+        "build_smelter" -> "building a forge"
+        "build_well" -> "digging a well"
+        "build_workshop" -> "building a workshop"
+        "build_market" -> "building a market"
+        "build_lamp" -> "setting up a lantern"
+        "build_granary" -> "building a granary"
+        "build_barracks" -> "building barracks"
+        "build_library" -> "building a library"
+        else -> if (o.action.startsWith("critter_")) "tending to their companion" else o.action.replace('_', ' ')
+    }
     private fun childrenOf(v: Villager): List<Villager> = villagers.filter { it !== v && it.parents.contains(v.name) }
     private fun nearby(v: Villager, r: Float = 6f): List<Villager> =
         villagers.filter { it !== v && hypot(it.x - v.x, it.y - v.y) <= r }
