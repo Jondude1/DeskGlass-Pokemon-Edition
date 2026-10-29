@@ -179,6 +179,31 @@ class CivArt {
     val well = sprite(WELL, mapOf(
         'R' to 0xFFB5533C.toInt(), 'b' to 0xFF7A4B24.toInt(), 's' to 0xFF9AA0AA.toInt(), 'S' to 0xFF2B68AE.toInt(), 'd' to 0xFF6B707A.toInt(),
     ))
+    val workshop = sprite(WORKSHOP, mapOf(
+        'r' to 0xFF7C5A38.toInt(), 'R' to 0xFF5E4326.toInt(), 'w' to 0xFFC9A26B.toInt(), 'W' to 0xFFA67E4B.toInt(),
+        'd' to 0xFF3B2412.toInt(), 'a' to 0xFF6E6E78.toInt(), 'A' to 0xFF4A4A52.toInt(), 'k' to 0xFF9FD3F0.toInt(),
+        'y' to 0xFFE8C547.toInt(),
+    ))
+    val market = sprite(MARKET, mapOf(
+        'r' to 0xFFC8483A.toInt(), 'f' to 0xFFF4F0E6.toInt(), 'b' to 0xFF8A6A3E.toInt(), 'B' to 0xFF6B4A2B.toInt(),
+        'a' to 0xFFD94F4F.toInt(), 'g' to 0xFF7BC043.toInt(), 'y' to 0xFFE8C547.toInt(), 'o' to 0xFFE89A2B.toInt(),
+    ))
+    val lamp = sprite(LAMP, mapOf(
+        'p' to 0xFF4A3A2A.toInt(), 'P' to 0xFF2E241A.toInt(), 'y' to 0xFFFFE070.toInt(), 'o' to 0xFFFFB347.toInt(),
+        'k' to 0xFF2A2A34.toInt(),
+    ))
+    val granary = sprite(GRANARY, mapOf(
+        'r' to 0xFFB8863F.toInt(), 'R' to 0xFF8E6529.toInt(), 'w' to 0xFFC9A26B.toInt(), 'W' to 0xFFA67E4B.toInt(),
+        'd' to 0xFF3B2412.toInt(), 'p' to 0xFF6B4A2B.toInt(), 'y' to 0xFFE8C547.toInt(),
+    ))
+    val barracks = sprite(BARRACKS, mapOf(
+        'r' to 0xFF7A3A2E.toInt(), 'R' to 0xFF572820.toInt(), 's' to 0xFFB9BCC6.toInt(), 'S' to 0xFF8D909C.toInt(),
+        'd' to 0xFF3A2614.toInt(), 'f' to 0xFFC0392B.toInt(), 'k' to 0xFF2A2A34.toInt(), 'm' to 0xFFC9CED6.toInt(),
+    ))
+    val library = sprite(LIBRARY, mapOf(
+        'r' to 0xFF3F5E8C.toInt(), 'R' to 0xFF2B4468.toInt(), 'w' to 0xFFE7DCC2.toInt(), 'W' to 0xFFC9B99A.toInt(),
+        'd' to 0xFF4A2E1B.toInt(), 'k' to 0xFF9FD3F0.toInt(), 'y' to 0xFFF2D88A.toInt(), 'b' to 0xFF8D909C.toInt(),
+    ))
     private val chickPal = mapOf('w' to 0xFFF4F0E6.toInt(), 'o' to 0xFFE89A2B.toInt(), 'r' to 0xFFD9373A.toInt(), 'd' to 0xFF222222.toInt(), 'g' to 0xFFC9C3B4.toInt())
     val chicken = listOf(sprite(CHICK1, chickPal), sprite(CHICK2, chickPal))
     private val firePal = mapOf('y' to 0xFFFFE070.toInt(), 'o' to 0xFFFF8A2B.toInt(), 'L' to 0xFF6B4A2B.toInt(), 'l' to 0xFF4A3220.toInt(), 's' to 0xFF8E8E96.toInt())
@@ -571,6 +596,77 @@ class CivArt {
             "ssSSSSss",
             "sdssssds",
             ".dddddd.",
+        )
+        val WORKSHOP = listOf(
+            "...rrrrrrrr...",
+            "..rrRrrRrrRr..",
+            ".rrrrrrrrrrrr.",
+            "..wwwwwwwwww..",
+            "..wWwwkkwwWw..",
+            "..wwwwkkwwww..",
+            "..wWwwwwwwWw..",
+            "..wwddddwwaa..",
+            "..wwddddwAaA..",
+            "..wwddddwaaa..",
+            ".WWWWWWWWWWWW.",
+        )
+        val MARKET = listOf(
+            "..rfrfrfrfrfrf..",
+            ".rfrfrfrfrfrfrf.",
+            "rfrfrfrfrfrfrfrf",
+            ".a.b........b.a.",
+            "..b.gg.yy...b...",
+            "..b.gg.yo.oo.b..",
+            "..bBBBBBBBBBBb..",
+            "..bBggBooBBBBb..",
+            "..BBBBBBBBBBBB..",
+        )
+        val LAMP = listOf(
+            ".kkk.",
+            "kyyyk",
+            "kyoyk",
+            ".kkk.",
+            "..p..",
+            "..p..",
+            "..p..",
+            "..p..",
+            ".PPP.",
+        )
+        val GRANARY = listOf(
+            "....rrrrrr....",
+            "..rrRrrrrRrr..",
+            ".rrrrrrrrrrrr.",
+            "..wwwwwwwwww..",
+            "..wWwwwwwwWw..",
+            "..wwwwyywwww..",
+            "..wWwwyywwWw..",
+            "..wwwddddwww..",
+            "..wWwddddwWw..",
+            ".ppppppppppp..",
+        )
+        val BARRACKS = listOf(
+            "..f...........",
+            "..k.rrrrrrrr..",
+            ".rrrrRrrRrrrr.",
+            "rrRrrrrrrrrRrr",
+            ".ssssssssssss.",
+            ".sSsssmmsssSs.",
+            ".ssssmmmmssss.",
+            ".sSssssssssSs.",
+            ".sssssddsssss.",
+            ".SSSSSddSSSSS.",
+        )
+        val LIBRARY = listOf(
+            ".....rrrr.....",
+            "...rrRRRRrr...",
+            "..rrRRRRRRrr..",
+            ".rrrrrrrrrrrr.",
+            "..wwwwwwwwww..",
+            "..wkkwwwwkkw..",
+            "..wkkwwwwkkw..",
+            "..wwwwyywwww..",
+            "..wWwwddwwWw..",
+            ".bbbbbddbbbbb.",
         )
         val CHICK1 = listOf(
             "...r...",

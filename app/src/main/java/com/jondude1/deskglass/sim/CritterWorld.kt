@@ -430,7 +430,7 @@ class CritterWorld(private val sim: CivSim) {
         if (spawnClock > 0f) return
         spawnClock = 22f + rnd.nextFloat() * 28f
         if (sim.villagers.size < 2 || sim.time < 45.0) return
-        if (wilds.size >= min(5, 2 + sim.age)) return
+        if (wilds.size >= min(7, 3 + sim.age)) return
         val night = sim.darkness() > 0.3f
         val month = java.time.LocalDate.now().monthValue
         val winter = month == 12 || month <= 2

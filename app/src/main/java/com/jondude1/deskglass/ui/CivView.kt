@@ -470,7 +470,6 @@ private fun DrawScope.drawWorld(
         }
     }
 
-    val wellHut = sim.buildings.firstOrNull { it.type == "hut" && it.era >= 1 }
     // things standing on the ground, row by row so lower ones overlap higher ones
     for (y in vy0 until vy1) {
         for (x in vx0 until vx1) {
@@ -506,16 +505,6 @@ private fun DrawScope.drawWorld(
                 val sway = if (swaying) kotlin.math.sin(t * 1.3f + (h % 7)) * ps * 0.6f else 0f
                 img(sp, cx - w / 2f + sway, baseY - hh, w, hh)
             }
-        }
-        if (wellHut != null && wellHut.y == y) {
-            val wsp = art.well
-            val ww = wsp.lw * ps
-            val wh = wsp.lh * ps
-            val wcx = ox + (wellHut.x + 1.5f) * ts
-            val wby = oy + (wellHut.y + 0.97f) * ts
-            shadow(wcx, wby, ww * 0.9f, 3.5f * ps)
-            castShadow(art, wsp, wcx, wby, ww, wh, sun)
-            img(wsp, wcx - ww / 2f, wby - wh, ww, wh)
         }
         for (k in sim.kingdoms) {
             if (k.id == 0) continue
@@ -588,6 +577,13 @@ private fun DrawScope.drawWorld(
                 "smelter" -> art.forge
                 "tower" -> art.tower
                 "palisade" -> art.palisade
+                "well" -> art.well
+                "workshop" -> art.workshop
+                "market" -> art.market
+                "lamp" -> art.lamp
+                "granary" -> art.granary
+                "barracks" -> art.barracks
+                "library" -> art.library
                 else -> art.fire[fireFrame]
             }
             val w = sp.lw * ps
@@ -613,6 +609,24 @@ private fun DrawScope.drawWorld(
                         center = Offset(cx, baseY - hh * 0.75f),
                     )
                     drawRect(Color(0xFFFFE070), Offset(cx - ps, baseY - hh * 0.8f), Size(ps * 2f, ps * 2.4f))
+                }
+            }
+            // lanterns, workshop forge-light and the market's glow at night
+            if (dark > 0.1f) {
+                when (b.type) {
+                    "lamp" -> {
+                        val a = min(0.75f, dark * 1.3f)
+                        drawCircle(Color(0xFFFFC85A).copy(alpha = a * 0.28f), radius = ts * 2.1f, center = Offset(cx, baseY - hh * 0.75f))
+                        drawCircle(Color(0xFFFFD27A).copy(alpha = a * 0.45f), radius = ts * (1.0f + 0.04f * kotlin.math.sin(t * 6f + b.x)), center = Offset(cx, baseY - hh * 0.75f))
+                    }
+                    "library" -> {
+                        val glow = Color(0xFFFFD27A).copy(alpha = min(1f, dark * 1.6f))
+                        drawRect(glow, Offset(cx - w * 0.3f, baseY - hh * 0.55f), Size(ps * 2f, ps * 2.4f))
+                        drawRect(glow, Offset(cx + w * 0.16f, baseY - hh * 0.55f), Size(ps * 2f, ps * 2.4f))
+                    }
+                    "workshop" -> drawCircle(Color(0xFFFF9A3A).copy(alpha = min(0.4f, dark * 0.7f)), radius = ts * 0.9f, center = Offset(cx + w * 0.3f, baseY - hh * 0.3f))
+                    "market" -> drawCircle(Color(0xFFFFD27A).copy(alpha = min(0.3f, dark * 0.55f)), radius = ts * 1.5f, center = Offset(cx, baseY - hh * 0.4f))
+                    "campfire" -> drawCircle(Color(0xFFFF9A3A).copy(alpha = min(0.32f, dark * 0.6f)), radius = ts * 2.2f, center = Offset(cx, baseY - hh * 0.4f))
                 }
             }
             // lit windows at night
@@ -1236,6 +1250,8 @@ fun VillageScreen(vm: MainViewModel, fullscreen: Boolean, onFullscreen: (Boolean
                         (if (sim.age >= 2) "   Ore ${sim.ore}   Metal ${sim.metal}" else ""),
                     color = Glass.InkDim, fontSize = 16.sp,
                 )
+                if (sim.goods > 0) Text("Goods to trade: ${sim.goods}", color = Glass.InkDim, fontSize = 14.sp)
+                Text("Buildings (built/limit): ${sim.buildSummary()}", color = Glass.InkFaint, fontSize = 12.sp)
                 Text("Brain: ${sim.brain}", color = Glass.InkFaint, fontSize = 14.sp)
                 Text(
                     "Critters ${sim.critters.critters.size}/${sim.critters.maxKept()} kept · ${sim.critters.caught.size}/50 species caught" +

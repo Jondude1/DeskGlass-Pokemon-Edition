@@ -105,6 +105,22 @@ fun DrawScope.lifeUnderlay(sim: CivSim, art: CivArt, g: Geo) {
     val ts = g.ts
     val ps = g.ps
     val t = g.t
+    // footpaths worn into the grass wherever people walk a lot
+    val tr = sim.traffic
+    for (i in tr.indices) {
+        val w = tr[i]
+        if (w < 6f || sim.tiles[i] != T.GRASS) continue
+        val x = i % GW
+        val y = i / GW
+        val a = min(0.5f, (w - 4f) / 44f)
+        val h = hsh(i, 3, 2)
+        val px = g.ox + x * ts
+        val py = g.oy + y * ts
+        drawRect(Color(0xFF9C7E54).copy(alpha = a), Offset(px + ts * 0.14f, py + ts * 0.18f), Size(ts * 0.72f, ts * 0.66f))
+        drawRect(Color(0xFFB4966A).copy(alpha = a * 0.8f), Offset(px + ts * 0.3f + (h % 5) * ps * 0.4f, py + ts * 0.3f), Size(ps * 2.2f, ps * 1.4f))
+        if (x + 1 < GW && tr[i + 1] >= 6f) drawRect(Color(0xFF9C7E54).copy(alpha = a), Offset(px + ts * 0.8f, py + ts * 0.3f), Size(ts * 0.4f, ts * 0.4f))
+        if (y + 1 < GH && tr[i + GW] >= 6f) drawRect(Color(0xFF9C7E54).copy(alpha = a), Offset(px + ts * 0.3f, py + ts * 0.8f), Size(ts * 0.4f, ts * 0.4f))
+    }
     for (i in art.grassCells) {
         if (sim.tiles[i] != T.GRASS) continue
         val h = hsh(i, 7, 5)
@@ -229,6 +245,7 @@ fun DrawScope.drawVillagers(sim: CivSim, art: CivArt, g: Geo, sun: Sun) {
         }
         val talking = tt != null || v.say.isNotEmpty()
         val bob = when {
+            working && (v.action == "dance" || v.action == "play") -> abs(sin(t * 7f + v.id)) * ps * 3.2f * kid
             walking -> abs(sin(t * 9f + v.id)) * ps * 0.9f * kid
             working -> abs(sin(t * 6f + v.id)) * ps * 1.2f * kid
             child -> abs(sin(t * 5f + v.id)) * ps * 1.4f * kid
@@ -237,6 +254,7 @@ fun DrawScope.drawVillagers(sim: CivSim, art: CivArt, g: Geo, sun: Sun) {
         }
         val breathe = if (walking || working) 1f else 1f + 0.03f * sin(t * 2.2f + v.id)
         val lean = when {
+            working && v.action == "dance" -> 10f * sin(t * 3.5f + v.id)
             walking -> 4f
             working -> 6f * sin(t * 6f + v.id)
             else -> 0f
@@ -367,27 +385,7 @@ fun DrawScope.lifeCritters(sim: CivSim, art: CivArt, g: Geo) {
     val t = g.t
     val day = g.dark < 0.35f
 
-    // ducks paddling on open water, with a little wake
-    if (day && art.innerWater.isNotEmpty()) {
-        for (k in 0 until 3) {
-            val cell = art.innerWater[hsh(k, 11, 3) % art.innerWater.size]
-            val a = t * (0.28f + 0.05f * k) * (if (k % 2 == 0) 1f else -1f) + k * 2f
-            val x = cell % GW + 0.5f + cos(a) * 0.55f
-            val y = cell / GW + 0.5f + sin(a) * 0.32f
-            val dirX = if (k % 2 == 0) -sin(a) else sin(a)
-            val dir = if (dirX >= 0f) 1f else -1f
-            val sp = art.duck[((t * 1.6f + k).toInt()) and 1]
-            val w = sp.lw * ps
-            val h = sp.lh * ps
-            val px = g.ox + x * ts
-            val py = g.oy + y * ts + sin(t * 3f + k) * ps * 0.4f
-            drawLine(Color.White.copy(alpha = 0.35f), Offset(px - dir * ps * 3f, py + ps * 0.4f), Offset(px - dir * ps * 8f, py - ps * 0.8f), strokeWidth = ps * 0.8f)
-            drawLine(Color.White.copy(alpha = 0.35f), Offset(px - dir * ps * 3f, py + ps * 0.4f), Offset(px - dir * ps * 8f, py + ps * 1.8f), strokeWidth = ps * 0.8f)
-            withTransform({ scale(dir, 1f, Offset(px, py)) }) {
-                img(sp, px - w / 2f, py - h, w, h)
-            }
-        }
-    }
+    drawFauna(sim, art, g)
 
     // fish leaping out of the water
     val pool = if (art.innerWater.isNotEmpty()) art.innerWater else art.shoreWater
@@ -416,36 +414,6 @@ fun DrawScope.lifeCritters(sim: CivSim, art: CivArt, g: Geo) {
         }
     }
 
-    // rabbits hopping about the meadows
-    if (g.dark < 0.45f && art.meadowCells.isNotEmpty()) {
-        for (k in 0 until 3) {
-            val cell = art.meadowCells[hsh(k, 31, 6) % art.meadowCells.size]
-            val hx = cell % GW + 0.5f
-            val hy = cell / GW + 0.5f
-            val period = 1.9f + k * 0.4f
-            val n = floor(t / period).toInt()
-            val u = t / period - n
-            val hop = PixelFx.smooth(min(1f, u / 0.35f))
-            val x0 = rabbitX(hx, k, n)
-            val y0 = rabbitY(hy, k, n)
-            val x1 = rabbitX(hx, k, n + 1)
-            val y1 = rabbitY(hy, k, n + 1)
-            val x = x0 + (x1 - x0) * hop
-            val y = y0 + (y1 - y0) * hop
-            val air = if (u < 0.35f) sin(hop * PI.toFloat()) * ts * 0.32f else 0f
-            val sp = art.rabbit[if (u < 0.35f) 1 else 0]
-            val w = sp.lw * ps
-            val h = sp.lh * ps
-            val px = g.ox + x * ts
-            val py = g.oy + y * ts
-            val dir = if (x1 >= x0) 1f else -1f
-            drawOval(Color.Black.copy(alpha = 0.2f), Offset(px - w * 0.4f, py - ps * 0.8f), Size(w * 0.8f, ps * 1.8f))
-            withTransform({ scale(dir, 1f, Offset(px, py)) }) {
-                img(sp, px - w / 2f, py - h - air, w, h)
-            }
-        }
-    }
-
     // dragonflies darting over the shore on warm days
     if (g.dark < 0.3f && !sim.raining() && art.shoreWater.isNotEmpty()) {
         for (k in 0 until 3) {
@@ -464,7 +432,7 @@ fun DrawScope.lifeCritters(sim: CivSim, art: CivArt, g: Geo) {
     // chimney smoke from the houses when the day is cool or the light is going
     if (g.dark > 0.04f) {
         for (b in sim.buildings) {
-            if (b.type != "hut" || b.era < 1) continue
+            if ((b.type != "hut" || b.era < 1) && b.type != "workshop") continue
             val bx = g.ox + (b.x + 0.5f) * ts + ps * 3.6f
             val by = g.oy + (b.y + 0.97f) * ts - ps * 10.5f
             for (k in 0 until 4) {
@@ -563,5 +531,91 @@ fun DrawScope.ageBanner(sim: CivSim, g: Geo, namePaint: android.graphics.Paint, 
         namePaint.textSize = g.ts * 0.5f
         nc.drawText("A new age begins", size.width / 2f, top + h * 0.86f, namePaint)
         namePaint.color = android.graphics.Color.argb(230, 255, 255, 255)
+    }
+}
+
+
+// ---------------------------------------------------------------------------------------------
+// The animals of the wide world: rabbits, deer, ducks, frogs, butterflies and birds overhead.
+// ---------------------------------------------------------------------------------------------
+fun DrawScope.drawFauna(sim: CivSim, art: CivArt, g: Geo) {
+    val ts = g.ts
+    val ps = g.ps
+    val t = g.t
+    val vis = g.dark < 0.55f
+    val list = sim.fauna.animals.toList()
+    for (a in list.sortedBy { it.y }) {
+        val px = g.ox + a.x * ts
+        val py = g.oy + a.y * ts
+        if (px < -ts * 3f || py < -ts * 3f) continue
+        val dir = a.facing.toFloat()
+        when (a.kind) {
+            "rabbit" -> {
+                if (!vis && !a.moving) continue
+                val hopPhase = (t * (if (a.flee > 0f) 7f else 4f) + a.id) % 1f
+                val hop = if (a.moving) sin(hopPhase * PI.toFloat()) * ts * (if (a.flee > 0f) 0.34f else 0.2f) else 0f
+                val sp = art.rabbit[if (a.moving && hopPhase < 0.5f) 1 else 0]
+                val w = sp.lw * ps
+                val h = sp.lh * ps
+                drawOval(Color.Black.copy(alpha = 0.2f), Offset(px - w * 0.4f, py - ps * 0.8f), Size(w * 0.8f, ps * 1.8f))
+                withTransform({ scale(dir, 1f, Offset(px, py)) }) { img(sp, px - w / 2f, py - h - hop, w, h) }
+            }
+            "deer" -> {
+                val sp = art.deer[if (a.moving && ((t * 5f + a.id).toInt() and 1) == 0) 1 else 0]
+                val w = sp.lw * ps
+                val h = sp.lh * ps
+                val bob = if (a.grazing && !a.moving) sin(t * 1.5f + a.id) * ps * 0.4f else 0f
+                drawOval(Color.Black.copy(alpha = 0.22f), Offset(px - w * 0.4f, py - ps * 1.1f), Size(w * 0.8f, ps * 2.4f))
+                withTransform({ scale(dir, 1f, Offset(px, py)) }) { img(sp, px - w / 2f, py - h + bob, w, h) }
+            }
+            "duck" -> {
+                if (!vis) continue
+                val sp = art.duck[((t * 1.6f + a.id).toInt()) and 1]
+                val w = sp.lw * ps
+                val h = sp.lh * ps
+                val bob = sin(t * 3f + a.id) * ps * 0.4f
+                if (a.moving) {
+                    drawLine(Color.White.copy(alpha = 0.35f), Offset(px - dir * ps * 3f, py + ps * 0.4f + bob), Offset(px - dir * ps * 8f, py - ps * 0.8f), strokeWidth = ps * 0.8f)
+                    drawLine(Color.White.copy(alpha = 0.35f), Offset(px - dir * ps * 3f, py + ps * 0.4f + bob), Offset(px - dir * ps * 8f, py + ps * 1.8f), strokeWidth = ps * 0.8f)
+                }
+                withTransform({ scale(dir, 1f, Offset(px, py)) }) { img(sp, px - w / 2f, py - h + bob, w, h) }
+            }
+            "frog" -> {
+                if (!vis) continue
+                val jump = if (a.moving) sin(((t * 5f + a.id) % 1f) * PI.toFloat()) * ps * 3f else 0f
+                drawOval(Color.Black.copy(alpha = 0.2f), Offset(px - ps * 2f, py - ps * 0.5f), Size(ps * 4f, ps * 1.2f))
+                drawRect(Color(0xFF3E9E4A), Offset(px - ps * 1.8f, py - ps * 2.2f - jump), Size(ps * 3.6f, ps * 2f))
+                drawRect(Color(0xFF2F7A3E), Offset(px - ps * 1.8f + (if (dir > 0) 0f else ps * 2.4f), py - ps * 1.0f - jump), Size(ps * 1.2f, ps * 1.2f))
+                drawRect(Color.White, Offset(px + dir * ps * 0.8f - ps * 0.4f, py - ps * 2.8f - jump), Size(ps * 0.9f, ps * 0.9f))
+            }
+            "butterfly" -> {
+                if (g.dark > 0.35f || sim.raining()) continue
+                val flap = abs(sin(t * 14f + a.id)) * ps * 1.6f
+                val lift = a.alt * ts * 0.5f + sin(t * 2f + a.id) * ps * 1.2f
+                val c = when (a.id % 4) {
+                    0 -> Color(0xFFFFB347)
+                    1 -> Color(0xFF8FD3FF)
+                    2 -> Color(0xFFFF8FB8)
+                    else -> Color(0xFFF4F0E6)
+                }
+                val bx = px
+                val by = py - lift
+                drawRect(c, Offset(bx - flap - ps * 0.4f, by - ps * 1.2f), Size(flap + ps * 0.5f, ps * 1.8f))
+                drawRect(c, Offset(bx - ps * 0.1f, by - ps * 1.2f), Size(flap + ps * 0.5f, ps * 1.8f))
+                drawRect(Color(0xFF3A2A1A), Offset(bx - ps * 0.3f, by - ps * 1.3f), Size(ps * 0.6f, ps * 2f))
+            }
+            "bird" -> {
+                val lift = a.alt * ts
+                val flap = sin(t * 9f + a.id)
+                // shadow on the ground
+                drawOval(Color.Black.copy(alpha = 0.12f), Offset(px - ps * 2.5f, py - ps * 0.6f), Size(ps * 5f, ps * 1.4f))
+                val by = py - lift
+                val wing = flap * ps * 2f
+                val col = Color(0xFF2E2E3A)
+                drawLine(col, Offset(px - ps * 3.4f, by + wing), Offset(px, by), strokeWidth = ps * 1.1f)
+                drawLine(col, Offset(px + ps * 3.4f, by + wing), Offset(px, by), strokeWidth = ps * 1.1f)
+                drawRect(col, Offset(px - ps * 0.7f, by - ps * 0.5f), Size(ps * 1.8f, ps * 1.5f))
+            }
+        }
     }
 }

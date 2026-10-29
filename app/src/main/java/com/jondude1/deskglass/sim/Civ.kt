@@ -157,6 +157,9 @@ private val ACTIONS = setOf(
     "gather_wood", "gather_stone", "gather_food", "build_hut", "build_farm", "build_campfire",
     "eat", "sleep", "talk", "wander", "fish", "tend_farm", "explore", "tell_story", "huddle",
     "hunt", "mine_ore", "smelt", "build_smelter",
+    "build_well", "build_workshop", "build_market", "build_lamp",
+    "fetch_water", "craft", "trade", "dance", "patrol", "play",
+    "build_granary", "build_barracks", "build_library", "haul", "drill", "study",
 )
 
 private val DX = intArrayOf(1, -1, 0, 0)
@@ -231,6 +234,13 @@ class CivSim(
     val drops = ArrayList<Drop>()
     /** Wild critters, companions, helpers, training and evolution. */
     val critters = CritterWorld(this)
+    /** Ordinary animals that make the land feel alive. Not saved. */
+    val fauna = Fauna(this)
+    /** Worn footpaths: how often each tile has been walked. */
+    val traffic = FloatArray(GW * GH)
+    /** Things made at the workshop, sold at the market. */
+    var goods = 0
+    private var studied = 0
     var ageBannerAt = -999.0
     var ageBannerName = ""
     private var worldClock = 0f
@@ -295,6 +305,9 @@ class CivSim(
         time = DAY_LEN * 0.08
         lastBirth = time
         hides = 0
+        goods = 0
+        traffic.fill(0f)
+        fauna.reset()
         drops.clear()
         ageBannerAt = -999.0
         fx.clear()
@@ -497,6 +510,10 @@ class CivSim(
     private fun nearestTile(v: Villager, type: Int): Int {
         var best = -1
         var bd = Float.MAX_VALUE
+        var free = -1
+        var fd = Float.MAX_VALUE
+        val claimed = HashSet<Int>()
+        for (o in villagers) if (o !== v && o.targetTile >= 0 && (o.action.startsWith("gather_") || o.action == "mine_ore")) claimed.add(o.targetTile)
         for (i in tiles.indices) {
             if (tiles[i] != type || amt[i] <= 0) continue
             val d = hypot(i % GW + 0.5f - v.x, i / GW + 0.5f - v.y)
@@ -504,8 +521,13 @@ class CivSim(
                 bd = d
                 best = i
             }
+            if (d < fd && i !in claimed) {
+                fd = d
+                free = i
+            }
         }
-        return best
+        // spread people out over the trees and rocks unless the free ones are much further away
+        return if (free >= 0 && fd <= bd + 8f) free else best
     }
 
     private fun nearestBuilding(v: Villager, type: String?): Building? =
@@ -513,6 +535,47 @@ class CivSim(
             .minByOrNull { hypot(it.x + 0.5f - v.x, it.y + 0.5f - v.y) }
 
     private fun count(type: String) = buildings.count { it.type == type }
+
+    internal fun walkableTile(x: Int, y: Int): Boolean =
+        x in 0 until GW && y in 0 until GH && tiles[y * GW + x] != T.WATER && !occupied[y * GW + x]
+
+    /** How many of each building the village can support, which grows with the number of people. */
+    fun capFor(type: String): Int {
+        val n = villagers.size
+        val ad = adults()
+        return when (type) {
+            "hut" -> if (age < 2) (n + 1) / 2 + 2 else (n * 3) / 4 + 1
+            "farm" -> if (age < 1) 0 else min(6, 1 + ad / 3)
+            "campfire" -> min(4, 1 + n / 6)
+            "smelter" -> if (age < 2) 0 else min(3, 1 + ad / 5)
+            "well" -> if (age < 1) 0 else min(3, n / 6)
+            "workshop" -> if (age < 1) 0 else min(2, n / 8)
+            "market" -> if (age < 2 || n < 8) 0 else min(if (age >= 4) 4 else 2, 1 + n / 16)
+            "lamp" -> if (age < 1) 0 else min(10, n / 2)
+            "granary" -> if (age < 2) 0 else min(3, n / 8)
+            "barracks" -> if (age < 3) 0 else min(2, n / 10)
+            "library" -> if (age < 3 || n < 10) 0 else min(2, n / 14)
+            else -> 99
+        }
+    }
+
+    /** Homes, farms, workshops and the like all together: a small village cannot have a sprawl. */
+    private fun totalCap() = 4 + n() + n() / 2
+    private fun n() = villagers.size
+    private fun civicCount() = buildings.count { it.type != "hall" && it.type != "tower" && it.type != "palisade" } +
+        villagers.count { it.action.startsWith("build_") }
+
+    private fun canBuild(type: String) = counting(type) < capFor(type) && civicCount() < totalCap()
+
+    /** A short "what is built and what could be" line for the panels. */
+    fun buildSummary(): String {
+        val parts = ArrayList<String>()
+        for (t in listOf("hut", "farm", "campfire", "smelter", "well", "workshop", "market", "granary", "barracks", "library", "lamp")) {
+            val c = capFor(t)
+            if (c > 0) parts.add("$t ${count(t)}/$c")
+        }
+        return parts.joinToString("  ")
+    }
 
     /** Buildings standing plus the ones somebody is already walking out to raise. */
     private fun counting(type: String) = count(type) + villagers.count { it.action == "build_$type" }
@@ -597,12 +660,21 @@ class CivSim(
                 if (i < 0) return false
                 return go(v, action, i)
             }
-            "build_hut", "build_farm", "build_campfire", "build_smelter" -> {
+            "build_hut", "build_farm", "build_campfire", "build_smelter", "build_well", "build_workshop", "build_market", "build_lamp", "build_granary", "build_barracks", "build_library" -> {
+                val type = action.removePrefix("build_")
+                if (!canBuild(type)) return false
                 val ok = when (action) {
                     "build_hut" -> wood >= 6 && (stone >= 2 || hides >= 1)
-                    "build_farm" -> age >= 1 && wood >= 4 && counting("farm") < 2 + adults() / 3
-                    "build_smelter" -> age >= 2 && wood >= 4 && stone >= 6 && counting("smelter") < 3
-                    else -> stone >= 3 && counting("campfire") < 3
+                    "build_farm" -> wood >= 4
+                    "build_smelter" -> wood >= 4 && stone >= 6
+                    "build_well" -> wood >= 4 && stone >= 6
+                    "build_workshop" -> wood >= 10 && stone >= 4
+                    "build_market" -> wood >= 12 && stone >= 6
+                    "build_lamp" -> wood >= 2 && stone >= 2
+                    "build_granary" -> wood >= 14 && stone >= 6
+                    "build_barracks" -> wood >= 16 && stone >= 14 && metal >= 2
+                    "build_library" -> wood >= 18 && stone >= 12
+                    else -> stone >= 3
                 }
                 if (!ok) return false
                 val site = findSite()
@@ -611,13 +683,83 @@ class CivSim(
                 when (action) {
                     "build_hut" -> { wood -= 6; if (hides >= 1) hides-- else stone -= 2 }
                     "build_farm" -> wood -= 4
-                    "build_smelter" -> { wood -= 4; stone -= 6 }
+                    "build_smelter", "build_well" -> { wood -= 4; stone -= 6 }
+                    "build_workshop" -> { wood -= 10; stone -= 4 }
+                    "build_market" -> { wood -= 12; stone -= 6 }
+                    "build_lamp" -> { wood -= 2; stone -= 2 }
+                    "build_granary" -> { wood -= 14; stone -= 6 }
+                    "build_barracks" -> { wood -= 16; stone -= 14; metal -= 2 }
+                    "build_library" -> { wood -= 18; stone -= 12 }
                     else -> stone -= 3
                 }
                 reserved.add(site)
                 return true
             }
+            "haul" -> {
+                if (food < 4) return false
+                val b = nearestBuilding(v, "granary") ?: return false
+                return go(v, "haul", b.y * GW + b.x)
+            }
+            "drill" -> {
+                val b = nearestBuilding(v, "barracks") ?: return false
+                return go(v, "drill", b.y * GW + b.x)
+            }
+            "study" -> {
+                val b = nearestBuilding(v, "library") ?: return false
+                return go(v, "study", b.y * GW + b.x)
+            }
+            "fetch_water" -> {
+                val b = nearestBuilding(v, "well") ?: return false
+                return go(v, "fetch_water", b.y * GW + b.x)
+            }
+            "craft" -> {
+                if (wood < 6 || stone < 2 || goods >= 24) return false
+                val b = nearestBuilding(v, "workshop") ?: return false
+                return go(v, "craft", b.y * GW + b.x)
+            }
+            "trade" -> {
+                if (goods < 2) return false
+                val b = nearestBuilding(v, "market") ?: return false
+                return go(v, "trade", b.y * GW + b.x)
+            }
+            "dance" -> {
+                val b = nearestBuilding(v, "campfire") ?: return false
+                return go(v, "dance", b.y * GW + b.x)
+            }
+            "play" -> {
+                for (k in 0 until 10) {
+                    val x = (v.x.toInt() + rnd.nextInt(11) - 5).coerceIn(1, GW - 2)
+                    val y = (v.y.toInt() + rnd.nextInt(9) - 4).coerceIn(1, GH - 2)
+                    val i = y * GW + x
+                    if (!blocked(i) && go(v, "play", i)) return true
+                }
+                return false
+            }
+            "patrol" -> {
+                // walk out to the edge of the village and look around
+                val cx = if (buildings.isEmpty()) GW / 2f else buildings.map { it.x }.average().toFloat()
+                val cy = if (buildings.isEmpty()) GH / 2f else buildings.map { it.y }.average().toFloat()
+                for (k in 0 until 14) {
+                    val ang = rnd.nextFloat() * 6.283f
+                    val r = 7f + rnd.nextFloat() * 5f
+                    val x = (cx + kotlin.math.cos(ang) * r).toInt().coerceIn(1, GW - 2)
+                    val y = (cy + kotlin.math.sin(ang) * r * 0.7f).toInt().coerceIn(1, GH - 2)
+                    val i = y * GW + x
+                    if (!blocked(i) && go(v, "patrol", i)) return true
+                }
+                return false
+            }
             "hunt" -> {
+                // follow the game if there is some close by, otherwise go into the trees
+                var prey = -1
+                var pd = 22f
+                for (a in fauna.animals) {
+                    if (a.kind != "deer" && a.kind != "rabbit") continue
+                    val d = hypot(a.x - v.x, a.y - v.y)
+                    val ti = a.y.toInt() * GW + a.x.toInt()
+                    if (d < pd && ti in tiles.indices && !blocked(ti)) { pd = d; prey = ti }
+                }
+                if (prey >= 0 && go(v, "hunt", prey)) return true
                 val i = nearestTile(v, T.FOREST)
                 if (i < 0) return false
                 return go(v, "hunt", i)
@@ -708,6 +850,15 @@ class CivSim(
             v.action == "tend_farm" -> { v.phase = "working"; v.workLeft = 5f }
             v.action == "explore" -> { v.phase = "working"; v.workLeft = 5f }
             v.action == "huddle" -> { v.phase = "working"; v.workLeft = 7f }
+            v.action == "fetch_water" -> { v.phase = "working"; v.workLeft = 3f }
+            v.action == "haul" -> { v.phase = "working"; v.workLeft = 4f }
+            v.action == "drill" -> { v.phase = "working"; v.workLeft = 6f }
+            v.action == "study" -> { v.phase = "working"; v.workLeft = 8f }
+            v.action == "craft" -> { v.phase = "working"; v.workLeft = 7f }
+            v.action == "trade" -> { v.phase = "working"; v.workLeft = 4f }
+            v.action == "dance" -> { v.phase = "working"; v.workLeft = 7f }
+            v.action == "play" -> { v.phase = "working"; v.workLeft = 5f }
+            v.action == "patrol" -> { v.phase = "working"; v.workLeft = 3f }
             v.action.startsWith("critter_") -> critters.onArrive(v)
             v.action == "tell_story" -> {
                 v.phase = "working"
@@ -799,11 +950,11 @@ class CivSim(
                     finish(v)
                 } else v.workLeft = 3f
             }
-            "build_hut", "build_farm", "build_campfire", "build_smelter" -> {
+            "build_hut", "build_farm", "build_campfire", "build_smelter", "build_well", "build_workshop", "build_market", "build_lamp", "build_granary", "build_barracks", "build_library" -> {
                 val i = v.targetTile
                 reserved.remove(i)
                 val type = v.action.removePrefix("build_")
-                val label = if (type == "hut" && age == 0) "tent" else if (type == "smelter") "forge" else type
+                val label = if (type == "hut" && age == 0) "tent" else if (type == "smelter") "forge" else if (type == "lamp") "lantern post" else type
                 if (i >= 0 && !occupied[i] && tiles[i] == T.GRASS) {
                     addBuilding(type, i % GW, i / GW)
                     addLog("${v.name} built a $label.")
@@ -877,8 +1028,79 @@ class CivSim(
                 }
                 finish(v)
             }
+            "haul" -> {
+                // a granary keeps the harvest from spoiling
+                food += 2
+                v.remember("filled the granary")
+                finish(v)
+            }
+            "drill" -> {
+                v.hp = min(100f, v.hp + 12f)
+                v.happiness = min(100f, v.happiness + 1f)
+                if (rnd.nextInt(5) == 0) addLog("${v.name} drills with the guard.")
+                finish(v)
+            }
+            "study" -> {
+                v.happiness = min(100f, v.happiness + 3f)
+                studied++
+                if (studied % 6 == 1) addLog("${v.name} studies in the library.")
+                v.remember("read in the library")
+                finish(v)
+            }
+            "fetch_water" -> {
+                // watered crops grow faster
+                for (b in buildings) if (b.type == "farm") b.boostUntil = max(b.boostUntil, time + 90.0)
+                v.happiness = min(100f, v.happiness + 3f)
+                v.remember("drew water at the well")
+                finish(v)
+            }
+            "craft" -> {
+                if (wood >= 6 && stone >= 2) {
+                    wood -= 6
+                    stone -= 2
+                    goods += 2 + toolBonus()
+                    if (rnd.nextInt(4) == 0) addLog("${v.name} finishes some handiwork at the workshop.")
+                    v.remember("made things at the workshop")
+                    v.happiness = min(100f, v.happiness + 2f)
+                }
+                finish(v)
+            }
+            "trade" -> {
+                if (goods >= 2) {
+                    goods -= 2
+                    val f = 4 + toolBonus()
+                    food += f
+                    if (age >= 3 && rnd.nextInt(3) == 0) metal++
+                    addLog("${v.name} trades goods at the market (+$f food).")
+                    v.remember("traded at the market")
+                    v.happiness = min(100f, v.happiness + 3f)
+                }
+                finish(v)
+            }
+            "dance" -> {
+                for (o in villagers) if (hypot(o.x - v.x, o.y - v.y) < 7f) o.happiness = min(100f, o.happiness + 3f)
+                v.happiness = min(100f, v.happiness + 4f)
+                if (rnd.nextInt(4) == 0) addLog("${v.name} dances by the fire.")
+                finish(v)
+            }
+            "play" -> {
+                v.happiness = min(100f, v.happiness + 3f)
+                finish(v)
+            }
+            "patrol" -> {
+                v.happiness = min(100f, v.happiness + 1f)
+                // a patrol sometimes spots trouble early
+                if (rnd.nextInt(14) == 0 && predators.isNotEmpty()) alertUntil = max(alertUntil, time + 40.0)
+                finish(v)
+            }
             "hunt" -> {
-                val got = if (rnd.nextInt(100) < 65) 3 + toolBonus() else 1
+                val prey = fauna.onHunt(v)
+                val got = when {
+                    prey == "deer" -> { if (rnd.nextInt(3) == 0) hides++; 5 + toolBonus() }
+                    prey == "rabbit" -> 3 + toolBonus()
+                    rnd.nextInt(100) < 65 -> 3 + toolBonus()
+                    else -> 1
+                }
                 food += got
                 v.remember(if (got >= 3) "brought home game (+$got food)" else "had a poor hunt")
                 v.happiness = min(100f, v.happiness + 1f)
@@ -1072,12 +1294,13 @@ class CivSim(
 
     private fun capStores() {
         val a = age.coerceIn(0, 4)
-        food = min(food, intArrayOf(150, 400, 900, 1800, 3000)[a])
+        food = min(food, intArrayOf(150, 400, 900, 1800, 3000)[a] + count("granary") * 300)
         wood = min(wood, intArrayOf(150, 400, 800, 1500, 2500)[a])
         stone = min(stone, intArrayOf(100, 250, 500, 1000, 2000)[a])
         ore = min(ore, 80)
         metal = min(metal, 200)
         hides = min(hides, 100)
+        goods = min(goods, 30)
     }
 
     private var nextPlanAt = 0.0
@@ -1095,8 +1318,12 @@ class CivSim(
         val worker = free.firstOrNull { it.job == "Builder" } ?: free.firstOrNull() ?: return
         when {
             want("homes") && wood >= 6 && (stone >= 2 || hides >= 1) -> startAction(worker, "build_hut", "")
-            want("farms") && wood >= 4 && counting("farm") < 2 + adults() / 3 -> startAction(worker, "build_farm", "")
-            want("forges") && wood >= 4 && stone >= 6 && counting("smelter") < 3 -> startAction(worker, "build_smelter", "")
+            want("farms") && wood >= 4 -> startAction(worker, "build_farm", "")
+            want("forges") && wood >= 4 && stone >= 6 -> startAction(worker, "build_smelter", "")
+            else -> {
+                val t = listOf("well", "granary", "workshop", "market", "library", "barracks", "lamp").firstOrNull { canBuild(it) }
+                if (t != null) startAction(worker, "build_$t", "")
+            }
         }
     }
 
@@ -1253,20 +1480,33 @@ class CivSim(
     private fun ruleDecision(v: Villager): Pair<String, String> {
         val others = villagers.filter { it !== v }
         val hasShore = nearestShore(v) >= 0
+        val part = partOfDay()
+        val starving = v.hunger >= 70f && food < 3
         if (v.hunger >= 60f && food > 0) return "eat" to ""
         if (v.energy < 25f || (isNight() && v.energy < 92f)) return "sleep" to ""
         if (isChild(v)) {
             if (alert()) return "huddle" to ""
-            return when (pick("wander" to 4, "talk" to 3, "huddle" to 2)) {
+            return when (pick("play" to 6, "study" to (if (count("library") > 0) 4 else 0), "talk" to 3, "wander" to 2, "fetch_water" to (if (count("well") > 0) 1 else 0))) {
                 "talk" -> "talk" to (friendFor(v)?.name ?: "")
-                "huddle" -> "huddle" to ""
+                "play" -> "play" to ""
+                "study" -> "study" to ""
+                "fetch_water" -> "fetch_water" to ""
                 else -> "wander" to ""
             }
         }
-        // hiding is for safety, but nobody hides while starving
-        if (alert() && v.job != "Scout" && !(v.hunger >= 70f && food < 3)) return "huddle" to ""
+        if (alert() && !starving) {
+            // only trouble that is actually close stops the work: fighters stand guard, the rest take cover
+            val danger = predators.any { hypot(it.x - v.x, it.y - v.y) < 13f }
+            val fighter = isFighter(v) || v.job == "Scout"
+            if (danger) return (if (fighter) "patrol" else "huddle") to ""
+            if (!fighter && time < alertUntil && rnd.nextInt(4) == 0) return "huddle" to ""
+        }
         if (festival()) {
-            return if (rnd.nextInt(3) == 0 && others.isNotEmpty()) "talk" to (friendFor(v)?.name ?: "") else "huddle" to ""
+            return when (pick("dance" to 4, "talk" to 2, "tell_story" to (if (v.job == "Storyteller") 4 else 0))) {
+                "talk" -> "talk" to (friendFor(v)?.name ?: "")
+                "tell_story" -> "tell_story" to ""
+                else -> "dance" to ""
+            }
         }
         if (food < 3) {
             val a = when {
@@ -1277,37 +1517,83 @@ class CivSim(
             }
             return a to ""
         }
-        val ad = adults()
-        val needHut = count("hut") * 2 < villagers.size + 2
-        if (needHut && wood >= 6 && stone >= 2 && (v.job == "Builder" || rnd.nextInt(5) == 0)) return "build_hut" to ""
-        if (age >= 1 && counting("farm") < 1 + ad / 3 && wood >= 4 && (v.job == "Builder" || v.job == "Farmer" || rnd.nextInt(6) == 0)) return "build_farm" to ""
-        if (stone >= 3 && counting("campfire") < 2 && v.job != "Scout") return "build_campfire" to ""
-        if (age >= 2 && counting("smelter") < min(3, 1 + ad / 5) && stone >= 6 && wood >= 4 &&
-            (v.job == "Builder" || v.job == "Bronzesmith" || v.job == "Blacksmith" || rnd.nextInt(6) == 0)
+        val builder = v.job == "Builder"
+        // the village grows as far as its population allows
+        if (wood >= 6 && stone >= 2 && canBuild("hut") && (builder || rnd.nextInt(5) == 0)) return "build_hut" to ""
+        if (age >= 1 && wood >= 4 && canBuild("farm") && (builder || v.job == "Farmer" || rnd.nextInt(6) == 0)) return "build_farm" to ""
+        if (stone >= 3 && canBuild("campfire") && v.job != "Scout") return "build_campfire" to ""
+        if (stone >= 6 && wood >= 4 && canBuild("smelter") &&
+            (builder || v.job == "Bronzesmith" || v.job == "Blacksmith" || rnd.nextInt(6) == 0)
         ) return "build_smelter" to ""
-        if (partOfDay() == "evening" && v.job == "Storyteller") return "tell_story" to ""
-        if (partOfDay() == "evening" && others.isNotEmpty() && rnd.nextInt(3) == 0) return "talk" to (friendFor(v)?.name ?: "")
+        if (wood >= 4 && stone >= 6 && canBuild("well") && (builder || rnd.nextInt(6) == 0)) return "build_well" to ""
+        if (wood >= 10 && stone >= 4 && canBuild("workshop") && (builder || rnd.nextInt(6) == 0)) return "build_workshop" to ""
+        if (wood >= 12 && stone >= 6 && canBuild("market") && (builder || rnd.nextInt(6) == 0)) return "build_market" to ""
+        if (wood >= 14 && stone >= 6 && canBuild("granary") && (builder || v.job == "Farmer" || rnd.nextInt(6) == 0)) return "build_granary" to ""
+        if (wood >= 18 && stone >= 12 && canBuild("library") && (builder || v.job == "Storyteller" || rnd.nextInt(8) == 0)) return "build_library" to ""
+        if (wood >= 16 && stone >= 14 && metal >= 2 && canBuild("barracks") && (builder || isFighter(v) && rnd.nextInt(4) == 0)) return "build_barracks" to ""
+        if (wood >= 2 && stone >= 2 && canBuild("lamp") && (builder || rnd.nextInt(8) == 0)) return "build_lamp" to ""
+
+        if (part == "evening") {
+            if (v.job == "Storyteller") return "tell_story" to ""
+            if (count("campfire") > 0 && rnd.nextInt(4) == 0) return "dance" to ""
+            if (others.isNotEmpty() && rnd.nextInt(3) == 0) return "talk" to (friendFor(v)?.name ?: "")
+        }
+        val ad = adults()
         val farms = age >= 1 && count("farm") > 0
+        val well = count("well") > 0
+        val shop = count("workshop") > 0 && wood >= 12 && stone >= 4 && goods < 20
+        val market = count("market") > 0 && goods >= 2
+        val lowWood = wood < 25 + ad * 4
+        val lowStone = stone < 10 + ad * 2
+        val lowFood = food < 10 + ad * 3
+        val granary = count("granary") > 0 && food >= 4
+        val barracks = count("barracks") > 0
+        val library = count("library") > 0
+        val fighterOnWatch = ad >= 6 && count("tower") == 0 && rnd.nextInt(6) == 0
         val act = when (v.job) {
-            "Woodcutter" -> pick("gather_wood" to 7, "talk" to 1, "wander" to 1, "gather_food" to (if (food < 8) 2 else 0))
-            "Miner" -> pick(
-                "gather_stone" to (if (stone < 12) 7 else 2),
-                "mine_ore" to (if (age >= 2 && ore < 30) 4 else 0),
-                "gather_wood" to (if (wood < 12) 3 else 1), "talk" to 1, "wander" to 1,
+            "Woodcutter" -> pick(
+                "gather_wood" to (if (lowWood) 8 else 3), "gather_stone" to (if (lowStone) 3 else 0),
+                "talk" to 1, "wander" to 1, "gather_food" to (if (lowFood) 3 else 0),
+                "craft" to (if (shop) 2 else 0), "trade" to (if (market) 2 else 0),
             )
-            "Forager" -> pick("gather_food" to 4, "fish" to (if (hasShore) 3 else 0), "talk" to 1, "wander" to 1)
-            "Hunter" -> pick("hunt" to 7, "gather_food" to 1, "fish" to (if (hasShore) 1 else 0), "talk" to 1, "wander" to 1)
-            "Farmer" -> pick("tend_farm" to (if (farms) 6 else 0), "gather_food" to 2, "gather_wood" to (if (farms) 0 else 4), "talk" to 1)
-            "Builder" -> pick("gather_wood" to (if (wood < 80) 6 else 3), "gather_stone" to (if (stone < 4) 3 else 1), "talk" to 1, "wander" to 1)
+            "Miner" -> pick(
+                "gather_stone" to (if (lowStone) 7 else 2),
+                "mine_ore" to (if (age >= 2 && ore < 30 && ore < 60) 4 else 0),
+                "gather_wood" to (if (lowWood) 3 else 1), "talk" to 1, "wander" to 1,
+                "craft" to (if (shop) 3 else 0),
+            )
+            "Forager" -> pick(
+                "gather_food" to (if (lowFood) 5 else 2), "fish" to (if (hasShore) 3 else 0), "talk" to 1, "wander" to 1,
+                "haul" to (if (granary) 2 else 0),
+                "fetch_water" to (if (well) 2 else 0), "trade" to (if (market) 2 else 0),
+            )
+            "Hunter" -> pick(
+                "hunt" to (if (lowFood) 8 else 4), "drill" to (if (barracks) 3 else 0), "gather_food" to 1, "fish" to (if (hasShore) 1 else 0), "talk" to 1,
+                "patrol" to (if (fighterOnWatch) 3 else 1), "wander" to 1,
+            )
+            "Farmer" -> pick(
+                "tend_farm" to (if (farms) 6 else 0), "haul" to (if (granary) 2 else 0), "fetch_water" to (if (well && farms) 3 else 0),
+                "gather_food" to 2, "gather_wood" to (if (farms) 0 else 4), "talk" to 1, "trade" to (if (market) 2 else 0),
+            )
+            "Builder" -> pick(
+                "gather_wood" to (if (lowWood) 6 else 3), "gather_stone" to (if (lowStone) 4 else 1),
+                "craft" to (if (shop) 3 else 0), "study" to (if (library) 1 else 0), "talk" to 1, "wander" to 1,
+            )
             "Bronzesmith", "Blacksmith" ->
                 if (count("smelter") > 0) pick(
                     "smelt" to (if (ore >= 2 && wood >= 30 && metal < 150) 7 else 0),
                     "mine_ore" to (if (ore < 6) 6 else if (ore < 40) 1 else 0),
                     "gather_stone" to (if (stone < 20) 2 else 0),
                     "gather_wood" to (if (wood < 60) 5 else 1), "talk" to 1,
+                    "craft" to (if (shop) 3 else 0),
                 ) else pick("mine_ore" to 4, "gather_stone" to 3, "gather_wood" to 2, "talk" to 1)
-            "Scout" -> pick("explore" to 4, "gather_food" to 2, "talk" to 2, "wander" to 1)
-            else -> pick("talk" to 4, "gather_food" to 2, "tell_story" to (if (v.energy > 40f) 1 else 0), "wander" to 1)
+            "Scout" -> pick("explore" to 3, "patrol" to 3, "drill" to (if (barracks) 2 else 0), "gather_food" to 2, "talk" to 2, "wander" to 1)
+            else -> pick(
+                "talk" to 3, "gather_food" to 2, "tell_story" to (if (v.energy > 40f) 2 else 0), "wander" to 1,
+                "study" to (if (library) 4 else 0),
+                "dance" to (if (count("campfire") > 0) 1 else 0), "fetch_water" to (if (well) 2 else 0),
+                "trade" to (if (market) 2 else 0), "craft" to (if (shop) 2 else 0),
+            )
         }
         return act to (if (act == "talk") (friendFor(v)?.name ?: "") else "")
     }
@@ -1387,14 +1673,28 @@ class CivSim(
     private fun allowedActions(): List<String> {
         val a = arrayListOf("gather_wood", "gather_stone", "gather_food", "fish", "hunt", "explore", "tell_story", "huddle", "sleep", "talk", "wander")
         if (food > 0) a.add("eat")
-        if (wood >= 6 && stone >= 2) a.add("build_hut")
-        if (stone >= 3 && count("campfire") < 3) a.add("build_campfire")
-        if (age >= 1 && wood >= 4) a.add("build_farm")
+        if (wood >= 6 && stone >= 2 && canBuild("hut")) a.add("build_hut")
+        if (stone >= 3 && canBuild("campfire")) a.add("build_campfire")
+        if (age >= 1 && wood >= 4 && canBuild("farm")) a.add("build_farm")
+        if (canBuild("well") && wood >= 4 && stone >= 6) a.add("build_well")
+        if (canBuild("workshop") && wood >= 10 && stone >= 4) a.add("build_workshop")
+        if (canBuild("market") && wood >= 12 && stone >= 6) a.add("build_market")
+        if (canBuild("lamp") && wood >= 2 && stone >= 2) a.add("build_lamp")
+        if (count("well") > 0) a.add("fetch_water")
+        if (count("workshop") > 0 && wood >= 6 && stone >= 2) a.add("craft")
+        if (count("market") > 0 && goods >= 2) a.add("trade")
+        if (count("campfire") > 0) a.add("dance")
+        if (canBuild("granary") && wood >= 14 && stone >= 6) a.add("build_granary")
+        if (canBuild("library") && wood >= 18 && stone >= 12) a.add("build_library")
+        if (canBuild("barracks") && wood >= 16 && stone >= 14 && metal >= 2) a.add("build_barracks")
+        if (count("granary") > 0 && food >= 4) a.add("haul")
+        if (count("barracks") > 0) a.add("drill")
+        if (count("library") > 0) a.add("study")
         if (age >= 1 && count("farm") > 0) a.add("tend_farm")
         if (age >= 2) {
             a.add("mine_ore")
             if (ore >= 2 && wood >= 1 && count("smelter") > 0) a.add("smelt")
-            if (wood >= 4 && stone >= 6 && count("smelter") < 3) a.add("build_smelter")
+            if (wood >= 4 && stone >= 6 && canBuild("smelter")) a.add("build_smelter")
         }
         return a
     }
@@ -1427,7 +1727,10 @@ class CivSim(
         sb.append(". Buildings: ${count("hut")} ${if (age == 0) "tents" else "huts"}, ")
         if (age >= 1) sb.append("${count("farm")} farms, ")
         if (age >= 2) sb.append("${count("smelter")} forges, ")
-        sb.append("${count("campfire")} campfires. ${villagers.size} villagers (${villagers.count { isChild(it) }} children).\n")
+        sb.append("${count("campfire")} campfires")
+        for ((t, nm) in listOf("well" to "wells", "workshop" to "workshops", "market" to "markets", "granary" to "granaries", "barracks" to "barracks", "library" to "libraries")) if (count(t) > 0) sb.append(", ${count(t)} $nm")
+        if (goods > 0) sb.append(", $goods goods to sell")
+        sb.append(". ${villagers.size} villagers (${villagers.count { isChild(it) }} children).\n")
         val near = nearby(v)
         if (near.isNotEmpty()) {
             sb.append("Nearby: " + near.joinToString("; ") {
@@ -1974,10 +2277,12 @@ class CivSim(
 
         for (v in villagers.toList()) update(v, dt)
         predatorTick(dt)
+        fauna.tick(dt)
 
         bushClock += dt
         if (bushClock > 30f) {
             bushClock = 0f
+            for (i in traffic.indices) if (traffic[i] > 0f) traffic[i] = max(0f, traffic[i] - 0.4f)
             if (age >= 2 && rnd.nextBoolean()) ensure(T.ORE, 5, 6)
             for (i in tiles.indices) {
                 if (tiles[i] == T.BUSH && amt[i] < 3) amt[i]++
@@ -2131,6 +2436,7 @@ class CivSim(
             v.x = tx
             v.y = ty
             v.pathIdx++
+            if (cell in traffic.indices && !isChild(v)) traffic[cell] = min(60f, traffic[cell] + 1f)
             if (v.pathIdx >= v.path.size) arrive(v)
         } else {
             v.x += dx / dist * step
@@ -2150,6 +2456,8 @@ class CivSim(
             o.put("ore", ore).put("metal", metal).put("smelted", totalSmelted).put("explored", explored).put("age", age)
             o.put("nextId", nextId)
             o.put("hides", hides)
+            o.put("goods", goods)
+            o.put("traffic", String(CharArray(traffic.size) { i -> '0' + min(9, (traffic[i] / 4f).toInt()) }))
             val ks = JSONArray()
             kingdoms.forEach {
                 ks.put(
@@ -2257,6 +2565,10 @@ class CivSim(
             val lg = o.optJSONArray("log")
             if (lg != null) for (i in 0 until lg.length()) log.add(lg.getString(i))
             hides = o.optInt("hides", 0)
+            goods = o.optInt("goods", 0)
+            traffic.fill(0f)
+            val tr = o.optString("traffic", "")
+            if (tr.length == traffic.size) for (i in traffic.indices) traffic[i] = (tr[i] - '0') * 4f
             critters.fromJson(o.optJSONObject("critters"), shx, shy)
             drops.clear()
             rels.clear()
@@ -2270,7 +2582,7 @@ class CivSim(
     companion object {
         private const val SYSTEM = """You play one villager in a small pixel-art village, as a distinct character with a job, a personality, a way of speaking and a dream. Reply with ONLY a JSON object, no other text:
 {"thought": "<your private thought, first person, under 14 words, in your voice>", "action": "<one action>", "target": "<villager name, only for talk>", "say": "<one short sentence you say aloud in your own voice, or empty>"}
-Actions: gather_wood, gather_stone, gather_food (berries), fish (at the lake), hunt (game in the forest, hunter-gatherers' best food), tend_farm (needs a farm, Farming Age on), explore (scouting far away), tell_story (at the fire, lifts everyone's spirits), huddle (stay by the fire), build_hut (6 wood + 2 stone), build_farm (4 wood, Farming Age on), build_campfire (3 stone), mine_ore (Bronze Age on), smelt (2 ore + 1 wood at a forge, Bronze Age on), build_smelter (4 wood + 6 stone, Bronze Age on), eat (needs food in stock), sleep, talk (set target and say), wander. Use only the actions listed as available to you in the message.
+Actions: gather_wood, gather_stone, gather_food (berries), fish (at the lake), hunt (game in the forest, hunter-gatherers' best food), tend_farm (needs a farm, Farming Age on), explore (scouting far away), tell_story (at the fire, lifts everyone's spirits), huddle (stay by the fire), build_hut (6 wood + 2 stone), build_farm (4 wood, Farming Age on), build_campfire (3 stone), mine_ore (Bronze Age on), smelt (2 ore + 1 wood at a forge, Bronze Age on), build_smelter (4 wood + 6 stone, Bronze Age on), build_well (4 wood + 6 stone), build_workshop (10 wood + 4 stone), build_market (12 wood + 6 stone), build_lamp (2 wood + 2 stone), fetch_water (at a well, waters the farms), craft (at a workshop), trade (goods for food at a market), dance (at the fire), build_granary (14 wood + 6 stone), build_barracks (16 wood, 14 stone, 2 metal), build_library (18 wood + 12 stone), haul (fill the granary), drill (train at the barracks), study (read at the library), patrol (walk the edge of the village and watch), play (children), eat (needs food in stock), sleep, talk (set target and say), wander. Use only the actions listed as available to you in the message.
 Mostly do the work of your job, but react to your needs, the weather, wolves, news and what others say. Talk about what you have seen, feel or remember, with opinions and feelings. Never repeat a line or an action you just did, and vary your sentences. Stay alive: eat when hungry, sleep when tired or at night.
 Speak only about facts given in the message: your needs, the stock, the weather, people nearby and what they said, family, village history and news. Never invent buildings, people, resources or events. Answer what others actually said to you. If you are a child, use very short, simple words."""
         private const val SYSTEM_SHORT = """Reply with ONLY a JSON object: {"thought": "", "action": "<one allowed action>", "target": "", "say": "<one short sentence using only the facts given, or empty>"}"""
