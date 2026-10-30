@@ -7,7 +7,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 
 /**
  * All critter pixel art, built once from the text grids in CritterGrids with the same outline-and-shade polish the
- * rest of the village uses. Index 0 is the straw training dummy, 1..50 are the species.
+ * rest of the village uses. Index 0 is the straw training dummy, 1..62 are the species.
  */
 class CritterArt {
     private val common = mapOf(
@@ -76,6 +76,6 @@ class CritterArt {
     fun white(id: Int): ImageBitmap = whites[id.coerceIn(0, Dex_COUNT)]
 
     companion object {
-        const val Dex_COUNT = 50
+        const val Dex_COUNT = 62
     }
 }

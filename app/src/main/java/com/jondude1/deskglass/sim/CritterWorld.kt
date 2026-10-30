@@ -449,6 +449,21 @@ class CritterWorld(private val sim: CivSim) {
         }
     }
 
+    /** A legend steps out of a broken rift where a boss fell. It stays a good while so a summoner can bind it. */
+    fun spawnLegend(spId: Int, x: Float, y: Float) {
+        val c = Critter(nextUid++, spId, 8 + rnd.nextInt(6) + sim.age / 2)
+        c.heal()
+        val w = Wild(c, x, y)
+        w.life = 600f
+        w.pause = 2f
+        wilds.add(w)
+        seen.add(spId)
+        sim.note("A ${Dex.byId(spId).name} steps out of the broken rift!")
+        sim.mark("A legendary ${Dex.byId(spId).name} appeared.")
+    }
+
+    fun legendsOwned(): Int = critters.count { it.species.rarity >= 5 }
+
     private fun wildTick(dt: Float) {
         val iter = wilds.iterator()
         while (iter.hasNext()) {
@@ -838,12 +853,13 @@ class CritterWorld(private val sim: CivSim) {
             if (maybeLesson(v, mage)) return
             val comp = companionOf(v)
             if (summonWanted(v, mage, comp) && startSummon(v, mage)) return
-            val wild = wilds.filter { it.claimed < 0 && it.fade >= 1f && !it.leaving && hypot(it.x - v.x, it.y - v.y) < 16f }
+            val wild = wilds.filter { it.claimed < 0 && it.fade >= 1f && !it.leaving && hypot(it.x - v.x, it.y - v.y) < (if (it.c.species.rarity >= 5) 45f else 16f) }
                 .minByOrNull { hypot(it.x - v.x, it.y - v.y) }
             if (wild != null) {
                 val bold = v.job == "Hunter" || v.job == "Scout" || v.job == "Forager"
-                val p = if (bold) 0.55f else 0.3f
-                if (comp != null && ready(comp) && rnd.nextFloat() < p) {
+                val legend = wild.c.species.rarity >= 5
+                val p = if (legend) 0.9f else if (bold) 0.55f else 0.3f
+                if (comp != null && ready(comp) && (!legend || comp.level >= wild.c.level) && rnd.nextFloat() < p) {
                     startWild(v, comp, wild)
                     return
                 }
@@ -991,7 +1007,7 @@ class CritterWorld(private val sim: CivSim) {
         return when (tier) {
             0 -> top.rarity < 4 && top.stage >= 3     // the three-stage village lines
             1 -> top.rarity < 4 && top.stage == 2     // the rarer dual-type lines
-            else -> top.rarity >= 4                   // the lone legends
+            else -> top.rarity == 4                   // the lone rare ones
         }
     }
 
@@ -1544,6 +1560,21 @@ class CritterWorld(private val sim: CivSim) {
     }
 
     /** A wild critter becomes one of the village's. */
+    /** Names a villager might give a new companion. They have nothing to do with the species. */
+    private val givenNames = listOf(
+        "Ember", "Biscuit", "Juniper", "Pebble", "Marlow", "Clover", "Smokey", "Pip", "Maple", "Rook", "Sprocket", "Willow",
+        "Nimbus", "Thistle", "Bramble", "Ziggy", "Olive", "Tango", "Poppy", "Mochi", "Ash", "Dax", "Fable", "Gus", "Hazel",
+        "Indigo", "Jasper", "Kiwi", "Lumi", "Moss", "Nutmeg", "Onyx", "Pretzel", "Quincy", "Rusty", "Saffron", "Tumble",
+        "Umber", "Velvet", "Waffles", "Yarrow", "Zephyr", "Button", "Cinder", "Dewdrop", "Echo", "Fennel", "Goblin",
+        "Honey", "Ivy", "Jinx", "Kestrel", "Lark", "Marble", "Nova", "Opal", "Pepper", "Ripley", "Sage", "Tansy", "Wicket",
+    )
+
+    private fun freshName(): String {
+        val used = critters.map { it.nick }.toSet()
+        val free = givenNames.filter { it !in used }
+        return if (free.isNotEmpty()) free[rnd.nextInt(free.size)] else givenNames[rnd.nextInt(givenNames.size)] + (2 + rnd.nextInt(8))
+    }
+
     private fun keep(e: Enc, foe: Critter, how: String) {
         val v = e.v
         e.wild?.let {
@@ -1569,6 +1600,7 @@ class CritterWorld(private val sim: CivSim) {
             val ob = bodyFor(old)
             swaps.add(Swap("in", old.sp, ob.x, ob.y, v.id, sim.time + 1.2))
         }
+        if (foe.nick.isBlank()) foe.nick = freshName()
         critters.add(foe)
         val b = bodyFor(foe)
         b.x = e.bx
@@ -1579,15 +1611,15 @@ class CritterWorld(private val sim: CivSim) {
         seen.add(foe.sp)
         val role = if (foe.companion) "as a companion" else "infused into the pack"
         sim.note(
-            if (how == "ritual") "${v.name} summons a ${foe.species.name} (Lv ${foe.level}) from the ether, bonded $role."
-            else "${v.name} binds a wild ${foe.species.name} (Lv ${foe.level}), $role."
+            if (how == "ritual") "${v.name} summons a ${foe.species.name} (Lv ${foe.level}) from the ether and names it ${foe.nick}, bonded $role."
+            else "${v.name} binds a wild ${foe.species.name} (Lv ${foe.level}) and names it ${foe.nick}, $role."
         )
         if (!foe.companion) swaps.add(Swap("in", foe.sp, e.bx, e.by, v.id, sim.time + (if (how == "ritual") 2.0 else 1.2)))
         mageGain(v, if (how == "ritual") 8 + foe.level / 2 else 10 + foe.level)
         if (newSpecies) sim.mark("${v.name} added ${foe.species.name} to the village (${caught.size}/${Dex.COUNT} critters).")
         v.happiness = min(100f, v.happiness + 12f)
         v.remember("caught a ${foe.species.name}")
-        v.say = if (first) "Welcome, ${foe.name}!" else "Got ${foe.name}!"
+        v.say = if (first) "Welcome, ${foe.nick}!" else "Got you, ${foe.nick}!"
         v.sayLeft = 4f
         e.mine?.let {
             it.gainXp(8 + foe.level * 2)
@@ -1823,6 +1855,7 @@ class CritterWorld(private val sim: CivSim) {
                     c.nick = j.optString("nick", "")
                     c.wins = j.optInt("wins", 0)
                     c.bond = j.optInt("bond", 0)
+                    if (c.owner >= 0 && c.nick.isBlank()) c.nick = freshName()
                     critters.add(c)
                     nextUid = max(nextUid, c.uid + 1)
                 }

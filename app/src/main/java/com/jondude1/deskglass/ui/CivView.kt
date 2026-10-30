@@ -817,14 +817,21 @@ private fun DrawScope.drawWorld(
 
     // predators
     for (p in sim.predators) {
-        val sp = when (p.kind) { "bear" -> art.bear; "boar" -> art.boar; else -> art.wolf }
-        val sc = when (p.kind) { "bear" -> 1.15f; "boar" -> 0.95f; else -> 1f }
+        val sp = when (p.kind) {
+            "bear" -> art.bear; "boar" -> art.boar; "raider" -> art.raider; "ogre" -> art.ogre
+            "wraith" -> art.wraith; "drake" -> art.drake; else -> art.wolf
+        }
+        val sc = when (p.kind) { "bear" -> 1.15f; "boar" -> 0.95f; "ogre" -> 1.5f; "drake" -> 1.7f; "raider" -> 1.1f; else -> 1f }
         val w = sp.lw * ps * sc
         val h = sp.lh * ps * sc
         val feet = oy + (p.y + 0.45f) * ts
         shadow(ox + p.x * ts, feet, w * 0.9f, 2.6f * ps)
         img(sp, ox + p.x * ts - w / 2f, feet - h, w, h)
         val maxHp = com.jondude1.deskglass.sim.predatorMaxHp(p.kind)
+        if (p.kind == "wraith" || p.kind == "drake") {
+            // rift creatures shimmer with a violet haze
+            drawCircle(Color(0xFF9A5AFF).copy(alpha = 0.16f + 0.06f * kotlin.math.sin(t * 5f + p.x)), radius = w * 0.8f, center = Offset(ox + p.x * ts, feet - h * 0.5f))
+        }
         if (p.hp < maxHp) {
             drawRect(Color(0xAA000000), Offset(ox + p.x * ts - w / 2f, feet - h - ps * 2.5f), Size(w, ps * 1.4f))
             drawRect(Color(0xFFE0453A), Offset(ox + p.x * ts - w / 2f, feet - h - ps * 2.5f), Size(w * (p.hp / maxHp).coerceIn(0f, 1f), ps * 1.4f))
@@ -1143,7 +1150,7 @@ private fun ThreatChip(sim: CivSim, tick: Long, modifier: Modifier = Modifier) {
 private fun newsTint(line: String): Color {
     val l = line.lowercase()
     return when {
-        listOf("killed", "war", "wolves", "wolf", "bear", "boar", "falls", "plague", "attack", "slain", "mourns").any { l.contains(it) } -> Color(0xFFFF9C8A)
+        listOf("killed", "war", "wolves", "wolf", "bear", "boar", "raider", "ogre", "wraith", "drake", "rift", "falls", "plague", "attack", "slain", "mourns").any { l.contains(it) } -> Color(0xFFFF9C8A)
         listOf("built", "palisade", "raise", "born", "feast", "berries", "welcome", "alliance", "trade").any { l.contains(it) } -> Color(0xFFA6E3A1)
         else -> Glass.InkDim
     }
@@ -1202,7 +1209,7 @@ fun VillageScreen(vm: MainViewModel, fullscreen: Boolean, onFullscreen: (Boolean
         BackBar("Summoner's Village", null, trailing = {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 GlassButton("Speed ${sim.speed}x", { sim.speed = nextSpeed(sim.speed) })
-                GlassButton("Critterdex ${sim.critters.caught.size}/50", { showDex = true })
+                GlassButton("Critterdex ${sim.critters.caught.size}/${com.jondude1.deskglass.sim.Dex.COUNT}", { showDex = true })
                 GlassButton("Fullscreen", { onFullscreen(true) }, filled = true)
                 GlassButton("Settings", onSettings)
                 GlassButton(if (confirmReset) "Tap again to start over" else "Start over", {
@@ -1250,11 +1257,23 @@ fun VillageScreen(vm: MainViewModel, fullscreen: Boolean, onFullscreen: (Boolean
                         (if (sim.age >= 2) "   Ore ${sim.ore}   Metal ${sim.metal}" else ""),
                     color = Glass.InkDim, fontSize = 16.sp,
                 )
+                run {
+                    val goals = sim.legacy()
+                    val done = goals.count { it.second }
+                    Text(
+                        if (sim.goldenAt >= 0.0) "★ Golden Age reached" else "Legacy goals $done/${goals.size}",
+                        color = if (sim.goldenAt >= 0.0) Color(0xFFFFD84A) else Glass.InkDim, fontSize = 14.sp,
+                    )
+                    if (sim.goldenAt < 0.0) Text(
+                        goals.joinToString("   ") { (if (it.second) "✔ " else "○ ") + it.first },
+                        color = Glass.InkFaint, fontSize = 11.sp,
+                    )
+                }
                 if (sim.goods > 0) Text("Goods to trade: ${sim.goods}", color = Glass.InkDim, fontSize = 14.sp)
                 Text("Buildings (built/limit): ${sim.buildSummary()}", color = Glass.InkFaint, fontSize = 12.sp)
                 Text("Brain: ${sim.brain}", color = Glass.InkFaint, fontSize = 14.sp)
                 Text(
-                    "Critters ${sim.critters.critters.size}/${sim.critters.maxKept()} kept · ${sim.critters.caught.size}/50 species caught" +
+                    "Critters ${sim.critters.critters.size}/${sim.critters.maxKept()} kept · ${sim.critters.caught.size}/${com.jondude1.deskglass.sim.Dex.COUNT} species caught" +
                         (if (sim.critters.encounters.isNotEmpty()) " · ${sim.critters.encounters.size} encounter(s) under way" else ""),
                     color = Glass.InkDim, fontSize = 14.sp,
                 )

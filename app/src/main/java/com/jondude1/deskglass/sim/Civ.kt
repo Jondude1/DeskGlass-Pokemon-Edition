@@ -160,7 +160,7 @@ private val ACTIONS = setOf(
     "hunt", "mine_ore", "smelt", "build_smelter",
     "build_well", "build_workshop", "build_market", "build_lamp",
     "fetch_water", "craft", "trade", "dance", "patrol", "play",
-    "build_granary", "build_barracks", "build_library", "haul", "drill", "study",
+    "build_granary", "build_barracks", "build_library", "haul", "drill", "study", "attack",
 )
 
 private val DX = intArrayOf(1, -1, 0, 0)
@@ -241,6 +241,13 @@ class CivSim(
     val traffic = FloatArray(GW * GH)
     /** Things made at the workshop, sold at the market. */
     var goods = 0
+    var raidsRepelled = 0
+    var ogresSlain = 0
+    var bossesSlain = 0
+    var goldenAt = -1.0
+    private var nextThreatAt = DAY_LEN * 1.4
+    private var lastBossAt = -999.0
+    private var lastOgreAt = -999.0
     private var studied = 0
     var ageBannerAt = -999.0
     var ageBannerName = ""
@@ -307,13 +314,15 @@ class CivSim(
         lastBirth = time
         hides = 0
         goods = 0
+        raidsRepelled = 0; ogresSlain = 0; bossesSlain = 0; goldenAt = -1.0
+        nextThreatAt = DAY_LEN * 1.4; lastBossAt = -999.0
         traffic.fill(0f)
         fauna.reset()
         drops.clear()
         ageBannerAt = -999.0
         fx.clear()
         // a new world must not inherit the old world's clocks (alerts, rain, festivals...)
-        alertUntil = 0.0; rainUntil = 0.0; festivalUntil = 0.0; plagueUntil = 0.0; godUntil = 0.0; shakeUntil = 0.0
+        alertUntil = 0.0; rainUntil = 0.0; festivalUntil = 0.0; plagueUntil = 0.0; godUntil = 0.0; order = ""; orderUntil = 0.0; shakeUntil = 0.0
         nextEventAt = time + DAY_LEN * 0.6
         nextTowerAt = 0.0; nextWallAt = 0.0; nextPlanAt = 0.0
         ageClock = 0f; worldClock = 0f; ownerClock = 0f; bushClock = 0f
@@ -454,12 +463,155 @@ class CivSim(
         onNarrate(text)
     }
 
+    private var order = ""
+    private var orderUntil = 0.0
+
+    private val ORDER_LABEL = mapOf(
+        "attack" to "attack the enemy", "defend" to "stand guard", "hide" to "take cover", "rest" to "rest", "feast" to "hold a feast",
+        "dance" to "dance", "story" to "tell stories", "study" to "study", "train" to "train", "explore" to "explore",
+        "eat" to "eat", "fish" to "fish", "hunt" to "hunt", "water" to "fetch water", "trade" to "trade", "craft" to "craft",
+        "build" to "build", "wood" to "gather wood", "stone" to "gather stone and ore", "food" to "gather food", "gather" to "gather supplies",
+        "talk" to "talk together", "play" to "play",
+    )
+
+    /** Keywords for each order, checked in this order so that the specific ones win over the general ones. */
+    private val ORDER_WORDS = listOf(
+        "attack" to listOf("attack", "fight", "charge", "kill", "slay", "destroy", "battle", "crush", "strike", "assault", "smash", "defeat", "drive off", "drive them off", "hunt down", "go to war", "to arms", "engage", "raid them", "vanquish", "banish"),
+        "defend" to listOf("defend", "defence", "defense", "guard", "protect", "patrol", "sentry", "watch the", "stay alert", "keep watch", "fortify", "hold the line", "man the", "stand ready", "secure"),
+        "hide" to listOf("hide", "shelter", "flee", "run away", "run for", "take cover", "retreat", "huddle", "stay inside", "safe", "evacuate"),
+        "rest" to listOf("rest", "sleep", "relax", "nap", "recover", "heal", "take a break", "bed", "tired"),
+        "feast" to listOf("feast", "celebrate", "celebration", "party", "festival", "banquet", "revel", "toast", "cheer"),
+        "dance" to listOf("dance", "dancing", "jig"),
+        "story" to listOf("story", "stories", "sing", "song", "music", "tale", "legend", "poem", "entertain"),
+        "study" to listOf("study", "read", "learn", "school", "teach", "library", "book", "research", "scholar"),
+        "train" to listOf("train", "drill", "practice", "spar", "exercise", "get stronger", "level up", "barracks", "soldier"),
+        "explore" to listOf("explore", "scout", "discover", "adventure", "map the", "far lands", "look beyond", "venture", "search the"),
+        "eat" to listOf("eat", "dinner", "lunch", "breakfast", "meal", "hungry", "supper"),
+        "fish" to listOf("fish", "lake", "angle", "net"),
+        "hunt" to listOf("hunt", "game", "deer", "rabbit", "meat", "hides", "venison"),
+        "water" to listOf("water", "well", "irrigate", "drink"),
+        "trade" to listOf("trade", "sell", "market", "barter", "merchant", "shop", "coin", "buy"),
+        "craft" to listOf("craft", "make things", "forge", "smith", "smelt", "workshop", "tools", "metal", "create"),
+        "build" to listOf("build", "construct", "house", "home", "expand", "grow the village", "tower", "raise a", "lantern", "granary", "buildings"),
+        "wood" to listOf("wood", "timber", "lumber", "chop", "logs", "trees", "axe"),
+        "stone" to listOf("stone", "rock", "quarry", "mine", "mining", "ore", "dig", "boulder"),
+        "food" to listOf("food", "berries", "berry", "forage", "harvest", "farm", "crops", "feed", "grain", "bread"),
+        "gather" to listOf("gather", "collect", "work", "supplies", "resources", "stockpile", "stock up", "produce", "labour", "labor", "get to it", "busy"),
+        "play" to listOf("play", "fun", "game time", "kids"),
+        "talk" to listOf("talk", "chat", "speak", "meet", "council", "discuss", "together", "friends", "visit", "gossip"),
+    )
+
+    private fun parseOrder(text: String): String? {
+        val t = " " + text.lowercase().replace(Regex("[^a-z ]"), " ") + " "
+        for ((cmd, words) in ORDER_WORDS) {
+            for (w in words) if (t.contains(" $w") ) return cmd
+        }
+        return null
+    }
+
+    /** What an obedient villager does for the current order, or null when it does not concern them. */
+    private fun orderAction(v: Villager): Pair<String, String>? {
+        if (order.isEmpty() || time >= orderUntil) return null
+        val kid = isChild(v)
+        val fighter = isFighter(v) || v.job == "Scout"
+        val danger = predators.any { hypot(it.x - v.x, it.y - v.y) < 13f }
+        val hasShore = nearestShore(v) >= 0
+        if (kid) {
+            return when (order) {
+                "hide" -> "huddle" to ""
+                "rest" -> "sleep" to ""
+                "study" -> if (count("library") > 0) "study" to "" else "play" to ""
+                "play", "dance", "feast" -> "play" to ""
+                "talk" -> "talk" to (friendFor(v)?.name ?: "")
+                else -> null
+            }
+        }
+        if (danger && order !in setOf("attack", "defend", "hide")) return null
+        fun need(): Pair<String, String> {
+            val ad = adults()
+            val wLack = (25 + ad * 4 - wood).toFloat() / (25 + ad * 4)
+            val sLack = (10 + ad * 2 - stone).toFloat() / (10 + ad * 2)
+            val fLack = (10 + ad * 3 - food).toFloat() / (10 + ad * 3)
+            return when {
+                fLack >= wLack && fLack >= sLack -> (if (age >= 1 && count("farm") > 0 && v.job == "Farmer") "tend_farm" else if (hasShore && rnd.nextBoolean()) "fish" else "gather_food") to ""
+                wLack >= sLack -> "gather_wood" to ""
+                else -> "gather_stone" to ""
+            }
+        }
+        return when (order) {
+            "attack" -> when {
+                !fighter -> null
+                predators.isNotEmpty() -> "attack" to ""
+                else -> "patrol" to ""
+            }
+            "defend" -> when {
+                fighter -> (if (!danger && count("barracks") > 0 && rnd.nextInt(3) == 0) "drill" else "patrol") to ""
+                danger -> "huddle" to ""
+                else -> null
+            }
+            "hide" -> "huddle" to ""
+            "rest" -> if (v.energy < 95f) "sleep" to "" else "wander" to ""
+            "feast", "dance" -> (if (count("campfire") > 0) "dance" else "talk") to (friendFor(v)?.name ?: "")
+            "story" -> "tell_story" to ""
+            "study" -> if (count("library") > 0) "study" to "" else "talk" to (friendFor(v)?.name ?: "")
+            "train" -> (if (count("barracks") > 0) "drill" else if (fighter) "patrol" else "wander") to ""
+            "explore" -> (if (fighter || v.job == "Scout" || rnd.nextInt(3) == 0) "explore" else "wander") to ""
+            "eat" -> if (food > 0) "eat" to "" else need()
+            "fish" -> (if (hasShore) "fish" else "gather_food") to ""
+            "hunt" -> "hunt" to ""
+            "water" -> (if (count("well") > 0) "fetch_water" else "gather_food") to ""
+            "trade" -> if (count("market") > 0 && goods >= 2) "trade" to "" else if (count("workshop") > 0) "craft" to "" else need()
+            "craft" -> when {
+                count("workshop") > 0 && wood >= 6 && stone >= 2 -> "craft" to ""
+                count("smelter") > 0 && ore >= 2 -> "smelt" to ""
+                else -> need()
+            }
+            "build" -> {
+                val kinds = listOf("hut", "farm", "campfire", "smelter", "well", "workshop", "granary", "market", "library", "barracks", "lamp")
+                val t = kinds.firstOrNull { canBuild(it) && affordable(it) }
+                if (t != null && (v.job == "Builder" || rnd.nextInt(3) == 0)) "build_$t" to "" else if (v.job == "Builder" || rnd.nextBoolean()) (if (wood < stone * 2) "gather_wood" else "gather_stone") to "" else need()
+            }
+            "wood" -> "gather_wood" to ""
+            "stone" -> (if (age >= 2 && ore < 40 && rnd.nextInt(3) == 0) "mine_ore" else "gather_stone") to ""
+            "food" -> (if (v.job == "Farmer" && count("farm") > 0) "tend_farm" else if (hasShore && rnd.nextInt(3) == 0) "fish" else "gather_food") to ""
+            "gather" -> need()
+            "play" -> "wander" to ""
+            "talk" -> "talk" to (friendFor(v)?.name ?: "")
+            else -> null
+        }
+    }
+
+    private fun affordable(type: String): Boolean = when (type) {
+        "hut" -> wood >= 6 && (stone >= 2 || hides >= 1)
+        "farm" -> wood >= 4
+        "campfire" -> stone >= 3
+        "smelter", "well" -> wood >= 4 && stone >= 6
+        "workshop" -> wood >= 10 && stone >= 4
+        "granary" -> wood >= 14 && stone >= 6
+        "market" -> wood >= 12 && stone >= 6
+        "library" -> wood >= 18 && stone >= 12
+        "barracks" -> wood >= 16 && stone >= 14 && metal >= 2
+        "lamp" -> wood >= 2 && stone >= 2
+        else -> false
+    }
+
     fun whisper(text: String) {
         val t = text.trim().take(200)
         if (t.isEmpty()) return
         godMsg = t
         godUntil = time + 240.0
         addLog("A voice from the sky: \"$t\"")
+        val cmd = parseOrder(t)
+        if (cmd != null) {
+            order = cmd
+            orderUntil = time + 210.0
+            if (cmd == "feast" && food >= 6) {
+                food -= 4
+                festivalUntil = time + 70.0
+                for (v in villagers) v.happiness = min(100f, v.happiness + 10f)
+            }
+            addLog("The villagers heed the call: ${ORDER_LABEL[cmd] ?: cmd}.")
+        }
         lastNarrateAt = 0L
         narrate("A voice from the sky: $t")
     }
@@ -696,6 +848,12 @@ class CivSim(
                 reserved.add(site)
                 return true
             }
+            "attack" -> {
+                val p = predators.minByOrNull { hypot(it.x - v.x, it.y - v.y) } ?: return false
+                val i = p.y.toInt().coerceIn(0, GH - 1) * GW + p.x.toInt().coerceIn(0, GW - 1)
+                if (tiles[i] == T.WATER) return false
+                return go(v, "attack", i)
+            }
             "haul" -> {
                 if (food < 4) return false
                 val b = nearestBuilding(v, "granary") ?: return false
@@ -854,6 +1012,7 @@ class CivSim(
             v.action == "huddle" -> { v.phase = "working"; v.workLeft = 7f }
             v.action == "fetch_water" -> { v.phase = "working"; v.workLeft = 3f }
             v.action == "haul" -> { v.phase = "working"; v.workLeft = 4f }
+            v.action == "attack" -> { v.phase = "working"; v.workLeft = 2.5f }
             v.action == "drill" -> { v.phase = "working"; v.workLeft = 6f }
             v.action == "study" -> { v.phase = "working"; v.workLeft = 8f }
             v.action == "craft" -> { v.phase = "working"; v.workLeft = 7f }
@@ -1028,6 +1187,16 @@ class CivSim(
                         addLog("${v.name} scouted the hills but found only wind.")
                         v.remember("scouted the hills, nothing to report")
                     }
+                }
+                finish(v)
+            }
+            "attack" -> {
+                // a charge: strike whatever enemy is close
+                val p = predators.filter { hypot(it.x - v.x, it.y - v.y) < 3.2f }.minByOrNull { it.hp }
+                if (p != null) {
+                    p.hp -= 12f + 4f * toolBonus()
+                    fx.add(Fx("clash", p.x, p.y, time, 0.8f))
+                    v.happiness = min(100f, v.happiness + 2f)
                 }
                 finish(v)
             }
@@ -1400,7 +1569,7 @@ class CivSim(
         if (stone < 2) out.add("Barely any stone, just $stone.")
         if (v.hunger > 70f) out.add("My stomach is growling. I need to eat.")
         if (v.energy < 30f) out.add("I could sleep on my feet.")
-        if (alert()) out.add("Those wolves have everyone on edge.")
+        if (alert()) out.add(if (predators.any { isThreat(it.kind) }) "The fighting has everyone on edge." else "Those wolves have everyone on edge.")
         if (raining()) out.add("This rain slows the ${v.job.lowercase()} work.")
         if (weatherNow().startsWith("cold")) out.add("The cold gets into my bones.")
         if (partOfDay() == "evening") out.add("The light is fading. Time to wind down.")
@@ -1427,7 +1596,7 @@ class CivSim(
         if (v.hunger > 60f) out.add("I'm hungry!")
         if (v.energy < 35f || isNight()) out.add("I'm sleepy.")
         if (raining()) out.add("Rain! Splash!")
-        if (alert()) out.add("I don't like the wolves.")
+        if (alert()) out.add("I don't like the scary ones.")
         if (weatherNow().startsWith("cold")) out.add("Brr, it's cold!")
         v.parents.split(" & ").firstOrNull()?.takeIf { it.isNotBlank() }?.let { out.add("Where is $it?") }
         nearby(v).firstOrNull()?.let { out.add("Look, ${it.name} is ${doing(it)}!") }
@@ -1502,6 +1671,7 @@ class CivSim(
         if (v.hunger >= 60f && food > 0) return "eat" to ""
         if (v.energy < 25f || (isNight() && v.energy < 92f)) return "sleep" to ""
         if (isChild(v)) {
+            orderAction(v)?.let { return it }
             if (alert()) return "huddle" to ""
             return when (pick("play" to 6, "study" to (if (count("library") > 0) 4 else 0), "talk" to chat, "wander" to 2, "fetch_water" to (if (count("well") > 0) 1 else 0))) {
                 "talk" -> "talk" to (friendFor(v)?.name ?: "")
@@ -1511,6 +1681,7 @@ class CivSim(
                 else -> "wander" to ""
             }
         }
+        orderAction(v)?.let { if (!starving) return it }
         if (alert() && !starving) {
             // only trouble that is actually close stops the work: fighters stand guard, the rest take cover
             val danger = predators.any { hypot(it.x - v.x, it.y - v.y) < 13f }
@@ -1624,6 +1795,7 @@ class CivSim(
         if (!survival && v.recent.size >= 3 && v.recent.takeLast(3).all { it == action }) {
             action = "wander"
         }
+        if (!survival && rnd.nextInt(10) < 7) orderAction(v)?.let { action = it.first; target = it.second }
         val thoughtClean = Speech.clean(thought, 100)
         if (thoughtClean.isNotBlank()) v.thought = thoughtClean
         var sayClean = Speech.clean(say, 90)
@@ -1668,6 +1840,17 @@ class CivSim(
         raining() -> "raining"
         outsideSnow || seasonName() == "winter" -> "cold, with snow about"
         else -> "dry"
+    }
+
+    private fun foeText(): String {
+        val k = predators.firstOrNull { isThreat(it.kind) }?.kind
+        return when (k) {
+            "raider" -> "raiders are attacking"
+            "ogre" -> "an ogre is rampaging"
+            "wraith" -> "rift wraiths are loose"
+            "drake" -> "a rift drake is attacking"
+            else -> "wolves are howling"
+        }
     }
 
     private fun doing(o: Villager) = when (o.action) {
@@ -1739,6 +1922,7 @@ class CivSim(
         if (canBuild("barracks") && wood >= 16 && stone >= 14 && metal >= 2) a.add("build_barracks")
         if (count("granary") > 0 && food >= 4) a.add("haul")
         if (count("barracks") > 0) a.add("drill")
+        if (predators.isNotEmpty()) { a.add("attack"); a.add("patrol") }
         if (count("library") > 0) a.add("study")
         if (age >= 1 && count("farm") > 0) a.add("tend_farm")
         if (age >= 2) {
@@ -1755,7 +1939,7 @@ class CivSim(
         sb.append("FACTS. Mention only things listed here. Never invent buildings, people, resources or events.\n")
         sb.append("Time: day ${day()}, ${partOfDay()}, ${seasonName()}. Weather: ${weatherNow()}.\n")
         val ev = ArrayList<String>()
-        if (alert()) ev.add("wolves are howling near the village")
+        if (alert()) ev.add(foeText() + " near the village")
         if (festival()) ev.add("a feast is being held by the fire")
         if (time < plagueUntil) ev.add("a sickness is spreading")
         wars().firstOrNull()?.let { ev.add("${it.first.name} is at war with ${it.second.name}") }
@@ -2094,6 +2278,7 @@ class CivSim(
                 if (tiles[y.toInt() * GW + edgeX.toInt()] == T.WATER) continue
                 if (fire != null && hypot(edgeX - fire.x, y - fire.y) < 9f) continue
                 predators.add(Predator(kind, edgeX, y).also { it.angle = rnd.nextFloat() * 6.28f })
+                if (kind == "wraith" || kind == "drake") fx.add(Fx("spawn", edgeX, y, time, 1.4f))
                 break
             }
         }
@@ -2162,7 +2347,7 @@ class CivSim(
             var prey: Villager? = null
             var best = 15f
             for (v in villagers) {
-                val safe = fires.any { hypot(it.x + 0.5f - v.x, it.y + 0.5f - v.y) < 3.2f }
+                val safe = fires.any { hypot(it.x + 0.5f - v.x, it.y + 0.5f - v.y) < (if (p.kind == "ogre" || p.kind == "drake") 1.6f else 3.2f) }
                 if (safe) continue
                 val d = hypot(v.x - p.x, v.y - p.y)
                 if (d < best) {
@@ -2170,8 +2355,8 @@ class CivSim(
                     prey = v
                 }
             }
-            val speed = (when (p.kind) { "bear" -> 1.5f; "boar" -> 2.4f; else -> 2.1f }) * dt
-            if (p.life > 150f && prey == null) {
+            val speed = (when (p.kind) { "bear" -> 1.5f; "boar" -> 2.4f; "raider" -> 2.0f; "ogre" -> 1.3f; "wraith" -> 2.7f; "drake" -> 1.8f; else -> 2.1f }) * dt
+            if (p.life > (if (p.kind == "ogre" || p.kind == "drake") 320f else 150f) && prey == null) {
                 // the hunt is over: slip away toward the nearest map edge
                 val tx = if (p.x < GW / 2f) GW / 2f - OLD_GW / 2f - 1f else GW / 2f + OLD_GW / 2f + 1f
                 val d = max(0.1f, abs(tx - p.x))
@@ -2188,7 +2373,15 @@ class CivSim(
                 val d = max(0.05f, hypot(dx, dy))
                 if (d > 0.8f) stepPredator(p, dx / d * speed, dy / d * speed)
                 else if (p.cool <= 0f) {
-                    val dmg = (when (p.kind) { "bear" -> 22f; "boar" -> 16f; else -> 12f }) * (if (isChild(prey)) 1.5f else 1f)
+                    val dmg = (when (p.kind) { "bear" -> 22f; "boar" -> 16f; "raider" -> 9f; "ogre" -> 24f; "wraith" -> 11f; "drake" -> 28f; else -> 12f }) * (if (isChild(prey)) 1.5f else 1f)
+                    if (p.kind == "raider") {
+                        // raiders grab whatever they can carry as they strike
+                        val f = min(food, 3)
+                        val w = min(wood, 2)
+                        food -= f
+                        wood -= w
+                        if (f + w > 0 && rnd.nextInt(3) == 0) addLog("A raider snatches supplies from ${prey.name}!")
+                    }
                     prey.hp -= dmg
                     prey.harmedBy = p.kind
                     prey.happiness = max(0f, prey.happiness - 12f)
@@ -2214,22 +2407,23 @@ class CivSim(
             }
             val fighters = villagers.filter { isFighter(it) && hypot(it.x - p.x, it.y - p.y) < 2.6f }
             if (fighters.isNotEmpty()) {
-                p.hp -= fighters.size * (6f + 3f * toolBonus()) * dt
+                p.hp -= fighters.size * (6f + 3f * toolBonus()) * (if (p.kind == "wraith") 0.5f else 1f) * dt
                 if (rnd.nextInt(40) == 0) fx.add(Fx("clash", p.x, p.y, time, 0.8f))
             }
             if (p.hp <= 0f) {
                 predators.remove(p)
-                val meat = when (p.kind) { "bear" -> 8; "boar" -> 6; else -> 4 }
-                val hide = when (p.kind) { "bear" -> 3; "boar" -> 2; else -> 1 }
-                drops.add(Drop(p.kind, p.x, p.y, time, meat, hide))
+                val meat = when (p.kind) { "bear" -> 8; "boar" -> 6; "ogre" -> 12; "drake" -> 14; "raider", "wraith" -> 0; else -> 4 }
+                val hide = when (p.kind) { "bear" -> 3; "boar" -> 2; "ogre" -> 5; "drake" -> 8; "raider", "wraith" -> 0; else -> 1 }
+                if (meat + hide > 0) drops.add(Drop(p.kind, p.x, p.y, time, meat, hide))
+                onThreatDown(p)
                 val hero = fighters.maxByOrNull { it.hp }
                 if (hero != null) {
                     hero.happiness = min(100f, hero.happiness + 15f)
                     hero.remember("helped kill a ${p.kind}")
-                    event("${hero.name} and the others bring down the ${p.kind}! It leaves meat and hides.")
+                    event(if (isThreat(p.kind)) "${hero.name} and the others bring down the ${p.kind}!" else "${hero.name} and the others bring down the ${p.kind}! It leaves meat and hides.")
                     mark("${hero.name} helped slay a ${p.kind}.")
                 } else {
-                    event("The ${p.kind} falls and leaves meat and hides.")
+                    event(if (isThreat(p.kind)) "The ${p.kind} falls." else "The ${p.kind} falls and leaves meat and hides.")
                 }
             }
         }
@@ -2244,6 +2438,106 @@ class CivSim(
                 v.say = "Run!"
                 v.sayLeft = 2f
             }
+        }
+    }
+
+    private fun onThreatDown(p: Predator) {
+        when (p.kind) {
+            "raider" -> {
+                goods += 2
+                if (age >= 2) metal += 1
+                if (predators.none { it.kind == "raider" }) {
+                    raidsRepelled++
+                    event("The raiders are beaten back! Their stolen loot is recovered. (bands defeated: $raidsRepelled)")
+                    mark("The village drove off a raider band.")
+                    for (v in villagers) v.happiness = min(100f, v.happiness + 8f)
+                }
+            }
+            "ogre" -> {
+                ogresSlain++
+                event("The ogre falls with a crash that shakes the ground!")
+                mark("An ogre was slain.")
+                for (v in villagers) v.happiness = min(100f, v.happiness + 12f)
+            }
+            "wraith" -> {
+                goods += 1
+                if (predators.none { it.kind == "wraith" }) {
+                    event("The last wraith unravels into smoke. The breach in the sky closes.")
+                    mark("A rift breach was sealed.")
+                }
+            }
+            "drake" -> {
+                bossesSlain++
+                event("The rift drake is slain! The breach it guarded shatters.")
+                mark("A rift drake was slain.")
+                for (v in villagers) v.happiness = min(100f, v.happiness + 20f)
+                val owned = critters.critters.map { it.sp }.toSet()
+                val pool = (57..62).filter { it !in owned }
+                if (pool.isNotEmpty()) critters.spawnLegend(pool[rnd.nextInt(pool.size)], p.x, p.y)
+            }
+        }
+    }
+
+    /** Real enemies arrive on a schedule that quickens with the age of the village. */
+    private fun threatTick() {
+        if (age < 1 || villagers.size < 6 || time < nextThreatAt) return
+        nextThreatAt = time + DAY_LEN * (2.5 - 0.25 * age) * (0.8 + rnd.nextFloat() * 0.5)
+        if (predators.count { isThreat(it.kind) } > 0) return
+        val n = villagers.size
+        val boss = age >= 4 && time - lastBossAt > DAY_LEN * 6
+        val what = pick(
+            "raiders" to 4,
+            "ogre" to (if (age >= 2 && time - lastOgreAt > DAY_LEN * 4) 2 else 0),
+            "breach" to (if (age >= 3) 3 else 0),
+            "drake" to (if (boss) 3 else 0),
+        )
+        alertUntil = time + 100.0
+        for (v in villagers) v.happiness = max(0f, v.happiness - 4f)
+        when (what) {
+            "ogre" -> {
+                lastOgreAt = time
+                spawnPredators("ogre", 1 + (if (age >= 4 && n >= 18) 1 else 0))
+                event("The ground trembles. A hulking ogre lumbers out of the hills toward the village!")
+            }
+            "breach" -> {
+                val k = min(6, 2 + age / 2 + n / 12)
+                spawnPredators("wraith", k)
+                event("The sky tears open at the edge of the land and $k rift wraiths pour through!")
+            }
+            "drake" -> {
+                lastBossAt = time
+                spawnPredators("drake", 1)
+                event("A great rift opens and a rift drake descends, wreathed in shadow! Gather every fighter and summoner!")
+            }
+            else -> {
+                val k = min(6, 2 + n / 10 + age / 2)
+                spawnPredators("raider", k)
+                event("Raiders! A band of $k bandits is marching on the village. Guard the stores!")
+            }
+        }
+        mark("Enemies threaten the village.")
+    }
+
+    /** Long-term goals once the village is grown. Doing them all begins a Golden Age. */
+    fun legacy(): List<Pair<String, Boolean>> = listOf(
+        "Drive off 3 raider bands" to (raidsRepelled >= 3),
+        "Slay an ogre" to (ogresSlain >= 1),
+        "Reach the City Age" to (age >= 4),
+        "Grow to 20 villagers" to (villagers.size >= 20),
+        "Raise a barracks and a library" to (count("barracks") > 0 && count("library") > 0),
+        "Slay a rift drake" to (bossesSlain >= 1),
+        "Summon a legend" to (critters.legendsOwned() > 0 || critters.caught.any { it >= 57 }),
+        "Train a critter to level 40" to critters.critters.any { it.level >= 40 },
+    )
+
+    private fun goldenTick() {
+        if (goldenAt >= 0.0 || villagers.size < 4) return
+        if (legacy().all { it.second }) {
+            goldenAt = time
+            festivalUntil = time + 150.0
+            for (v in villagers) v.happiness = 100f
+            event("A Golden Age begins! The village has beaten every threat and grown into a legend of the land.")
+            mark("The Golden Age began.")
         }
     }
 
@@ -2390,6 +2684,8 @@ class CivSim(
 
         ageTick(dt)
         planTick()
+        threatTick()
+        goldenTick()
         critters.tick(dt)
         capStores()
         eventTick()
@@ -2507,6 +2803,7 @@ class CivSim(
             o.put("nextId", nextId)
             o.put("hides", hides)
             o.put("goods", goods)
+            o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("golden", goldenAt)
             o.put("traffic", String(CharArray(traffic.size) { i -> '0' + min(9, (traffic[i] / 4f).toInt()) }))
             val ks = JSONArray()
             kingdoms.forEach {
@@ -2616,6 +2913,8 @@ class CivSim(
             if (lg != null) for (i in 0 until lg.length()) log.add(lg.getString(i))
             hides = o.optInt("hides", 0)
             goods = o.optInt("goods", 0)
+            raidsRepelled = o.optInt("raids", 0); ogresSlain = o.optInt("ogres", 0); bossesSlain = o.optInt("bosses", 0)
+            goldenAt = o.optDouble("golden", -1.0)
             traffic.fill(0f)
             val tr = o.optString("traffic", "")
             if (tr.length == traffic.size) for (i in traffic.indices) traffic[i] = (tr[i] - '0') * 4f
@@ -2632,7 +2931,7 @@ class CivSim(
     companion object {
         private const val SYSTEM = """You play one villager in a small pixel-art village, as a distinct character with a job, a personality, a way of speaking and a dream. Reply with ONLY a JSON object, no other text:
 {"thought": "<your private thought, first person, under 14 words, in your voice>", "action": "<one action>", "target": "<villager name, only for talk>", "say": "<one short sentence you say aloud in your own voice, or empty>"}
-Actions: gather_wood, gather_stone, gather_food (berries), fish (at the lake), hunt (game in the forest, hunter-gatherers' best food), tend_farm (needs a farm, Farming Age on), explore (scouting far away), tell_story (at the fire, lifts everyone's spirits), huddle (stay by the fire), build_hut (6 wood + 2 stone), build_farm (4 wood, Farming Age on), build_campfire (3 stone), mine_ore (Bronze Age on), smelt (2 ore + 1 wood at a forge, Bronze Age on), build_smelter (4 wood + 6 stone, Bronze Age on), build_well (4 wood + 6 stone), build_workshop (10 wood + 4 stone), build_market (12 wood + 6 stone), build_lamp (2 wood + 2 stone), fetch_water (at a well, waters the farms), craft (at a workshop), trade (goods for food at a market), dance (at the fire), build_granary (14 wood + 6 stone), build_barracks (16 wood, 14 stone, 2 metal), build_library (18 wood + 12 stone), haul (fill the granary), drill (train at the barracks), study (read at the library), patrol (walk the edge of the village and watch), play (children), eat (needs food in stock), sleep, talk (set target and say), wander. Use only the actions listed as available to you in the message.
+Actions: gather_wood, gather_stone, gather_food (berries), fish (at the lake), hunt (game in the forest, hunter-gatherers' best food), tend_farm (needs a farm, Farming Age on), explore (scouting far away), tell_story (at the fire, lifts everyone's spirits), huddle (stay by the fire), build_hut (6 wood + 2 stone), build_farm (4 wood, Farming Age on), build_campfire (3 stone), mine_ore (Bronze Age on), smelt (2 ore + 1 wood at a forge, Bronze Age on), build_smelter (4 wood + 6 stone, Bronze Age on), build_well (4 wood + 6 stone), build_workshop (10 wood + 4 stone), build_market (12 wood + 6 stone), build_lamp (2 wood + 2 stone), fetch_water (at a well, waters the farms), craft (at a workshop), trade (goods for food at a market), dance (at the fire), build_granary (14 wood + 6 stone), build_barracks (16 wood, 14 stone, 2 metal), build_library (18 wood + 12 stone), haul (fill the granary), drill (train at the barracks), study (read at the library), attack (charge the enemy), patrol (walk the edge of the village and watch), play (children), eat (needs food in stock), sleep, talk (set target and say), wander. Use only the actions listed as available to you in the message.
 Mostly do the work of your job, but react to your needs, the weather, wolves, news and what others say. Talk about what you have seen, feel or remember, with opinions and feelings. Never repeat a line or an action you just did, and vary your sentences. Stay alive: eat when hungry, sleep when tired or at night.
 Speak only about facts given in the message: your needs, the stock, the weather, people nearby and what they said, family, village history and news. Never invent buildings, people, resources or events. Answer what others actually said to you. If you are a child, use very short, simple words."""
         private const val SYSTEM_SHORT = """Reply with ONLY a JSON object: {"thought": "", "action": "<one allowed action>", "target": "", "say": "<one short sentence using only the facts given, or empty>"}"""

@@ -204,6 +204,22 @@ class CivArt {
         'r' to 0xFF3F5E8C.toInt(), 'R' to 0xFF2B4468.toInt(), 'w' to 0xFFE7DCC2.toInt(), 'W' to 0xFFC9B99A.toInt(),
         'd' to 0xFF4A2E1B.toInt(), 'k' to 0xFF9FD3F0.toInt(), 'y' to 0xFFF2D88A.toInt(), 'b' to 0xFF8D909C.toInt(),
     ))
+    val raider = sprite(RAIDER, mapOf(
+        's' to 0xFFE0B48A.toInt(), 'h' to 0xFF3A2A1E.toInt(), 'r' to 0xFFB02A2A.toInt(), 'R' to 0xFF7A1C1C.toInt(),
+        'l' to 0xFF5A4630.toInt(), 'c' to 0xFF6B4A2B.toInt(), 'm' to 0xFFC9CED6.toInt(), 'k' to 0xFF1E1A16.toInt(),
+    ))
+    val ogre = sprite(OGRE, mapOf(
+        'g' to 0xFF7E9A52.toInt(), 'G' to 0xFF5A7438.toInt(), 'b' to 0xFF6B4A2B.toInt(), 'B' to 0xFF4A3220.toInt(),
+        'w' to 0xFFF2E6C8.toInt(), 'e' to 0xFFFF4040.toInt(), 'k' to 0xFF2A1C12.toInt(),
+    ))
+    val wraith = sprite(WRAITH, mapOf(
+        'v' to 0xFF6A4AA8.toInt(), 'V' to 0xFF3E2A70.toInt(), 'p' to 0xFFB48AFF.toInt(), 'e' to 0xFFFFF06A.toInt(),
+        'k' to 0xFF1A1030.toInt(),
+    ))
+    val drake = sprite(DRAKE, mapOf(
+        'd' to 0xFF3A2A5A.toInt(), 'D' to 0xFF241838.toInt(), 'p' to 0xFF8A5AD0.toInt(), 'e' to 0xFFFF5A5A.toInt(),
+        'w' to 0xFFE8E0F0.toInt(), 'f' to 0xFFB45AFF.toInt(),
+    ))
     private val chickPal = mapOf('w' to 0xFFF4F0E6.toInt(), 'o' to 0xFFE89A2B.toInt(), 'r' to 0xFFD9373A.toInt(), 'd' to 0xFF222222.toInt(), 'g' to 0xFFC9C3B4.toInt())
     val chicken = listOf(sprite(CHICK1, chickPal), sprite(CHICK2, chickPal))
     private val firePal = mapOf('y' to 0xFFFFE070.toInt(), 'o' to 0xFFFF8A2B.toInt(), 'L' to 0xFF6B4A2B.toInt(), 'l' to 0xFF4A3220.toInt(), 's' to 0xFF8E8E96.toInt())
@@ -667,6 +683,65 @@ class CivArt {
             "..wwwwyywwww..",
             "..wWwwddwwWw..",
             ".bbbbbddbbbbb.",
+        )
+        val RAIDER = listOf(
+            "...hhhh...m.",
+            "..hssssh..m.",
+            "..hsksks..m.",
+            "..hssssh.cm.",
+            "...rrrr.cc..",
+            "..rrRrrrc...",
+            ".srrRRrrs...",
+            ".s.rrrr.....",
+            "...llll.....",
+            "...l..l.....",
+            "..kk..kk....",
+        )
+        val OGRE = listOf(
+            "....gggggg......",
+            "...gggggggg.....",
+            "...gewggwegg....",
+            "...gggkkggg.....",
+            "...gwgggggwg....",
+            "..GGGGGGGGGG....",
+            ".GgGbbbbbbGgG...",
+            ".gg.bbBBbb.gg.cc",
+            ".gg.bbbbbb.ggcc.",
+            ".Gg.bbBBbb.gc...",
+            "....bbbbbb......",
+            "....GG..GG......",
+            "....GG..GG......",
+            "...kkk..kkk.....",
+        )
+        val WRAITH = listOf(
+            "....vvvv....",
+            "...vvvvvv...",
+            "..vveevvev..",
+            "..vvvvvvvv..",
+            "..vVvvvvVv..",
+            ".vvVvppvVvv.",
+            ".vvvvppvvvv.",
+            "vvVvvvvvvVvv",
+            "vv.vvvvvv.vv",
+            "v...vvvv...v",
+            "....v..v....",
+            "...v....v...",
+        )
+        val DRAKE = listOf(
+            "..............dd.dd...",
+            ".....D.......dddddd...",
+            "....DdD.....ddeddedd..",
+            "...DdddD...ddddddddww.",
+            "..DdpppdDdddddddddddw.",
+            ".DdpppppdddddddddddD..",
+            ".DdppppdddddddddddD...",
+            "DDdddddddddddddddDD...",
+            "Dd.dddddpppddddd......",
+            "...dddddpppdddd.......",
+            "...ddDDdddddDDdd......",
+            "..ddD..dD..dD.dd......",
+            "..dD...dD..dD.dd..ff..",
+            ".DD....DD..DD.DD.fff..",
         )
         val CHICK1 = listOf(
             "...r...",

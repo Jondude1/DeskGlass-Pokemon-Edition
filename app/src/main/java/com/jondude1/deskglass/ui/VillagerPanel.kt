@@ -80,7 +80,7 @@ fun VillagerPanel(sim: CivSim, id: Int, tick: Long, modifier: Modifier = Modifie
                 Sprite(cart, c.sp, 40)
                 Column {
                     Text(
-                        (if (c.companion) "★ " else "") + c.name + "  Lv ${c.level}",
+                        (if (c.companion) "★ " else "") + c.label + "  Lv ${c.level}",
                         color = Glass.Ink, fontSize = 13.sp, fontWeight = FontWeight.Medium,
                     )
                     Text(

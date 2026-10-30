@@ -72,7 +72,7 @@ fun CritterDexScreen(sim: CivSim, onBack: () -> Unit) {
                     Sprite(cart, c.sp, 56)
                     Column(Modifier.weight(1f)) {
                         Text(
-                            (if (c.companion) "★ " else "") + c.name + "  Lv ${c.level}",
+                            (if (c.companion) "★ " else "") + c.label + "  Lv ${c.level}",
                             color = Glass.Ink, fontSize = 16.sp, fontWeight = FontWeight.Medium,
                         )
                         val owner = cw.ownerName(c)

@@ -50,7 +50,7 @@ class Species(
 
 object Dex {
     const val DUMMY = 0
-    const val COUNT = 50
+    const val COUNT = 62
     const val MAX_LEVEL = 50
 
     // ---- moves ----
@@ -171,6 +171,21 @@ object Dex {
         // Rare singles
         s(49, "Sunpetal", CType.GLOW, CType.LEAF, 1, 70, 64, 70, 66, -1, 0, 4, "meadow", 2, "A flower sprite that only blooms in full sun."),
         s(50, "Auroryn", CType.GLOW, CType.FROST, 1, 80, 76, 74, 80, -1, 0, 4, "snow", 1, "A pale stag whose antlers shimmer like the northern lights."),
+        // Clockwork line: a wind-up fox that grows into a forge-hearted hound
+        s(51, "Tinkit", CType.IRON, null, 1, 42, 48, 54, 44, 52, 14, 1, "ore", 0, "A wind-up fox kit. A tiny key turns in its back."),
+        s(52, "Cogfox", CType.IRON, CType.EMBER, 2, 64, 72, 78, 62, 53, 30, 2, "ore", 0, "Gears show through its flanks and glow orange when it runs."),
+        s(53, "Forgehound", CType.IRON, CType.EMBER, 3, 90, 100, 106, 70, -1, 0, 3, "ore", 0, "A great hound with a furnace for a heart."),
+        // Cliff line: a mountain goat of the high crags
+        s(54, "Kidling", CType.GALE, null, 1, 44, 48, 46, 58, 55, 14, 1, "rock", 0, "A nimble kid that bounds up any cliff."),
+        s(55, "Cragram", CType.GALE, CType.STONE, 2, 68, 72, 76, 72, 56, 30, 2, "rock", 0, "Its curled horns chip stone from the crag as it climbs."),
+        s(56, "Summitaur", CType.GALE, CType.STONE, 3, 94, 98, 100, 88, -1, 0, 3, "rock", 0, "A mountain-lord who watches the whole valley from the peak."),
+        // Legends: not found in the wild. They answer only to a summoner who has proved a village worth guarding.
+        s(57, "Aurelion", CType.EMBER, CType.GLOW, 1, 110, 124, 100, 104, -1, 0, 5, "legend", 0, "A lion of living sunlight. Its mane is a dawn that never ends."),
+        s(58, "Tidewyrm", CType.TIDE, CType.FROST, 1, 124, 106, 112, 90, -1, 0, 5, "legend", 0, "A sea serpent of green ice that sleeps beneath the deepest water."),
+        s(59, "Elderstag", CType.LEAF, CType.SPIRIT, 1, 120, 100, 118, 82, -1, 0, 5, "legend", 0, "An ancient stag with a whole grove growing in its antlers."),
+        s(60, "Stormroc", CType.SPARK, CType.GALE, 1, 100, 122, 92, 130, -1, 0, 5, "legend", 0, "A thunderbird whose wingbeats are the first storm of spring."),
+        s(61, "Ironwarden", CType.IRON, CType.STONE, 1, 130, 116, 146, 56, -1, 0, 5, "legend", 0, "A colossus of riveted stone that has guarded the old gate for ages."),
+        s(62, "Voidwyrm", CType.SHADE, CType.SPIRIT, 1, 118, 130, 98, 112, -1, 0, 5, "legend", 1, "The dragon that sleeps behind every rift. It answers only to the bravest."),
     )
 
     private val dummy = Species(
@@ -285,6 +300,7 @@ object Dex {
             if (sp.stage == 2 && sp.evolveTo < 0 && sp.rarity == 3 && age < 2) x = 0f
             if (sp.stage == 3 && age < 4) x = 0f
             if (sp.rarity == 4 && age < 2) x = 0f
+            if (sp.rarity >= 5) x = 0f
             if (sp.activity == 1 && !night && !(sp.id == 50 && winter)) x = 0f
             if (sp.activity == 2 && night) x = 0f
             if (sp.habitat == "snow" && winter) x *= 2.5f
@@ -309,7 +325,7 @@ object Dex {
 
     /** Chance that one snare holds. */
     fun catchChance(sp: Species, level: Int, hpFrac: Float, bonus: Float): Float {
-        val base = when (sp.rarity) { 1 -> 0.50f; 2 -> 0.38f; 3 -> 0.27f; else -> 0.16f }
+        val base = when (sp.rarity) { 1 -> 0.50f; 2 -> 0.38f; 3 -> 0.27f; 5 -> 0.42f; else -> 0.16f }
         val hurt = (1f - hpFrac.coerceIn(0f, 1f)) * 0.5f
         val lvl = -0.006f * level
         return (base + hurt + lvl + bonus).coerceIn(0.08f, 0.92f)
@@ -341,6 +357,8 @@ class Critter(val uid: Int, var sp: Int, var level: Int) {
     val spd: Int get() = Dex.spd(species, level)
     val moves: List<Move> get() = Dex.movesAt(species, level)
     val name: String get() = nick.ifBlank { species.name }
+    /** "Ember the Cindrel" once named, plain species name before. */
+    val label: String get() = if (nick.isBlank()) species.name else "$nick the ${species.name}"
     val hpFrac: Float get() = (hp.toFloat() / maxHp).coerceIn(0f, 1f)
 
     fun heal() {
