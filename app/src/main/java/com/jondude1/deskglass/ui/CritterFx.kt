@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import com.jondude1.deskglass.sim.Battle
 import com.jondude1.deskglass.sim.CType
 import com.jondude1.deskglass.sim.CivSim
 import com.jondude1.deskglass.sim.Critter
@@ -256,7 +257,9 @@ private fun pose(e: Enc, side: Int, sim: CivSim): Pose {
             val tn = e.turn
             val k = e.turnT
             if (tn != null) {
-                if (tn.side == side) {
+                if (tn.skip) {
+                    // a stunned or collapsing fighter makes no move
+                } else if (tn.side == side) {
                     if (tn.move.fx == "lunge") {
                         val reach = max(0.2f, abs(ox - bx) - 0.7f)
                         val off = when {
@@ -418,6 +421,15 @@ private fun DrawScope.hpBars(e: Enc, cart: CritterArt, g: Geo, sim: CivSim) {
         drawRect(Color(0xFF2B3340), Offset(cx - bw / 2f, top), Size(bw, g.ps * 2f))
         drawRect(col, Offset(cx - bw / 2f, top), Size(bw * frac, g.ps * 2f))
         drawRect(Color.White.copy(alpha = 0.35f), Offset(cx - bw / 2f, top), Size(bw * frac, g.ps * 0.7f))
+        val st = e.battle?.status?.getOrNull(side) ?: 0
+        if (st > 0) {
+            // little motes of the status colour circle the afflicted fighter
+            val sc = Color(Battle.statusColor(st))
+            for (i in 0 until 3) {
+                val ang = g.t * 3f + i * 2.094f
+                drawCircle(sc, g.ps * 1.2f, Offset(cx + cos(ang) * bw * 0.3f, top - g.ps * 3.5f + sin(ang) * g.ps * 1.6f))
+            }
+        }
     }
 }
 
@@ -508,6 +520,7 @@ private fun DrawScope.sparks(cx: Float, cy: Float, q: Float, col: Color, count: 
 
 private fun DrawScope.moveFx(e: Enc, g: Geo) {
     val tn = e.turn ?: return
+    if (tn.skip) return
     if (!tn.hit && e.turnT > 1.05f) return
     val ts = g.ts
     val ps = g.ps

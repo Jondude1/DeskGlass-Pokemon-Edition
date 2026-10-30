@@ -1388,7 +1388,11 @@ class CritterWorld(private val sim: CivSim) {
         e.turnT = 0f
         e.impacted = false
         val att = bt.side(t.side)
-        e.banner = "${att.name} used ${t.move.name}!"
+        e.banner = when {
+            t.skip && bt.over -> "${att.name} collapses from the ${Battle.statusName(t.tickStatus)}!"
+            t.skip -> "${att.name} is stunned and can't move!"
+            else -> "${att.name} used ${t.move.name}!"
+        }
         e.bannerT = 1.5f
     }
 
@@ -1397,6 +1401,15 @@ class CritterWorld(private val sim: CivSim) {
         e.impacted = true
         val tx = if (t.side == 0) e.bx else e.ax
         val ty = if (t.side == 0) e.by else e.ay
+        val ax = if (t.side == 0) e.ax else e.bx
+        val ay = if (t.side == 0) e.ay else e.by
+        if (t.tick > 0) {
+            e.pops.add(Pop(ax, ay - 1.1f, "-${t.tick} ${Battle.statusName(t.tickStatus)}", Battle.statusColor(t.tickStatus), sim.time))
+        }
+        if (t.skip) {
+            if (t.tickStatus == Battle.STUN) e.pops.add(Pop(ax, ay - 1.1f, "Stunned!", Battle.statusColor(Battle.STUN), sim.time))
+            return
+        }
         if (!t.hit) {
             e.pops.add(Pop(tx, ty - 1.1f, "Missed!", 0xFFE8E8F0, sim.time))
             return
@@ -1418,6 +1431,21 @@ class CritterWorld(private val sim: CivSim) {
         } else if (t.crit) {
             e.sub = "A sharp hit!"
             e.subT = 1.1f
+        }
+        if (t.inflicted > 0) {
+            val victim = e.battle?.side(1 - t.side)?.name ?: "It"
+            val word = when (t.inflicted) {
+                Battle.BURN -> "is set alight"
+                Battle.POISON -> "is poisoned"
+                Battle.STUN -> "is stunned"
+                Battle.CHILL -> "is chilled to the bone"
+                else -> "is frightened"
+            }
+            e.pops.add(Pop(tx, ty - 1.5f, Battle.statusName(t.inflicted).replaceFirstChar { it.uppercase() } + "!", Battle.statusColor(t.inflicted), sim.time))
+            if (t.eff == 1f && !t.crit) {
+                e.sub = "$victim $word!"
+                e.subT = 1.4f
+            }
         }
     }
 

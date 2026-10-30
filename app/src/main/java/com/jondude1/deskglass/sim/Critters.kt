@@ -411,6 +411,14 @@ class Turn(
     val eff: Float,
     val crit: Boolean,
     val foeFainted: Boolean,
+    /** Status newly put on the target by this hit (Battle.BURN etc.), 0 for none. */
+    val inflicted: Int = 0,
+    /** Damage the attacker took from its own burn or poison before acting. */
+    val tick: Int = 0,
+    /** The status that caused [tick]. */
+    val tickStatus: Int = 0,
+    /** True when the attacker lost its action (stunned, or collapsed from a burn or poison). */
+    val skip: Boolean = false,
 )
 
 /** Turn-by-turn fight between two critters. The caller plays each turn out on screen. */
@@ -419,6 +427,10 @@ class Battle(val a: Critter, val b: Critter, private val rnd: Random) {
 
     /** Hits side 0 can still take at half strength from a shield glyph. */
     var shield = 0
+
+    /** Status of each side: 0 none, else one of the constants below. */
+    val status = IntArray(2)
+    private val statusLeft = IntArray(2)
 
     var over = false
         private set
@@ -430,8 +442,8 @@ class Battle(val a: Critter, val b: Critter, private val rnd: Random) {
     fun side(i: Int): Critter = if (i == 0) a else b
 
     private fun order(): List<Int> {
-        val fa = a.spd + rnd.nextInt(6)
-        val fb = b.spd + rnd.nextInt(6)
+        val fa = (a.spd * (if (status[0] == CHILL) 0.7f else 1f)).toInt() + rnd.nextInt(6)
+        val fb = (b.spd * (if (status[1] == CHILL) 0.7f else 1f)).toInt() + rnd.nextInt(6)
         return if (fa >= fb) listOf(0, 1) else listOf(1, 0)
     }
 
@@ -471,11 +483,35 @@ class Battle(val a: Critter, val b: Critter, private val rnd: Random) {
             winner = if (a.hp > 0) 0 else 1
             return null
         }
+        // statuses bite before the creature acts
+        val st = status[s]
+        var tick = 0
+        if (st == BURN || st == POISON) {
+            tick = max(1, att.maxHp / (if (st == BURN) 14 else 12))
+            att.hp = max(0, att.hp - tick)
+            count[st]++
+            tickTotal += tick
+        }
+        if (att.hp <= 0) {
+            over = true
+            winner = 1 - s
+            return Turn(s, Dex.scuffle, false, 0, 1f, false, false, 0, tick, st, true)
+        }
+        if (st == STUN) {
+            status[s] = 0
+            return Turn(s, Dex.scuffle, false, 0, 1f, false, false, 0, 0, st, true)
+        }
+        if (st != 0) {
+            statusLeft[s]--
+            if (statusLeft[s] <= 0) status[s] = 0
+        }
         val move = pickMove(att, def)
-        val hit = rnd.nextInt(100) < move.acc
+        var hit = rnd.nextInt(100) < move.acc
+        if (hit && st == FRIGHT && rnd.nextInt(100) < 35) hit = false
         var dmg = 0
         var eff = 1f
         var crit = false
+        var inflicted = 0
         if (hit) {
             eff = Dex.effectiveness(move.type, def.species)
             crit = rnd.nextInt(100) < 6
@@ -484,6 +520,8 @@ class Battle(val a: Critter, val b: Critter, private val rnd: Random) {
             if (att.species.types.contains(move.type)) d *= 1.3f
             d *= eff
             if (crit) d *= 1.5f
+            if (st == BURN) d *= 0.8f
+            if (st == CHILL) d *= 0.85f
             d *= 0.88f + rnd.nextFloat() * 0.12f
             if (s == 1 && shield > 0) {
                 d *= 0.5f
@@ -491,12 +529,57 @@ class Battle(val a: Critter, val b: Critter, private val rnd: Random) {
             }
             dmg = max(1, d.toInt())
             def.hp = max(0, def.hp - dmg)
+            val kind = statusOf(move.type)
+            if (kind != 0 && def.hp > 0 && status[1 - s] == 0) {
+                val chance = when (move.tier) { 1 -> 14; 2 -> 22; else -> 32 }
+                if (rnd.nextInt(100) < chance) {
+                    status[1 - s] = kind
+                    statusLeft[1 - s] = when (kind) { STUN -> 1; POISON -> 4; else -> 3 }
+                    inflicted = kind
+                    inflictedCount[kind]++
+                }
+            }
         }
         val fainted = def.hp <= 0
         if (fainted) {
             over = true
             winner = s
         }
-        return Turn(s, move, hit, dmg, eff, crit, fainted)
+        return Turn(s, move, hit, dmg, eff, crit, fainted, inflicted, tick, st, false)
+    }
+
+    companion object {
+        const val BURN = 1
+        const val POISON = 2
+        const val STUN = 3
+        const val CHILL = 4
+        const val FRIGHT = 5
+
+        /** Counters for the headless test: ticks of each status and how often each was inflicted. */
+        val count = IntArray(6)
+        val inflictedCount = IntArray(6)
+        var tickTotal = 0
+
+        fun statusOf(t: CType): Int = when (t) {
+            CType.EMBER -> BURN
+            CType.VENOM -> POISON
+            CType.SPARK -> STUN
+            CType.FROST -> CHILL
+            CType.SHADE -> FRIGHT
+            else -> 0
+        }
+
+        fun statusName(st: Int): String = when (st) {
+            BURN -> "burn"; POISON -> "poison"; STUN -> "stun"; CHILL -> "chill"; FRIGHT -> "fright"; else -> ""
+        }
+
+        fun statusColor(st: Int): Long = when (st) {
+            BURN -> 0xFFFF7A2B
+            POISON -> 0xFFB45FD9
+            STUN -> 0xFFFFD23C
+            CHILL -> 0xFF9FE3F5
+            FRIGHT -> 0xFF6A4FA8
+            else -> 0xFFFFFFFF
+        }
     }
 }
