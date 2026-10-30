@@ -216,6 +216,19 @@ class CivArt {
         'v' to 0xFF6A4AA8.toInt(), 'V' to 0xFF3E2A70.toInt(), 'p' to 0xFFB48AFF.toInt(), 'e' to 0xFFFFF06A.toInt(),
         'k' to 0xFF1A1030.toInt(),
     ))
+    val shaman = sprite(SHAMAN, mapOf(
+        's' to 0xFFD9A878.toInt(), 'm' to 0xFF6E3A8C.toInt(), 'M' to 0xFF4A2462.toInt(), 'b' to 0xFFEDE3C8.toInt(),
+        'g' to 0xFF7FFFB0.toInt(), 'c' to 0xFF6B4A2B.toInt(), 'k' to 0xFF1E1A16.toInt(), 'r' to 0xFFB02A2A.toInt(),
+    ))
+    val warlord = sprite(WARLORD, mapOf(
+        's' to 0xFFD9A878.toInt(), 'h' to 0xFF2E2420.toInt(), 'i' to 0xFF8D909C.toInt(), 'I' to 0xFF5E616C.toInt(),
+        'r' to 0xFF8E1F1F.toInt(), 'R' to 0xFF5A1010.toInt(), 'm' to 0xFFD8DCE4.toInt(), 'c' to 0xFF6B4A2B.toInt(),
+        'k' to 0xFF1E1A16.toInt(), 'y' to 0xFFE8C547.toInt(), 'e' to 0xFFFF5040.toInt(),
+    ))
+    val golem = sprite(GOLEM, mapOf(
+        'a' to 0xFF8A8A92.toInt(), 'A' to 0xFF5E5E68.toInt(), 'l' to 0xFFB4B4BC.toInt(), 'c' to 0xFF7FE0FF.toInt(),
+        'C' to 0xFF3AA0D0.toInt(), 'k' to 0xFF22222A.toInt(), 'm' to 0xFF5A7A4A.toInt(),
+    ))
     val drake = sprite(DRAKE, mapOf(
         'd' to 0xFF3A2A5A.toInt(), 'D' to 0xFF241838.toInt(), 'p' to 0xFF8A5AD0.toInt(), 'e' to 0xFFFF5A5A.toInt(),
         'w' to 0xFFE8E0F0.toInt(), 'f' to 0xFFB45AFF.toInt(),
@@ -726,6 +739,52 @@ class CivArt {
             "v...vvvv...v",
             "....v..v....",
             "...v....v...",
+        )
+        val SHAMAN = listOf(
+            "...bb.bb....",
+            "..bbbbbbb.g.",
+            "..bssssb..g.",
+            "..bskskb..c.",
+            "..bsrrsb.cg.",
+            "...mmmm..c..",
+            "..mmMmmm.c..",
+            ".smmMMmmsc..",
+            ".s.mmmmm.c..",
+            "...mmmmm....",
+            "..mMmmmMm...",
+            "..kk...kk...",
+        )
+        val WARLORD = listOf(
+            "..i.hhhh.i....",
+            "..iihhhhii....",
+            "...hssssh.....",
+            "...hseses.....",
+            "...hsrrsh...m.",
+            "..iiyyyyii..m.",
+            ".iIrrRRrrIi.m.",
+            "isIrrRRrrIsmm.",
+            "s.IrrRRrrI.cm.",
+            "..crrRRrrc.c..",
+            "...llllll.....",
+            "...ll..ll.....",
+            "...ll..ll.....",
+            "..kkk..kkk....",
+        )
+        val GOLEM = listOf(
+            "....aaaaaa....",
+            "...alaaaaAa...",
+            "...acckkcca...",
+            "...aaakkaaa...",
+            "..AAaaaaaaAA..",
+            ".aaAaaccaaAaa.",
+            "aaaAAaCCaAAaaa",
+            "aal.AaaaaaA.lA",
+            "aa..AacmaaA.aA",
+            "Aa..AaaaaaA.AA",
+            "....aaAAaaa...",
+            "....aa..aa....",
+            "...aaa..aaa...",
+            "..AAAA..AAAA..",
         )
         val DRAKE = listOf(
             "..............dd.dd...",
