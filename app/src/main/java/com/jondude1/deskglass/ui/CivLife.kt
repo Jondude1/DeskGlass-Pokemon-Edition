@@ -263,6 +263,30 @@ fun DrawScope.drawVillagers(sim: CivSim, art: CivArt, g: Geo, sun: Sun) {
         castShadow(art, sp, cx, feetY, w, h, sun)
         drawOval(Color.Black.copy(alpha = 0.22f), Offset(cx - w * 0.45f, feetY - ps * 1.3f), Size(w * 0.9f, ps * 2.6f))
 
+        // splashes, herbs and stars for the leisure actions
+        if (working && v.action == "swim") {
+            for (k in 0 until 3) {
+                val p = (t * 1.1f + k * 0.33f + v.id * 0.2f) % 1f
+                drawCircle(Color(0xFFBFE6FF).copy(alpha = 0.55f * (1f - p)), radius = ps * (1.5f + 4f * p), center = Offset(cx + fx * ps * 3f, feetY), style = Stroke(width = ps * 0.5f))
+            }
+            for (k in 0 until 4) {
+                val p = (t * 2.2f + k * 0.25f + v.id * 0.1f) % 1f
+                drawCircle(Color(0xFFE8F6FF).copy(alpha = 0.8f * (1f - p)), radius = ps * 0.6f, center = Offset(cx + fx * ps * (2f + k), feetY - ps * (2f + 7f * sin(p * PI.toFloat()))))
+            }
+        }
+        if (working && v.action == "forage_herbs") {
+            for (k in 0 until 3) {
+                val p = (t * 0.9f + k * 0.34f + v.id * 0.17f) % 1f
+                drawCircle(Color(0xFF7FD36B).copy(alpha = 0.85f * (1f - p)), radius = ps * 0.8f, center = Offset(cx + sin(t * 2f + k) * ps * 3f, feetY - ps * (6f + p * 10f)))
+            }
+        }
+        if (working && v.action == "stargaze") {
+            for (k in 0 until 4) {
+                val tw = 0.5f + 0.5f * sin(t * 3f + k * 1.7f + v.id)
+                drawCircle(Color(0xFFFFF3B0).copy(alpha = 0.35f + 0.6f * tw), radius = ps * (0.5f + 0.5f * tw), center = Offset(cx + (k - 1.5f) * ps * 3.2f, feetY - ps * (16f + (k % 2) * 4f)))
+            }
+        }
+
         // dust kicked up by walking feet
         if (walking) {
             for (k in 0 until 2) {

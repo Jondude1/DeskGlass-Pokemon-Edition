@@ -15,7 +15,7 @@ fun main(args: Array<String>) {
     val seenEnc = LinkedHashSet<Enc>()
     val logSeen = LinkedHashSet<String>()
     val actHist = HashMap<String, Int>()
-    var farSamples = 0; var samples = 0
+    var farSamples = 0; var samples = 0; var stuckIdle = 0; val happySum = DoubleArray(1)
     val dt = 0.05f
     var maxOut = 0
     val spellsSeen = HashMap<String, Int>()
@@ -29,7 +29,7 @@ fun main(args: Array<String>) {
         sim.tick(dt)
         if (i % 12000 == 0) { val cmds = listOf("gather wood","attack the enemy","defend the village","hold a feast","build more homes","go hunting","everyone hide","study hard","trade at the market","rest now"); sim.whisper(cmds[(i/12000) % cmds.size]) }
         if (i % 40 == 0) { for (w in cw.wilds) if (w.c.species.rarity >= 5) legSeen.merge(w.c.species.name, 1, Int::plus); for (e in cw.encounters) if (e.foe?.species?.rarity ?: 0 >= 5) legEnc.add(e.state + ":" + e.result) }
-        if (i % 20 == 0) { for (v in sim.villagers) { actHist.merge(if (v.phase == "idle") "IDLE" else v.action, 1, Int::plus); samples++; val cd = Math.hypot((v.x - 48.0), (v.y - 27.0)); if (cd > 26) farSamples++ } }
+        if (i % 20 == 0) { for (v in sim.villagers) { actHist.merge(if (v.phase == "idle") "IDLE" else v.action, 1, Int::plus); samples++; if (v.phase == "idle" && v.idleFor > 2f) stuckIdle++; happySum[0] += v.happiness; val cd = Math.hypot((v.x - 48.0), (v.y - 27.0)); if (cd > 26) farSamples++ } }
         if (i % 40 == 0) for (l in sim.log.toList()) if (l.contains("circle") || l.contains("teaches") || l.contains("scroll") || l.contains("channels")) logSeen.add(l)
         for (e in cw.encounters) { seenEnc.add(e); if (e.state == "cast" && e.spellT < 0.06f) spellsSeen.merge(e.spell, 1, Int::plus) }
         if (i % 20 == 0) {
@@ -60,6 +60,7 @@ fun main(args: Array<String>) {
     logSeen.take(8).forEach { println("   $it") }
     println("actions: " + actHist.entries.sortedByDescending { it.value }.take(14).joinToString { "${it.key}=${it.value}" })
     println("far from village samples: $farSamples/$samples")
+    println("MEASURE idle>2s=${"%.2f".format(100.0*stuckIdle/samples)}% IDLEtotal=${"%.2f".format(100.0*(actHist["IDLE"]?:0)/samples)}% distinctActions=${actHist.keys.size} avgHappiness=${"%.1f".format(happySum[0]/samples)} actions=${actHist.keys.sorted()}")
     println("scrolls common/fine/rare: ${cw.scrolls.toList()}")
     println("mentors: " + sim.villagers.filter { cw.mageOf(it).mentor >= 0 }.joinToString { "${it.name}<-${sim.villagers.firstOrNull { x -> x.id == cw.mageOf(it).mentor }?.name}" })
     println("unrevealed (children): " + sim.villagers.count { !cw.mageOf(it).revealed })

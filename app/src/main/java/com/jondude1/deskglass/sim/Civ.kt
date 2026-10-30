@@ -173,6 +173,7 @@ private val ACTIONS = setOf(
     "build_well", "build_workshop", "build_market", "build_lamp",
     "fetch_water", "craft", "trade", "dance", "patrol", "play",
     "build_granary", "build_barracks", "build_library", "haul", "drill", "study", "attack",
+    "forage_herbs", "swim", "stargaze",
 )
 
 private val DX = intArrayOf(1, -1, 0, 0)
@@ -234,6 +235,9 @@ class CivSim(
     private var fixCount = 0
     private var failCount = 0
     private var plagueUntil = 0.0
+    var swims = 0
+    var herbed = 0
+    var stargazed = 0
     private val problemAt = HashMap<String, Long>()
     private val problemSkipped = HashMap<String, Int>()
     private var godUntil = 0.0
@@ -798,6 +802,8 @@ class CivSim(
         return best
     }
 
+    private fun nearestShoreAny(): Boolean = villagers.firstOrNull()?.let { nearestShore(it) >= 0 } ?: false
+
     private fun nearestShore(v: Villager): Int {
         var best = -1
         var bd = Float.MAX_VALUE
@@ -981,6 +987,22 @@ class CivSim(
                 if (i < 0) return false
                 return go(v, "fish", i)
             }
+            "swim" -> {
+                if (!canSwim()) return false
+                val i = nearestShore(v)
+                if (i < 0) return false
+                return go(v, "swim", i)
+            }
+            "forage_herbs" -> {
+                val i = nearestTile(v, T.BUSH)
+                if (i < 0) return false
+                return go(v, "forage_herbs", i)
+            }
+            "stargaze" -> {
+                if (!canStargaze()) return false
+                val b = nearestBuilding(v, "campfire") ?: return false
+                return go(v, "stargaze", b.y * GW + b.x)
+            }
             "tend_farm" -> {
                 if (age < 1) return false
                 val b = nearestBuilding(v, "farm") ?: return false
@@ -1036,6 +1058,9 @@ class CivSim(
             v.action == "trade" -> { v.phase = "working"; v.workLeft = 4f }
             v.action == "dance" -> { v.phase = "working"; v.workLeft = 7f }
             v.action == "play" -> { v.phase = "working"; v.workLeft = 5f }
+            v.action == "swim" -> { v.phase = "working"; v.workLeft = 6f }
+            v.action == "forage_herbs" -> { v.phase = "working"; v.workLeft = 4f }
+            v.action == "stargaze" -> { v.phase = "working"; v.workLeft = 8f }
             v.action == "patrol" -> { v.phase = "working"; v.workLeft = 3f }
             v.action.startsWith("critter_") -> critters.onArrive(v)
             v.action == "tell_story" -> {
@@ -1274,6 +1299,44 @@ class CivSim(
             }
             "play" -> {
                 v.happiness = min(100f, v.happiness + 3f)
+                finish(v)
+            }
+            "swim" -> {
+                v.happiness = min(100f, v.happiness + 9f)
+                v.energy = max(0f, v.energy - 3f)
+                v.hp = min(100f, v.hp + 4f)
+                swims++
+                if (swims % 5 == 1) addLog("${v.name} cools off with a swim in the lake.")
+                v.remember("went for a swim in the lake")
+                finish(v)
+            }
+            "forage_herbs" -> {
+                // herbs from the bushes mend the hurt: the forager first, then anyone close by
+                val wasHurt = v.hp < 75f
+                v.hp = min(100f, v.hp + 25f)
+                var helped = 0
+                for (o in villagers) {
+                    if (o === v || o.hp >= 80f || hypot(o.x - v.x, o.y - v.y) > 7f) continue
+                    o.hp = min(100f, o.hp + 18f)
+                    o.happiness = min(100f, o.happiness + 3f)
+                    o.affinity[v.id] = (o.affinity[v.id] ?: 0) + 1
+                    o.remember("${v.name} tended my wounds with herbs")
+                    helped++
+                }
+                food += 1
+                herbed++
+                if (helped > 0) { addLog("${v.name} tends the wounded with herbs."); v.remember("healed $helped villagers with herbs") }
+                else if (wasHurt) v.remember("rubbed herbs into my own wounds")
+                else v.remember("gathered healing herbs")
+                finish(v)
+            }
+            "stargaze" -> {
+                var n = 0
+                for (o in villagers) if (o !== v && o.phase != "sleeping" && hypot(o.x - v.x, o.y - v.y) < 6f) { o.happiness = min(100f, o.happiness + 3f); n++ }
+                v.happiness = min(100f, v.happiness + 6f)
+                stargazed++
+                if (stargazed % 4 == 1) { addLog("${v.name} watches the stars by the fire."); narrate("${v.name} watches the stars") }
+                v.remember(if (n > 0) "watched the stars with friends" else "watched the stars alone by the fire")
                 finish(v)
             }
             "patrol" -> {
@@ -1548,6 +1611,8 @@ class CivSim(
     private fun alert() = time < alertUntil || predators.isNotEmpty()
     fun raining() = time < rainUntil || time < stormUntil || outsideRain
     fun storm() = time < stormUntil
+    private fun canSwim() = seasonName() == "summer" && !raining() && !snowing() && !foggy() && !isNight() && !alert()
+    private fun canStargaze() = !raining() && !foggy() && !snowing() && !alert() && (partOfDay() == "evening" || (isNight() && seasonName() != "winter"))
     fun foggy() = time < fogUntil
     fun snowing() = time < snowUntil || outsideSnow
     fun seasonIdx(): Int = ((time / DAY_LEN).toInt() / SEASON_DAYS) % 4
@@ -1716,15 +1781,20 @@ class CivSim(
         if (isChild(v)) {
             orderAction(v)?.let { return it }
             if (alert() || storm()) return "huddle" to ""
-            return when (pick("play" to 6, "study" to (if (count("library") > 0) 4 else 0), "talk" to chat, "wander" to 2, "fetch_water" to (if (count("well") > 0) 1 else 0))) {
+            return when (pick("swim" to (if (canSwim() && hasShore) 2 else 0), "play" to 6, "study" to (if (count("library") > 0) 4 else 0), "talk" to chat, "wander" to 2, "fetch_water" to (if (count("well") > 0) 1 else 0))) {
                 "talk" -> "talk" to (friendFor(v)?.name ?: "")
                 "play" -> "play" to ""
+                "swim" -> "swim" to ""
                 "study" -> "study" to ""
                 "fetch_water" -> "fetch_water" to ""
                 else -> "wander" to ""
             }
         }
         orderAction(v)?.let { if (!starving) return it }
+        // smart choices: tend wounds, shelter from rain
+        val hurtNear = villagers.count { it !== v && it.hp < 60f && hypot(it.x - v.x, it.y - v.y) < 14f }
+        if (!starving && !alert() && (v.hp < 65f || (hurtNear > 0 && rnd.nextInt(3) == 0) || (time < plagueUntil && rnd.nextInt(6) == 0)) && nearestTile(v, T.BUSH) >= 0) return "forage_herbs" to ""
+        if (raining() && !storm() && !starving && !isFighter(v) && !alert() && rnd.nextInt(20) == 0) return "huddle" to ""
         if (alert() && !starving) {
             // only trouble that is actually close stops the work: fighters stand guard, the rest take cover
             val danger = predators.any { hypot(it.x - v.x, it.y - v.y) < 13f }
@@ -1770,6 +1840,12 @@ class CivSim(
             if (count("campfire") > 0 && rnd.nextInt(4) == 0) return "dance" to ""
             if (chat == 1 && others.isNotEmpty() && rnd.nextInt(6) == 0) return "talk" to (friendFor(v)?.name ?: "")
         }
+        // leisure: a swim on summer days, stars on clear evenings, herbs now and then
+        if (v.happiness < 85f || rnd.nextInt(3) == 0) {
+            if (canSwim() && hasShore && v.hunger < 55f && rnd.nextInt(7) == 0) return "swim" to ""
+            if (canStargaze() && count("campfire") > 0 && part == "evening" && rnd.nextInt(5) == 0) return "stargaze" to ""
+        }
+        if (rnd.nextInt(40) == 0 && nearestTile(v, T.BUSH) >= 0) return "forage_herbs" to ""
         val ad = adults()
         val farms = age >= 1 && count("farm") > 0
         val well = count("well") > 0
@@ -1924,6 +2000,9 @@ class CivSim(
         "dance" -> "dancing"
         "patrol" -> "keeping watch"
         "play" -> "playing"
+        "swim" -> "swimming in the lake"
+        "forage_herbs" -> "gathering healing herbs"
+        "stargaze" -> "watching the stars"
         "haul" -> "filling the granary"
         "drill" -> "drilling with the guard"
         "study" -> "reading in the library"
@@ -1965,6 +2044,9 @@ class CivSim(
         if (count("workshop") > 0 && wood >= 6 && stone >= 2) a.add("craft")
         if (count("market") > 0 && goods >= 2) a.add("trade")
         if (count("campfire") > 0) a.add("dance")
+        a.add("forage_herbs")
+        if (canSwim() && nearestShoreAny()) a.add("swim")
+        if (canStargaze() && count("campfire") > 0) a.add("stargaze")
         if (canBuild("granary") && wood >= 14 && stone >= 6) a.add("build_granary")
         if (canBuild("library") && wood >= 18 && stone >= 12) a.add("build_library")
         if (canBuild("barracks") && wood >= 16 && stone >= 14 && metal >= 2) a.add("build_barracks")
@@ -2146,7 +2228,7 @@ class CivSim(
         val b = brainProvider()
         val configured = b != null
         if (b == null) brain = "autopilot — set your local model in Settings"
-        val idle = villagers.filter { it.phase == "idle" && it.idleFor >= 0.8f }.sortedByDescending { it.idleFor }
+        val idle = villagers.filter { it.phase == "idle" && it.idleFor >= 0.6f }.sortedByDescending { it.idleFor }
         for (v in idle) {
             if (isChild(v)) {
                 val (a, t) = ruleDecision(v)
@@ -3062,7 +3144,7 @@ class CivSim(
     companion object {
         private const val SYSTEM = """You play one villager in a small pixel-art village, as a distinct character with a job, a personality, a way of speaking and a dream. Reply with ONLY a JSON object, no other text:
 {"thought": "<your private thought, first person, under 14 words, in your voice>", "action": "<one action>", "target": "<villager name, only for talk>", "say": "<one short sentence you say aloud in your own voice, or empty>"}
-Actions: gather_wood, gather_stone, gather_food (berries), fish (at the lake), hunt (game in the forest, hunter-gatherers' best food), tend_farm (needs a farm, Farming Age on), explore (scouting far away), tell_story (at the fire, lifts everyone's spirits), huddle (stay by the fire), build_hut (6 wood + 2 stone), build_farm (4 wood, Farming Age on), build_campfire (3 stone), mine_ore (Bronze Age on), smelt (2 ore + 1 wood at a forge, Bronze Age on), build_smelter (4 wood + 6 stone, Bronze Age on), build_well (4 wood + 6 stone), build_workshop (10 wood + 4 stone), build_market (12 wood + 6 stone), build_lamp (2 wood + 2 stone), fetch_water (at a well, waters the farms), craft (at a workshop), trade (goods for food at a market), dance (at the fire), build_granary (14 wood + 6 stone), build_barracks (16 wood, 14 stone, 2 metal), build_library (18 wood + 12 stone), haul (fill the granary), drill (train at the barracks), study (read at the library), attack (charge the enemy), patrol (walk the edge of the village and watch), play (children), eat (needs food in stock), sleep, talk (set target and say), wander. Use only the actions listed as available to you in the message.
+Actions: gather_wood, gather_stone, gather_food (berries), fish (at the lake), hunt (game in the forest, hunter-gatherers' best food), tend_farm (needs a farm, Farming Age on), explore (scouting far away), tell_story (at the fire, lifts everyone's spirits), huddle (stay by the fire), build_hut (6 wood + 2 stone), build_farm (4 wood, Farming Age on), build_campfire (3 stone), mine_ore (Bronze Age on), smelt (2 ore + 1 wood at a forge, Bronze Age on), build_smelter (4 wood + 6 stone, Bronze Age on), build_well (4 wood + 6 stone), build_workshop (10 wood + 4 stone), build_market (12 wood + 6 stone), build_lamp (2 wood + 2 stone), fetch_water (at a well, waters the farms), craft (at a workshop), trade (goods for food at a market), dance (at the fire), build_granary (14 wood + 6 stone), build_barracks (16 wood, 14 stone, 2 metal), build_library (18 wood + 12 stone), haul (fill the granary), drill (train at the barracks), study (read at the library), attack (charge the enemy), patrol (walk the edge of the village and watch), play (children), forage_herbs (pick healing herbs: mends you and hurt people nearby, use when hurt or when others are hurt), swim (summer days at the lake, lifts mood), stargaze (clear evenings at the fire, lifts mood), eat (needs food in stock), sleep, talk (set target and say), wander. Use only the actions listed as available to you in the message.
 Mostly do the work of your job, but react to your needs, the weather, wolves, news and what others say. Talk about what you have seen, feel or remember, with opinions and feelings. Never repeat a line or an action you just did, and vary your sentences. Stay alive: eat when hungry, sleep when tired or at night.
 Speak only about facts given in the message: your needs, the stock, the weather, people nearby and what they said, family, village history and news. Never invent buildings, people, resources or events. Answer what others actually said to you. If you are a child, use very short, simple words."""
         private const val SYSTEM_SHORT = """Reply with ONLY a JSON object: {"thought": "", "action": "<one allowed action>", "target": "", "say": "<one short sentence using only the facts given, or empty>"}"""
