@@ -23,6 +23,8 @@ const val OLD_GH = 27
 const val DAY_LEN = 420.0
 private const val SPEED = 2.3f
 private const val YEAR = DAY_LEN * 2
+/** Game days per season: spring, summer, autumn, winter, then round again. */
+const val SEASON_DAYS = 3
 
 object T {
     const val GRASS = 0
@@ -197,6 +199,11 @@ class CivSim(
     var age = 0
     var outsideRain = false
     var outsideSnow = false
+    var stormUntil = 0.0; var fogUntil = 0.0; var snowUntil = 0.0; var rainbowUntil = 0.0
+    var strikeAt = -99.0; var strikeX = 0f; var strikeY = 0f
+    private var nextWeatherAt = DAY_LEN * 0.5; private var nextStrikeAt = 0.0; private var lastSeason = -1; private var wasStorm = false
+    /** Counts of weather and season events seen this run (used by the headless harness). */
+    val wxStats = HashMap<String, Int>()
     val chronicle = ArrayList<String>()
     var time = DAY_LEN * 0.08
     /** Time multiplier for the watcher: 1, 2 or 5. Not saved. */
@@ -332,7 +339,7 @@ class CivSim(
         ageBannerAt = -999.0
         fx.clear()
         // a new world must not inherit the old world's clocks (alerts, rain, festivals...)
-        alertUntil = 0.0; rainUntil = 0.0; festivalUntil = 0.0; plagueUntil = 0.0; godUntil = 0.0; order = ""; orderUntil = 0.0; shakeUntil = 0.0
+        alertUntil = 0.0; rainUntil = 0.0; stormUntil = 0.0; fogUntil = 0.0; snowUntil = 0.0; rainbowUntil = 0.0; strikeAt = -99.0; nextWeatherAt = time + DAY_LEN * 0.5; lastSeason = -1; wxStats.clear(); festivalUntil = 0.0; plagueUntil = 0.0; godUntil = 0.0; order = ""; orderUntil = 0.0; shakeUntil = 0.0
         nextEventAt = time + DAY_LEN * 0.6
         nextTowerAt = 0.0; nextWallAt = 0.0; nextPlanAt = 0.0
         ageClock = 0f; worldClock = 0f; ownerClock = 0f; bushClock = 0f
@@ -1539,7 +1546,11 @@ class CivSim(
     // ---- brains ----
 
     private fun alert() = time < alertUntil || predators.isNotEmpty()
-    fun raining() = time < rainUntil || outsideRain
+    fun raining() = time < rainUntil || time < stormUntil || outsideRain
+    fun storm() = time < stormUntil
+    fun foggy() = time < fogUntil
+    fun snowing() = time < snowUntil || outsideSnow
+    fun seasonIdx(): Int = ((time / DAY_LEN).toInt() / SEASON_DAYS) % 4
     private fun festival() = time < festivalUntil
 
     /** The villager's current "quest" line for the follow view. */
@@ -1592,7 +1603,15 @@ class CivSim(
         if (v.hunger > 70f) out.add("My stomach is growling. I need to eat.")
         if (v.energy < 30f) out.add("I could sleep on my feet.")
         if (alert()) out.add(if (predators.any { isThreat(it.kind) }) "The fighting has everyone on edge." else "Those wolves have everyone on edge.")
-        if (raining()) out.add("This rain slows the ${v.job.lowercase()} work.")
+        if (storm()) out.add("That thunder rattles my teeth.")
+        else if (raining()) out.add("This rain slows the ${v.job.lowercase()} work.")
+        if (foggy()) out.add("I can hardly see past the fire in this fog.")
+        when (seasonIdx()) {
+            0 -> out.add("Spring at last. Good growing weather ahead.")
+            1 -> out.add("The summer days are long. Plenty of daylight to work.")
+            2 -> out.add("Autumn. Best bring in the harvest, we have $food food.")
+            else -> out.add("Winter. The stores must last until spring, and we have $food food.")
+        }
         if (weatherNow().startsWith("cold")) out.add("The cold gets into my bones.")
         if (partOfDay() == "evening") out.add("The light is fading. Time to wind down.")
         if (isNight()) out.add("Hard to see anything at night.")
@@ -1617,7 +1636,9 @@ class CivSim(
         val out = ArrayList<String>()
         if (v.hunger > 60f) out.add("I'm hungry!")
         if (v.energy < 35f || isNight()) out.add("I'm sleepy.")
-        if (raining()) out.add("Rain! Splash!")
+        if (storm()) out.add("That thunder is so loud!")
+        else if (raining()) out.add("Rain! Splash!")
+        if (snowing()) out.add("Snow! Let's catch some!")
         if (alert()) out.add("I don't like the scary ones.")
         if (weatherNow().startsWith("cold")) out.add("Brr, it's cold!")
         v.parents.split(" & ").firstOrNull()?.takeIf { it.isNotBlank() }?.let { out.add("Where is $it?") }
@@ -1694,7 +1715,7 @@ class CivSim(
         if (v.energy < 25f || (isNight() && v.energy < 92f)) return "sleep" to ""
         if (isChild(v)) {
             orderAction(v)?.let { return it }
-            if (alert()) return "huddle" to ""
+            if (alert() || storm()) return "huddle" to ""
             return when (pick("play" to 6, "study" to (if (count("library") > 0) 4 else 0), "talk" to chat, "wander" to 2, "fetch_water" to (if (count("well") > 0) 1 else 0))) {
                 "talk" -> "talk" to (friendFor(v)?.name ?: "")
                 "play" -> "play" to ""
@@ -1711,6 +1732,7 @@ class CivSim(
             if (danger) return (if (fighter) "patrol" else "huddle") to ""
             if (!fighter && time < alertUntil && rnd.nextInt(4) == 0) return "huddle" to ""
         }
+        if (storm() && !starving && !isFighter(v) && rnd.nextInt(10) == 0) return "huddle" to ""
         if (festival()) {
             return when (pick("dance" to 4, "talk" to chat, "tell_story" to (if (v.job == "Storyteller") 4 else 0))) {
                 "talk" -> "talk" to (friendFor(v)?.name ?: "")
@@ -1852,16 +1874,19 @@ class CivSim(
 
     private fun others(): List<Villager> = villagers
 
-    private fun seasonName(): String = when (java.time.LocalDate.now().monthValue) {
-        12, 1, 2 -> "winter"
-        3, 4, 5 -> "spring"
-        6, 7, 8 -> "summer"
-        else -> "autumn"
+    fun seasonName(): String = when (seasonIdx()) {
+        0 -> "spring"
+        1 -> "summer"
+        2 -> "autumn"
+        else -> "winter"
     }
 
     private fun weatherNow(): String = when {
+        storm() -> "a thunderstorm"
         raining() -> "raining"
-        outsideSnow || seasonName() == "winter" -> "cold, with snow about"
+        snowing() -> "cold, with snow falling"
+        foggy() -> "foggy"
+        seasonName() == "winter" -> "cold, with snow about"
         else -> "dry"
     }
 
@@ -2637,9 +2662,92 @@ class CivSim(
         }
     }
 
+    private fun wx(k: String) { wxStats[k] = (wxStats[k] ?: 0) + 1 }
+
+    private fun seasonChange(s: Int) {
+        wx("season:" + seasonName())
+        when (s) {
+            0 -> {
+                for (i in tiles.indices) if (tiles[i] == T.BUSH) amt[i] = 3
+                event("Spring arrives. Blossoms open and the bushes fill with buds.")
+            }
+            1 -> {
+                for (v in villagers) v.happiness = min(100f, v.happiness + 5f)
+                event("Summer comes. The days are long and warm.")
+            }
+            2 -> {
+                if (food >= 10 && villagers.size >= 3) {
+                    food -= 4
+                    festivalUntil = time + 70.0
+                    for (v in villagers) v.happiness = min(100f, v.happiness + 15f)
+                    wx("harvest festival")
+                    event("Autumn arrives, and the villagers hold a harvest festival.")
+                } else event("Autumn arrives. The leaves turn gold; time to fill the stores.")
+            }
+            else -> event("Winter arrives. Snow lies on the roofs, and the stores must last.")
+        }
+        mark("${seasonName().replaceFirstChar { it.uppercase() }} began.")
+    }
+
+    private fun rollWeather(s: Int) {
+        val r = rnd.nextInt(100)
+        val kind = when (s) {
+            0 -> if (r < 28) "rain" else if (r < 40) "fog" else if (r < 48) "storm" else ""
+            1 -> if (r < 20) "storm" else if (r < 30) "rain" else if (r < 35) "fog" else ""
+            2 -> if (r < 25) "fog" else if (r < 50) "rain" else if (r < 56) "storm" else ""
+            else -> if (r < 50) "snow" else if (r < 60) "fog" else ""
+        }
+        when (kind) {
+            "rain" -> { rainUntil = time + 90.0 + rnd.nextInt(60); wx("rain"); event("Rain begins to fall.") }
+            "storm" -> {
+                stormUntil = time + 80.0 + rnd.nextInt(50); wasStorm = true; nextStrikeAt = time + 4.0
+                wx("storm"); event("Dark clouds roll in and a thunderstorm breaks over the village!")
+            }
+            "fog" -> { fogUntil = time + 100.0 + rnd.nextInt(60); wx("fog"); event("A thick fog creeps in from the lake.") }
+            "snow" -> { snowUntil = time + 110.0 + rnd.nextInt(60); wx("snow"); event("Snow begins to fall.") }
+        }
+    }
+
+    private fun lightningStrike() {
+        var x = 20f + rnd.nextInt(GW - 40); var y = 8f + rnd.nextInt(GH - 16)
+        var hit = -1
+        for (n in 0 until 40) {
+            val tx = 30 + rnd.nextInt(36); val ty = 10 + rnd.nextInt(34)
+            if (tiles[ty * GW + tx] == T.FOREST) { hit = ty * GW + tx; x = tx.toFloat(); y = ty.toFloat(); break }
+        }
+        strikeAt = time; strikeX = x + 0.5f; strikeY = y + 0.5f
+        wx("lightning")
+        for (v in villagers) if (hypot(v.x - x, v.y - y) < 7f) v.happiness = max(0f, v.happiness - 4f)
+        if (hit >= 0 && rnd.nextInt(3) == 0) {
+            wood += 2
+            addLog("Lightning splits an old tree; the timber is hauled in (+2 wood).")
+        }
+    }
+
+    private fun weatherTick() {
+        val s = seasonIdx()
+        if (lastSeason < 0) lastSeason = s
+        else if (s != lastSeason) { lastSeason = s; seasonChange(s) }
+        if (time >= nextWeatherAt) {
+            nextWeatherAt = time + 160.0 + rnd.nextInt(160)
+            if (villagers.size >= 2 && !raining() && !foggy() && !snowing()) rollWeather(s)
+        }
+        if (time < stormUntil && time >= nextStrikeAt) { nextStrikeAt = time + 7.0 + rnd.nextInt(14); lightningStrike() }
+        if (wasStorm && time >= stormUntil) {
+            wasStorm = false
+            if (!isNight() && villagers.size >= 2) {
+                rainbowUntil = time + 70.0
+                for (v in villagers) v.happiness = min(100f, v.happiness + 4f)
+                wx("rainbow")
+                event("A rainbow arcs over the village after the storm.")
+            }
+        }
+    }
+
     fun tick(dtIn: Float) {
         val dt = dtIn.coerceIn(0f, 0.1f)
         time += dt
+        weatherTick()
         drain()
 
         for (v in villagers.toList()) update(v, dt)
@@ -2652,7 +2760,7 @@ class CivSim(
             for (i in traffic.indices) if (traffic[i] > 0f) traffic[i] = max(0f, traffic[i] - 0.4f)
             if (age >= 2 && rnd.nextBoolean()) ensure(T.ORE, 5, 6)
             for (i in tiles.indices) {
-                if (tiles[i] == T.BUSH && amt[i] < 3) amt[i]++
+                if (tiles[i] == T.BUSH && amt[i] < 3 && (seasonIdx() != 3 || i % 3 == 0)) amt[i]++
             }
             if (rnd.nextInt(3) == 0) {
                 val i = rnd.nextInt(GW * GH)
@@ -2674,7 +2782,7 @@ class CivSim(
 
         for (b in buildings) {
             if (b.type != "farm") continue
-            var interval = (if (time < b.boostUntil) 12f else 40f) / ageInfo().farm
+            var interval = (if (time < b.boostUntil) 12f else 40f) / ageInfo().farm / (when (seasonIdx()) { 0 -> 1.1f; 2 -> 1.4f; 3 -> 0.65f; else -> 1f })
             if (toolBonus() > 0) interval *= 0.8f
             if (raining()) interval *= 0.7f
             b.timer += dt

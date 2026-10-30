@@ -86,6 +86,7 @@ fun main(args: Array<String>) {
     for (t in listOf("hut","farm","campfire","smelter","well","workshop","market","lamp")) if (sim.buildings.count{it.type==t} > sim.capFor(t) + 1) viol++
     println("FAUNA " + sim.fauna.animals.groupingBy { it.kind }.eachCount() + " capViolations=$viol")
     println("THREATS raids=${sim.raidsRepelled} ogres=${sim.ogresSlain} bosses=${sim.bossesSlain} golden=${sim.goldenAt} pop=${sim.villagers.size} legacy=${sim.legacy().count{it.second}}/${sim.legacy().size} legends=${sim.critters.legendsOwned()}")
+    println("WEATHER day=${sim.day()} season=${sim.seasonName()} events=${sim.wxStats.toSortedMap()} distinct=${sim.wxStats.size}")
     sim.log.filter { it.contains("aider") || it.contains("ogre") || it.contains("wraith") || it.contains("drake") || it.contains("Golden") }.takeLast(8).forEach { println("  LOG $it") }
     println("LEGENDS wild=$legSeen enc=$legEnc maxCompLv=${sim.critters.critters.maxOfOrNull{it.level}}")
     println("LEGLOG " + sim.log.filter{it.contains("LEGENDDBG")||it.contains("pact")||it.contains("legend")}.takeLast(6))

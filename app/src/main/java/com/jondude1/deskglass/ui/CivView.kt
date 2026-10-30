@@ -970,9 +970,9 @@ private fun DrawScope.drawWorld(
         }
     }
 
-    // seasons follow the real calendar: blossoms, warm light, falling leaves, snow
-    val season = when (java.time.LocalDate.now().monthValue) { 12, 1, 2 -> 3; 3, 4, 5 -> 0; 6, 7, 8 -> 1; else -> 2 }
-    val snowing = sim.outsideSnow || season == 3
+    // seasons turn with the village's own days: blossoms, warm light, falling leaves, snow
+    val season = sim.seasonIdx()
+    val snowing = sim.snowing() || season == 3
     drawRect(
         when (season) {
             0 -> Color(0xFFFFB6D5)
@@ -982,8 +982,9 @@ private fun DrawScope.drawWorld(
         }.copy(alpha = 0.06f)
     )
     val specks = when {
-        snowing -> 70
-        season == 2 -> 24
+        sim.snowing() -> 100
+        snowing -> 34
+        season == 2 -> 30
         season == 0 -> 18
         else -> 0
     }
@@ -1065,6 +1066,66 @@ private fun DrawScope.drawWorld(
         }
     }
 
+    // thunderstorm: dark sky, driving rain, lightning flashes
+    if (sim.storm()) {
+        drawRect(Color(0xFF0A1226).copy(alpha = 0.22f))
+        for (i in 0 until 70) {
+            val rx = ((cellHash(i, 15) % 1000) / 1000f) * size.width * 1.2f
+            val ry = ((((cellHash(i, 17) % 1000) / 1000f) * size.height + t * ts * 22f) % size.height)
+            drawLine(
+                Color(0xFFC8DCF4).copy(alpha = 0.55f),
+                Offset(rx, ry),
+                Offset(rx - ts * 0.45f, ry + ts * 0.7f),
+                strokeWidth = max(1f, ps),
+            )
+        }
+    }
+    val sinceStrike = (sim.time - sim.strikeAt).toFloat()
+    if (sinceStrike >= 0f && sinceStrike < 0.55f) {
+        val fl = 1f - sinceStrike / 0.55f
+        drawRect(Color(0xFFEAF0FF).copy(alpha = 0.40f * fl))
+        var bx = ox + sim.strikeX * ts + ts * 1.5f
+        var by = 0f
+        val endY = oy + sim.strikeY * ts
+        var seg = 0
+        while (by < endY && seg < 40) {
+            val nx = ox + sim.strikeX * ts + ((cellHash(seg, 91) % 100) / 100f - 0.5f) * ts * 1.6f * (1f - by / max(1f, endY))
+            val ny = min(endY, by + ts * (1.2f + (cellHash(seg, 93) % 10) / 10f * 1.4f))
+            drawLine(Color(0xFFFFFFFF).copy(alpha = fl), Offset(bx, by), Offset(nx, ny), strokeWidth = ps * 2.2f)
+            drawLine(Color(0xFFA8C4FF).copy(alpha = 0.5f * fl), Offset(bx, by), Offset(nx, ny), strokeWidth = ps * 5f)
+            bx = nx; by = ny; seg++
+        }
+    }
+
+    // fog drifting over the land
+    if (sim.foggy()) {
+        drawRect(Color(0xFFCFD3DA).copy(alpha = 0.14f))
+        for (k in 0 until 7) {
+            val fxp = ((t * 0.012f + k * 0.19f) % 1.3f - 0.15f) * size.width
+            drawOval(
+                Color(0xFFDADDE4).copy(alpha = 0.16f),
+                Offset(fxp - ts * 7f, size.height * (0.08f + 0.13f * k) - ts), Size(ts * 14f, ts * 3.8f),
+            )
+        }
+    }
+
+    // a rainbow after the storm
+    if (sim.time < sim.rainbowUntil) {
+        val fade = ((sim.rainbowUntil - sim.time) / 10.0).toFloat().coerceIn(0f, 1f) * 0.38f
+        val bands = listOf(0xFFE53935, 0xFFFB8C00, 0xFFFDD835, 0xFF43A047, 0xFF1E88E5, 0xFF8E24AA)
+        val rcx = size.width * 0.5f
+        val rbase = size.height * 0.6f
+        for (k in bands.indices) {
+            val r = size.width * 0.42f - k * ts * 0.34f
+            drawArc(
+                Color(bands[k]).copy(alpha = fade),
+                startAngle = 180f, sweepAngle = 180f, useCenter = false,
+                topLeft = Offset(rcx - r, rbase - r), size = Size(r * 2f, r * 2f),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(width = ts * 0.36f),
+            )
+        }
+    }
+
     // soft vignette
     drawRect(
         Brush.radialGradient(
@@ -1075,6 +1136,7 @@ private fun DrawScope.drawWorld(
     )
 
     ageBanner(sim, geo, namePaint, bubblePaint)
+    seasonChip(sim, geo, namePaint)
     critterTexts(sim, geo, labels, textPaint, bubblePaint, namePaint)
 
     // speech bubbles and names

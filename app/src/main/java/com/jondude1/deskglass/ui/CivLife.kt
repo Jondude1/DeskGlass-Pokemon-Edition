@@ -619,3 +619,38 @@ fun DrawScope.drawFauna(sim: CivSim, art: CivArt, g: Geo) {
         }
     }
 }
+
+
+// ---------------------------------------------------------------------------------------------
+// A small chip in the corner: the season and what the sky is doing.
+// ---------------------------------------------------------------------------------------------
+fun DrawScope.seasonChip(sim: CivSim, g: Geo, namePaint: android.graphics.Paint) {
+    val sky = when {
+        sim.storm() -> "thunderstorm"
+        sim.raining() -> "rain"
+        sim.snowing() -> "snow"
+        sim.foggy() -> "fog"
+        sim.time < sim.rainbowUntil -> "rainbow"
+        else -> "clear"
+    }
+    val label = sim.seasonName().replaceFirstChar { it.uppercase() } + " \u00b7 " + sky
+    val w = g.ts * 7.4f
+    val h = g.ts * 1.1f
+    val left = size.width - w - g.ts * 0.4f
+    val top = g.ts * 0.4f
+    drawRect(Color(0xFF1A1424).copy(alpha = 0.55f), Offset(left, top), Size(w, h))
+    val tint = when (sim.seasonIdx()) {
+        0 -> Color(0xFFFFB6D5)
+        1 -> Color(0xFFFFE9A0)
+        2 -> Color(0xFFFF9A3C)
+        else -> Color(0xFFBFD8FF)
+    }
+    drawRect(tint, Offset(left, top), Size(g.ps * 1.4f, h))
+    drawIntoCanvas { c ->
+        val nc = c.nativeCanvas
+        namePaint.textAlign = android.graphics.Paint.Align.CENTER
+        namePaint.color = android.graphics.Color.argb(235, 255, 255, 255)
+        namePaint.textSize = g.ts * 0.5f
+        nc.drawText(label, left + w / 2f, top + h * 0.7f, namePaint)
+    }
+}
