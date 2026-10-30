@@ -141,6 +141,16 @@ class Villager(val id: Int, val name: String, var job: String, val personaIdx: I
     fun remember(text: String) {
         memories.add(text)
         while (memories.size > 6) memories.removeAt(0)
+        addDiary("• $text")
+    }
+
+    /** The adventure log shown when the camera follows this villager. Newest last. */
+    val diary = ArrayList<String>()
+
+    fun addDiary(text: String) {
+        if (diary.lastOrNull() == text) return
+        diary.add(text)
+        while (diary.size > 12) diary.removeAt(0)
     }
 }
 
@@ -1532,6 +1542,18 @@ class CivSim(
     fun raining() = time < rainUntil || outsideRain
     private fun festival() = time < festivalUntil
 
+    /** The villager's current "quest" line for the follow view. */
+    fun questLine(v: Villager): String {
+        if (v.phase == "sleeping") return "Sleeping"
+        if (v.action.isEmpty()) return "Deciding what to do next"
+        val base = doing(v).replaceFirstChar { it.uppercase() }
+        return when {
+            v.action.startsWith("gather_") && v.phase == "working" -> "$base (${v.gathered}/4)"
+            v.phase == "walking" -> "$base — on the way"
+            else -> base
+        }
+    }
+
     fun mood(v: Villager): String = when {
         v.hunger > 85f -> "starving"
         v.energy < 20f -> "exhausted"
@@ -1823,6 +1845,7 @@ class CivSim(
         } else {
             v.recent.add(action)
             while (v.recent.size > 5) v.recent.removeAt(0)
+            v.addDiary("${partOfDay().replaceFirstChar { it.uppercase() }}: ${doing(v)}")
             if (v.thought.isNotBlank()) narrate("${v.name}: ${v.thought}")
         }
     }
@@ -1853,7 +1876,7 @@ class CivSim(
         }
     }
 
-    private fun doing(o: Villager) = when (o.action) {
+    fun doing(o: Villager) = when (o.action) {
         "" -> if (o.phase == "sleeping") "sleeping" else "resting"
         "gather_wood" -> "cutting wood"
         "gather_stone" -> "gathering stone"

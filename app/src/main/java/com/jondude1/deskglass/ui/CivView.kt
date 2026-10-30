@@ -249,7 +249,7 @@ fun CivCanvas(
                             if (cam.followId == hit.id) cam.followId = -1
                             else {
                                 cam.followId = hit.id
-                                cam.zoom = max(cam.zoom, 1.7f)
+                                cam.zoom = max(cam.zoom, 2.8f)
                             }
                         } else if (cb != null && tx >= 0f && ty >= 0f && tx < GW && ty < GH) cb(tx, ty)
                     }
@@ -366,7 +366,7 @@ private fun DrawScope.drawWorld(
             // glide toward the villager so the view never jerks
             val k = 0.14f
             cam.cx += (fv.x - cam.cx) * k
-            cam.cy += (fv.y - 0.4f - cam.cy) * k
+            cam.cy += (fv.y + 0.9f - cam.cy) * k
         }
     }
     cam.layout(size.width, size.height, cover)
@@ -659,6 +659,22 @@ private fun DrawScope.drawWorld(
     drawCritters(sim, art, cart, geo, sun)
     val sorted = sim.villagers.sortedBy { it.y }
     drawVillagers(sim, art, geo, sun)
+    if (cam.followId >= 0) {
+        sim.villagers.firstOrNull { it.id == cam.followId }?.let { fv ->
+            // a gold ring under the hero of the moment
+            val pulse = 0.5f + 0.5f * kotlin.math.sin(t * 4f)
+            val rx = ox + fv.x * ts
+            val ry = oy + (fv.y + 0.45f) * ts
+            drawOval(
+                Color(0xFFFFD84A).copy(alpha = 0.55f + 0.3f * pulse),
+                Offset(rx - ts * 0.55f, ry - ts * 0.2f), Size(ts * 1.1f, ts * 0.4f),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(width = ps * 1.3f),
+            )
+            val ay = ry - ts * 1.35f - pulse * ps * 2f
+            drawRect(Color(0xFFFFD84A), Offset(rx - ps * 1.5f, ay), Size(ps * 3f, ps * 2f))
+            drawRect(Color(0xFFFFD84A), Offset(rx - ps * 0.8f, ay + ps * 2f), Size(ps * 1.6f, ps * 1.6f))
+        }
+    }
     drawCritterEffects(sim, cart, geo)
 
     // effects (bolts, meteors, fires, clashes, arrows)
@@ -1182,6 +1198,7 @@ fun VillageScreen(vm: MainViewModel, fullscreen: Boolean, onFullscreen: (Boolean
         Box(Modifier.fillMaxSize()) {
             CivCanvas(sim, Modifier.fillMaxSize(), cover = true, labels = true, cam = cam)
             ZoomButtons(cam, Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 88.dp))
+            if (cam.followId >= 0) RpgHud(sim, cam.followId, tick, Modifier.fillMaxSize())
             if (cam.followId >= 0) VillagerPanel(sim, cam.followId, tick, Modifier.align(Alignment.TopEnd).padding(top = 52.dp, end = 16.dp))
             GlassButton("Exit fullscreen", { onFullscreen(false) }, modifier = Modifier.align(Alignment.TopStart).padding(16.dp))
             GlassButton("Speed ${sim.speed}x", { sim.speed = nextSpeed(sim.speed) }, modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp))
@@ -1231,6 +1248,7 @@ fun VillageScreen(vm: MainViewModel, fullscreen: Boolean, onFullscreen: (Boolean
                     Box(Modifier.fillMaxSize()) {
                         CivCanvas(sim, Modifier.fillMaxSize(), cover = false, labels = true, cam = cam)
                         ZoomButtons(cam, Modifier.align(Alignment.BottomEnd).padding(10.dp))
+                        if (cam.followId >= 0) RpgHud(sim, cam.followId, tick, Modifier.fillMaxSize())
                         if (cam.followId >= 0) VillagerPanel(sim, cam.followId, tick, Modifier.align(Alignment.TopEnd).padding(10.dp))
                         ThreatChip(sim, tick, Modifier.align(Alignment.TopCenter).padding(top = 12.dp))
                         StatsChip(sim, tick, Modifier.align(Alignment.BottomStart).padding(12.dp))

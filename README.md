@@ -16,3 +16,13 @@ The signing key in `keystore/` is committed on purpose so each new APK installs 
 - **Scrolls** come in three tiers (common, fine, rare), copied out at the gate by villagers (gifted or not) from hides, wood and metal. Better scrolls call rarer lines and need a higher summoner level.
 - **Trust** grows while a critter is out with its summoner (and slowly while it rests in the pack), and from lessons and wins. Trust is the evolution milestone: 18 for a first evolution, 40 for a second. A deep bond also lowers resist chances when summoning.
 - **Evolution** is a rite: once trust is deep enough, the summoner must be beside the critter and spend mana.
+
+
+## Following a villager (RPG view)
+Tap a villager and the camera closes in on them. A HUD shows their health, food, energy and joy, a quest line for what they are doing, an adventure log and a dialogue box with what they say and think. The village AI still runs them. Tap them again to let go.
+
+## Enemies and the endgame
+From the Hut Age, raiders come for the stores; later ogres, rift wraiths and rift drakes follow. Drakes drop a rift-born legend that a summoner can bind. Finish the legacy goals (raids repelled, an ogre slain, City Age, 20 villagers, barracks and library, a drake slain, a legend summoned, a critter at level 40) to begin the Golden Age.
+
+## Speaking to the village
+Type an order in the "Speak to the village" box (attack, defend, hide, gather, build, hunt, fish, trade, craft, feast, dance, study, train, explore, rest and many more words). Villagers follow it for a few minutes, with or without a local model.
