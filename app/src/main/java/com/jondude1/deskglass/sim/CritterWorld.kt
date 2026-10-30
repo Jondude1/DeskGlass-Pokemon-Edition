@@ -812,6 +812,11 @@ class CritterWorld(private val sim: CivSim) {
 
     /** Villagers only snare a species when the village has room and fewer than two of it already. */
     private fun wantsMore(v: Villager, foe: Critter): Boolean {
+        if (foe.species.rarity >= 5) {
+            // a legend is always worth a pact, if the summoner has a place for it
+            return critters.none { it.sp == foe.sp } &&
+                (critters.count { it.owner == v.id } < MAX_TEAM || weakestSwappable(v) != null)
+        }
         if (critters.size >= maxKept() || critters.count { it.sp == foe.sp } >= 2) return false
         val mage = mageOf(v)
         val owned = critters.count { it.owner == v.id }
@@ -1430,7 +1435,7 @@ class CritterWorld(private val sim: CivSim) {
     private fun continueAfter(e: Enc, t: Turn?) {
         val b = e.b!!
         val foe = e.foe
-        if (e.kind == "wild" && foe != null && t != null && t.side == 0 && b.hpFrac <= 0.45f && e.snareTry < 3 &&
+        if (e.kind == "wild" && foe != null && t != null && t.side == 0 && b.hpFrac <= 0.45f && e.snareTry < (if (foe.species.rarity >= 5) 6 else 3) &&
             mageOf(e.v).mana >= BIND_COST && wantsMore(e.v, foe)
         ) {
             startSnare(e)
@@ -1516,7 +1521,9 @@ class CritterWorld(private val sim: CivSim) {
         mage.mana = max(0f, mage.mana - BIND_COST)
         // a summoner well above the critter's level binds it more easily
         val bonus = min(0.25f, max(0, mage.lv - foe.level) * 0.03f) + (if (e.v.job == "Hunter" || e.v.job == "Scout") 0.06f else 0f)
-        e.snareWon = rnd.nextFloat() < Dex.catchChance(foe.species, foe.level, foe.hpFrac, bonus)
+        // a legend tests a summoner but does not turn away one who keeps trying: each attempt sways it more
+        val pact = if (foe.species.rarity >= 5) 0.3f + 0.2f * (e.snareTry - 1) else 0f
+        e.snareWon = rnd.nextFloat() < (Dex.catchChance(foe.species, foe.level, foe.hpFrac, bonus) + pact).coerceAtMost(0.97f)
         e.banner = "${e.v.name} calls up binding runes!"
         e.bannerT = 1.6f
     }
@@ -1527,6 +1534,7 @@ class CritterWorld(private val sim: CivSim) {
         if (e.snareWon) {
             keep(e, e.foe!!, "binding")
         } else {
+            
             e.banner = "${e.foe!!.name} breaks the binding!"
             e.bannerT = 1.5f
             e.state = "turn"
@@ -1607,6 +1615,11 @@ class CritterWorld(private val sim: CivSim) {
         b.y = e.by
         b.tx = b.x
         b.ty = b.y
+        if (foe.species.rarity >= 5) {
+            sim.note("${foe.nick} the ${foe.species.name} seals a pact with ${v.name}. A legend now guards the village!")
+            sim.mark("${v.name} sealed a pact with the legend ${foe.species.name}.")
+            for (o in sim.villagers) o.happiness = min(100f, o.happiness + 15f)
+        }
         val newSpecies = caught.add(foe.sp)
         seen.add(foe.sp)
         val role = if (foe.companion) "as a companion" else "infused into the pack"
