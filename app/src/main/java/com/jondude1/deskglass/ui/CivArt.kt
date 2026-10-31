@@ -204,6 +204,18 @@ class CivArt {
         'r' to 0xFF3F5E8C.toInt(), 'R' to 0xFF2B4468.toInt(), 'w' to 0xFFE7DCC2.toInt(), 'W' to 0xFFC9B99A.toInt(),
         'd' to 0xFF4A2E1B.toInt(), 'k' to 0xFF9FD3F0.toInt(), 'y' to 0xFFF2D88A.toInt(), 'b' to 0xFF8D909C.toInt(),
     ))
+    val wonderSpire = sprite(WONDER_SPIRE, mapOf(
+        'c' to 0xFF9FE8F8.toInt(), 'C' to 0xFFD8F8FF.toInt(), 'p' to 0xFF7A5FC0.toInt(), 'w' to 0xFFE7DCC2.toInt(),
+        'W' to 0xFFC9B99A.toInt(), 'k' to 0xFF2B3A67.toInt(), 'd' to 0xFF4A2E1B.toInt(), 'b' to 0xFF8D909C.toInt(),
+    ))
+    val wonderFountain = sprite(WONDER_FOUNTAIN, mapOf(
+        'l' to 0xFFB8E8FF.toInt(), 'L' to 0xFFEAFBFF.toInt(), 's' to 0xFFC9CED6.toInt(), 'S' to 0xFF8D909C.toInt(),
+        'b' to 0xFF4FA3D8.toInt(), 'B' to 0xFF8FD0F0.toInt(),
+    ))
+    val wonderBeacon = sprite(WONDER_BEACON, mapOf(
+        'f' to 0xFFFF8A2A.toInt(), 'y' to 0xFFFFC94A.toInt(), 'Y' to 0xFFFFF0A0.toInt(), 'm' to 0xFF6B4A2B.toInt(),
+        'k' to 0xFF2A2A34.toInt(), 's' to 0xFFB9BCC6.toInt(), 'S' to 0xFF8D909C.toInt(), 'd' to 0xFF3A2614.toInt(),
+    ))
     val raider = sprite(RAIDER, mapOf(
         's' to 0xFFE0B48A.toInt(), 'h' to 0xFF3A2A1E.toInt(), 'r' to 0xFFB02A2A.toInt(), 'R' to 0xFF7A1C1C.toInt(),
         'l' to 0xFF5A4630.toInt(), 'c' to 0xFF6B4A2B.toInt(), 'm' to 0xFFC9CED6.toInt(), 'k' to 0xFF1E1A16.toInt(),
@@ -709,6 +721,57 @@ class CivArt {
             "..wwwwyywwww..",
             "..wWwwddwwWw..",
             ".bbbbbddbbbbb.",
+        )
+        val WONDER_SPIRE = listOf(
+            "......cC........",
+            ".....cCCc.......",
+            "....cCCCCc......",
+            ".....cCCc.......",
+            "......cc........",
+            "......pp........",
+            ".....wwww.......",
+            ".....wWWw.......",
+            "....wwwwww......",
+            "....wWwwWw......",
+            "...wwwkkwww.....",
+            "...wWwkkwWw.....",
+            "..wwwwwwwwww....",
+            "..wWwwddwwWw....",
+            ".wwwwwddwwwww...",
+            "bbbbbbddbbbbbb..",
+        )
+        val WONDER_FOUNTAIN = listOf(
+            "......l.l.......",
+            ".....l.L.l......",
+            "......lLl.......",
+            ".......s........",
+            ".....sssss......",
+            "....sbbbbbs.....",
+            "......sSs.......",
+            "......sSs.......",
+            "..sssssssssss...",
+            ".sbbbbbbbbbbbs..",
+            "sSbbBbbbbBbbbSs.",
+            "ssSSSSSSSSSSSss.",
+            "..sSSSSSSSSSs...",
+        )
+        val WONDER_BEACON = listOf(
+            ".....ff.........",
+            "....fyyf........",
+            "....fYYf........",
+            ".....ff.........",
+            "...mmmmmmm......",
+            "...mkkkkkm......",
+            "....sssss.......",
+            "....sSssS.......",
+            "....skkks.......",
+            "....sssss.......",
+            "....sSssS.......",
+            "....sssss.......",
+            "...ssSsSss......",
+            "...sssddss......",
+            "..sssssddsss....",
+            ".SSSSSSSSSSSS...",
         )
         val RAIDER = listOf(
             "...hhhh...m.",

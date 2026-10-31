@@ -180,7 +180,7 @@ private val ACTIONS = setOf(
     "hunt", "mine_ore", "smelt", "build_smelter",
     "build_well", "build_workshop", "build_market", "build_lamp",
     "fetch_water", "craft", "trade", "dance", "patrol", "play",
-    "build_granary", "build_barracks", "build_library", "haul", "drill", "study", "attack",
+    "build_granary", "build_barracks", "build_library", "build_wonder", "haul", "drill", "study", "attack",
     "forage_herbs", "swim", "stargaze", "carve", "pick_flowers", "delve",
 )
 
@@ -617,7 +617,7 @@ class CivSim(
         fun need(): Pair<String, String> {
             val ad = adults()
             val wLack = (25 + ad * 4 - wood).toFloat() / (25 + ad * 4)
-            val sLack = (10 + ad * 2 - stone).toFloat() / (10 + ad * 2)
+            val sLack = (10 + ad * 2 + (if (wonderSaving()) 45 else 0) - stone).toFloat() / (10 + ad * 2 + (if (wonderSaving()) 45 else 0))
             val fLack = (10 + ad * 3 - food).toFloat() / (10 + ad * 3)
             return when {
                 fLack >= wLack && fLack >= sLack -> (if (age >= 1 && count("farm") > 0 && v.job == "Farmer") "tend_farm" else if (hasShore && rnd.nextBoolean()) "fish" else "gather_food") to ""
@@ -654,7 +654,7 @@ class CivSim(
                 else -> need()
             }
             "build" -> {
-                val kinds = listOf("hut", "farm", "campfire", "smelter", "well", "workshop", "granary", "market", "library", "barracks", "lamp")
+                val kinds = listOf("hut", "farm", "campfire", "smelter", "well", "workshop", "granary", "market", "library", "barracks", "wonder", "lamp")
                 val t = kinds.firstOrNull { canBuild(it) && affordable(it) }
                 if (t != null && (v.job == "Builder" || rnd.nextInt(3) == 0)) "build_$t" to "" else if (v.job == "Builder" || rnd.nextBoolean()) (if (wood < stone * 2) "gather_wood" else "gather_stone") to "" else need()
             }
@@ -679,6 +679,7 @@ class CivSim(
         "library" -> wood >= 18 && stone >= 12
         "barracks" -> wood >= 16 && stone >= 14 && metal >= 2
         "lamp" -> wood >= 2 && stone >= 2
+        "wonder" -> wood >= 50 && stone >= 40 && metal >= 5
         else -> false
     }
 
@@ -795,6 +796,7 @@ class CivSim(
             "granary" -> if (age < 2) 0 else min(3, n / 8)
             "barracks" -> if (age < 3) 0 else min(2, n / 10)
             "library" -> if (age < 3 || n < 10) 0 else min(2, n / 14)
+            "wonder" -> if (age < 4 || n < 14) 0 else min(3, 1 + (n - 14) / 6)
             else -> 99
         }
     }
@@ -805,12 +807,17 @@ class CivSim(
     private fun civicCount() = buildings.count { it.type != "hall" && it.type != "tower" && it.type != "palisade" } +
         villagers.count { it.action.startsWith("build_") }
 
-    private fun canBuild(type: String) = counting(type) < capFor(type) && civicCount() < totalCap()
+    private fun canBuild(type: String) = counting(type) < capFor(type) && civicCount() < totalCap() &&
+        (type == "wonder" || type == "hut" || type == "farm" || !wonderSaving())
+
+    /** City Age: the village puts spare stone aside for its next great wonder instead of spending it on small things. */
+    private fun wonderSaving(): Boolean = age >= 4 && villagers.size >= 14 && counting("wonder") < capFor("wonder") &&
+        stone < 50 && wood >= 40 && metal >= 5 && tiles.any { it == T.ROCK }
 
     /** A short "what is built and what could be" line for the panels. */
     fun buildSummary(): String {
         val parts = ArrayList<String>()
-        for (t in listOf("hut", "farm", "campfire", "smelter", "well", "workshop", "market", "granary", "barracks", "library", "lamp")) {
+        for (t in listOf("hut", "farm", "campfire", "smelter", "well", "workshop", "market", "granary", "barracks", "library", "wonder", "lamp")) {
             val c = capFor(t)
             if (c > 0) parts.add("$t ${count(t)}/$c")
         }
@@ -902,7 +909,7 @@ class CivSim(
                 if (i < 0) return false
                 return go(v, action, i)
             }
-            "build_hut", "build_farm", "build_campfire", "build_smelter", "build_well", "build_workshop", "build_market", "build_lamp", "build_granary", "build_barracks", "build_library" -> {
+            "build_hut", "build_farm", "build_campfire", "build_smelter", "build_well", "build_workshop", "build_market", "build_lamp", "build_granary", "build_barracks", "build_library", "build_wonder" -> {
                 val type = action.removePrefix("build_")
                 if (!canBuild(type)) return false
                 val ok = when (action) {
@@ -916,6 +923,7 @@ class CivSim(
                     "build_granary" -> wood >= 14 && stone >= 6
                     "build_barracks" -> wood >= 16 && stone >= 14 && metal >= 2
                     "build_library" -> wood >= 18 && stone >= 12
+                    "build_wonder" -> wood >= 50 && stone >= 40 && metal >= 5
                     else -> stone >= 3
                 }
                 if (!ok) return false
@@ -932,6 +940,7 @@ class CivSim(
                     "build_granary" -> { wood -= 14; stone -= 6 }
                     "build_barracks" -> { wood -= 16; stone -= 14; metal -= 2 }
                     "build_library" -> { wood -= 18; stone -= 12 }
+                    "build_wonder" -> { wood -= 50; stone -= 40; metal -= 5 }
                     else -> stone -= 3
                 }
                 reserved.add(site)
@@ -1315,12 +1324,24 @@ class CivSim(
                     finish(v)
                 } else v.workLeft = 3f
             }
-            "build_hut", "build_farm", "build_campfire", "build_smelter", "build_well", "build_workshop", "build_market", "build_lamp", "build_granary", "build_barracks", "build_library" -> {
+            "build_hut", "build_farm", "build_campfire", "build_smelter", "build_well", "build_workshop", "build_market", "build_lamp", "build_granary", "build_barracks", "build_library", "build_wonder" -> {
                 val i = v.targetTile
                 reserved.remove(i)
                 val type = v.action.removePrefix("build_")
                 val label = if (type == "hut" && age == 0) "tent" else if (type == "smelter") "forge" else if (type == "lamp") "lantern post" else type
-                if (i >= 0 && !occupied[i] && tiles[i] == T.GRASS) {
+                if (type == "wonder" && i >= 0 && !occupied[i] && tiles[i] == T.GRASS) {
+                    val kind = (0..2).firstOrNull { k -> buildings.none { it.type == "wonder" && it.era == k } } ?: 0
+                    addBuilding("wonder", i % GW, i / GW, kind)
+                    val nm = wonderName(kind)
+                    addLog("${v.name} and the village raise the $nm!")
+                    event("The $nm rises over the village: ${wonderBlurb(kind)}")
+                    mark("Raised the $nm.")
+                    narrate("${v.name} finishes the $nm")
+                    v.remember("helped raise the $nm")
+                    for (o in villagers) o.happiness = min(100f, o.happiness + 12f)
+                    festivalUntil = max(festivalUntil, time + 40.0)
+                    wonderFx = time; wonderFxKind = kind
+                } else if (i >= 0 && !occupied[i] && tiles[i] == T.GRASS) {
                     addBuilding(type, i % GW, i / GW)
                     addLog("${v.name} built a $label.")
                     narrate("${v.name} finishes a $label")
@@ -2176,6 +2197,7 @@ class CivSim(
         if (wood >= 14 && stone >= 6 && canBuild("granary") && (builder || v.job == "Farmer" || rnd.nextInt(6) == 0)) return "build_granary" to ""
         if (wood >= 18 && stone >= 12 && canBuild("library") && (builder || v.job == "Storyteller" || rnd.nextInt(8) == 0)) return "build_library" to ""
         if (wood >= 16 && stone >= 14 && metal >= 2 && canBuild("barracks") && (builder || isFighter(v) && rnd.nextInt(4) == 0)) return "build_barracks" to ""
+        if (wood >= 50 && stone >= 40 && metal >= 5 && canBuild("wonder") && (builder || rnd.nextInt(5) == 0)) return "build_wonder" to ""
         if (wood >= 2 && stone >= 2 && canBuild("lamp") && (builder || rnd.nextInt(8) == 0)) return "build_lamp" to ""
 
         if (part == "evening") {
@@ -2195,7 +2217,7 @@ class CivSim(
         val shop = count("workshop") > 0 && wood >= 12 && stone >= 4 && goods < 20
         val market = count("market") > 0 && goods >= 2
         val lowWood = wood < 25 + ad * 4
-        val lowStone = stone < 10 + ad * 2
+        val lowStone = stone < 10 + ad * 2 || wonderSaving()
         val lowFood = food < 10 + ad * 3
         val granary = count("granary") > 0 && food >= 4
         val barracks = count("barracks") > 0
@@ -2371,6 +2393,7 @@ class CivSim(
         "build_granary" -> "building a granary"
         "build_barracks" -> "building barracks"
         "build_library" -> "building a library"
+        "build_wonder" -> "raising a great wonder"
         else -> if (o.action.startsWith("critter_")) "tending to their companion" else o.action.replace('_', ' ')
     }
     private fun childrenOf(v: Villager): List<Villager> = villagers.filter { it !== v && it.parents.contains(v.name) }
@@ -2394,6 +2417,7 @@ class CivSim(
         if (canBuild("workshop") && wood >= 10 && stone >= 4) a.add("build_workshop")
         if (canBuild("market") && wood >= 12 && stone >= 6) a.add("build_market")
         if (canBuild("lamp") && wood >= 2 && stone >= 2) a.add("build_lamp")
+        if (canBuild("wonder") && wood >= 50 && stone >= 40 && metal >= 5) a.add("build_wonder")
         if (count("well") > 0) a.add("fetch_water")
         if (count("workshop") > 0 && wood >= 6 && stone >= 2) a.add("craft")
         if (count("market") > 0 && goods >= 2) a.add("trade")
@@ -2450,7 +2474,7 @@ class CivSim(
         if (age >= 1) sb.append("${count("farm")} farms, ")
         if (age >= 2) sb.append("${count("smelter")} forges, ")
         sb.append("${count("campfire")} campfires")
-        for ((t, nm) in listOf("well" to "wells", "workshop" to "workshops", "market" to "markets", "granary" to "granaries", "barracks" to "barracks", "library" to "libraries")) if (count(t) > 0) sb.append(", ${count(t)} $nm")
+        for ((t, nm) in listOf("well" to "wells", "workshop" to "workshops", "market" to "markets", "granary" to "granaries", "barracks" to "barracks", "library" to "libraries", "wonder" to "great wonders")) if (count(t) > 0) sb.append(", ${count(t)} $nm")
         if (goods > 0) sb.append(", $goods goods to sell")
         sb.append(". ${villagers.size} villagers (${villagers.count { isChild(it) }} children).\n")
         val near = nearby(v)
@@ -3104,6 +3128,7 @@ class CivSim(
         "Grow to 20 villagers" to (villagers.size >= 20),
         "Raise a barracks and a library" to (count("barracks") > 0 && count("library") > 0),
         "Slay a rift drake" to (bossesSlain >= 1),
+        "Raise a great wonder" to (count("wonder") > 0),
         "Summon a legend" to (critters.legendsOwned() > 0 || critters.caught.any { it in 57..62 }),
         "Train a critter to level 40" to critters.critters.any { it.level >= 40 },
     )
@@ -3150,6 +3175,8 @@ class CivSim(
             Deed("relic", "Relic Keepers", "Brought home 3 rift relics.", "+40 food, +20 stone") { relics >= 3 },
             Deed("titled", "A Name Earned", "A villager earned an epithet.", "+20 food") { titlesEarned >= 1 },
             Deed("titled6", "Village of Legends", "Fifteen epithets earned in the village.", "joy for all") { titlesEarned >= 15 },
+            Deed("wonder1", "Wonder of the Land", "Raised a great wonder.", "joy for all") { count("wonder") >= 1 },
+            Deed("wonder3", "Three Wonders", "All three great wonders stand together.", "+60 wood, +60 stone") { count("wonder") >= 3 },
             Deed("golden", "Golden Age", "Completed every legacy goal.", "joy for all") { goldenAt >= 0.0 },
         )
     }
@@ -3186,6 +3213,33 @@ class CivSim(
             mark("Deed: ${d.title}.")
             for (v in villagers) v.remember("the village earned: ${d.title}")
             break
+        }
+    }
+
+    // ---- great wonders ----
+
+    var wonderFx = -100.0
+    var wonderFxKind = 0
+    private var nextWonderAt = 0.0
+
+    fun wonderName(k: Int): String = when (k) { 0 -> "Star Spire"; 1 -> "Grand Fountain"; else -> "Beacon Tower" }
+    private fun wonderBlurb(k: Int): String = when (k) {
+        0 -> "its crystal drinks starlight and lifts every heart."
+        1 -> "its waters mend the hurt and the weary."
+        else -> "its fire guides travellers, who leave tribute of wood and stone."
+    }
+
+    /** Each wonder blesses the village every so often, in its own way. */
+    private fun wonderTick(dt: Float) {
+        if (time < nextWonderAt || villagers.isEmpty()) return
+        nextWonderAt = time + 20.0
+        for (b in buildings) {
+            if (b.type != "wonder") continue
+            when (b.era) {
+                0 -> for (v in villagers) v.happiness = min(100f, v.happiness + (if (isNight()) 2.5f else 1f))
+                1 -> for (v in villagers) { if (v.hp < 100f) v.hp = min(100f, v.hp + 6f); v.happiness = min(100f, v.happiness + 0.5f) }
+                else -> { wood += 2; stone += 2; if (rnd.nextInt(4) == 0) metal = min(200, metal + 1) }
+            }
         }
     }
 
@@ -3688,6 +3742,7 @@ class CivSim(
         threatTick()
         expeditionTick(dt)
         visitorTick(dt)
+        wonderTick(dt)
         goldenTick()
         deedTick()
         relationTick()
@@ -3963,7 +4018,7 @@ class CivSim(
     companion object {
         private const val SYSTEM = """You play one villager in a small pixel-art village, as a distinct character with a job, a personality, a way of speaking and a dream. Reply with ONLY a JSON object, no other text:
 {"thought": "<your private thought, first person, under 14 words, in your voice>", "action": "<one action>", "target": "<villager name, only for talk>", "say": "<one short sentence you say aloud in your own voice, or empty>"}
-Actions: gather_wood, gather_stone, gather_food (berries), fish (at the lake), hunt (game in the forest, hunter-gatherers' best food), tend_farm (needs a farm, Farming Age on), explore (scouting far away), delve (join the rift expedition, only while a rift is open), tell_story (at the fire, lifts everyone's spirits), huddle (stay by the fire), build_hut (6 wood + 2 stone), build_farm (4 wood, Farming Age on), build_campfire (3 stone), mine_ore (Bronze Age on), smelt (2 ore + 1 wood at a forge, Bronze Age on), build_smelter (4 wood + 6 stone, Bronze Age on), build_well (4 wood + 6 stone), build_workshop (10 wood + 4 stone), build_market (12 wood + 6 stone), build_lamp (2 wood + 2 stone), fetch_water (at a well, waters the farms), craft (at a workshop), trade (goods for food at a market), dance (at the fire), build_granary (14 wood + 6 stone), build_barracks (16 wood, 14 stone, 2 metal), build_library (18 wood + 12 stone), haul (fill the granary), drill (train at the barracks), study (read at the library), attack (charge the enemy), patrol (walk the edge of the village and watch), play (children), carve (whittle wooden toys at the fire from spare wood; the children cheer up), pick_flowers (gather wildflowers and give them to a friend), forage_herbs (pick healing herbs: mends you and hurt people nearby, use when hurt or when others are hurt), swim (summer days at the lake, lifts mood), stargaze (clear evenings at the fire, lifts mood), eat (needs food in stock), sleep, talk (set target and say), wander. Use only the actions listed as available to you in the message.
+Actions: gather_wood, gather_stone, gather_food (berries), fish (at the lake), hunt (game in the forest, hunter-gatherers' best food), tend_farm (needs a farm, Farming Age on), explore (scouting far away), delve (join the rift expedition, only while a rift is open), tell_story (at the fire, lifts everyone's spirits), huddle (stay by the fire), build_hut (6 wood + 2 stone), build_farm (4 wood, Farming Age on), build_campfire (3 stone), mine_ore (Bronze Age on), smelt (2 ore + 1 wood at a forge, Bronze Age on), build_smelter (4 wood + 6 stone, Bronze Age on), build_well (4 wood + 6 stone), build_workshop (10 wood + 4 stone), build_market (12 wood + 6 stone), build_lamp (2 wood + 2 stone), fetch_water (at a well, waters the farms), craft (at a workshop), trade (goods for food at a market), dance (at the fire), build_granary (14 wood + 6 stone), build_barracks (16 wood, 14 stone, 2 metal), build_library (18 wood + 12 stone), build_wonder (City Age, 50 wood + 40 stone + 5 metal: a great wonder that blesses the whole village), haul (fill the granary), drill (train at the barracks), study (read at the library), attack (charge the enemy), patrol (walk the edge of the village and watch), play (children), carve (whittle wooden toys at the fire from spare wood; the children cheer up), pick_flowers (gather wildflowers and give them to a friend), forage_herbs (pick healing herbs: mends you and hurt people nearby, use when hurt or when others are hurt), swim (summer days at the lake, lifts mood), stargaze (clear evenings at the fire, lifts mood), eat (needs food in stock), sleep, talk (set target and say), wander. Use only the actions listed as available to you in the message.
 Mostly do the work of your job, but react to your needs, the weather, wolves, news and what others say. Talk about what you have seen, feel or remember, with opinions and feelings. Never repeat a line or an action you just did, and vary your sentences. Stay alive: eat when hungry, sleep when tired or at night.
 Speak only about facts given in the message: your needs, the stock, the weather, people nearby and what they said, family, village history and news. Never invent buildings, people, resources or events. Answer what others actually said to you. If you are a child, use very short, simple words."""
         private const val SYSTEM_SHORT = """Reply with ONLY a JSON object: {"thought": "", "action": "<one allowed action>", "target": "", "say": "<one short sentence using only the facts given, or empty>"}"""

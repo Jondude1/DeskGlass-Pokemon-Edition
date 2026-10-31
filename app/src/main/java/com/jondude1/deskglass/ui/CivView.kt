@@ -584,10 +584,12 @@ private fun DrawScope.drawWorld(
                 "granary" -> art.granary
                 "barracks" -> art.barracks
                 "library" -> art.library
+                "wonder" -> when (b.era) { 0 -> art.wonderSpire; 1 -> art.wonderFountain; else -> art.wonderBeacon }
                 else -> art.fire[fireFrame]
             }
-            val w = sp.lw * ps
-            val hh = sp.lh * ps
+            val big = if (b.type == "wonder") 1.35f else 1f
+            val w = sp.lw * ps * big
+            val hh = sp.lh * ps * big
             val cx = ox + (b.x + 0.5f) * ts
             val baseY = oy + (b.y + 0.97f) * ts
             if (b.type != "farm") {
@@ -627,6 +629,48 @@ private fun DrawScope.drawWorld(
                     "workshop" -> drawCircle(Color(0xFFFF9A3A).copy(alpha = min(0.4f, dark * 0.7f)), radius = ts * 0.9f, center = Offset(cx + w * 0.3f, baseY - hh * 0.3f))
                     "market" -> drawCircle(Color(0xFFFFD27A).copy(alpha = min(0.3f, dark * 0.55f)), radius = ts * 1.5f, center = Offset(cx, baseY - hh * 0.4f))
                     "campfire" -> drawCircle(Color(0xFFFF9A3A).copy(alpha = min(0.32f, dark * 0.6f)), radius = ts * 2.2f, center = Offset(cx, baseY - hh * 0.4f))
+                }
+            }
+            if (b.type == "wonder") {
+                val sh = kotlin.math.sin(t * 2.2f + b.x)
+                when (b.era) {
+                    0 -> {
+                        // the spire's crystal pulses and throws drifting sparkles
+                        val top = Offset(cx - w * 0.03f, baseY - hh * 0.88f)
+                        drawCircle(Color(0xFFBDF3FF).copy(alpha = 0.16f + 0.1f * sh + min(0.3f, dark * 0.5f)), radius = ts * (0.9f + 0.1f * sh), center = top)
+                        for (k in 0 until 5) {
+                            val ph = (t * 0.45f + k * 0.2f) % 1f
+                            val ang = k * 1.256f + t * 0.8f
+                            drawCircle(Color(0xFFE8FBFF).copy(alpha = (1f - ph) * 0.8f), radius = ps * 0.55f,
+                                center = Offset(top.x + kotlin.math.cos(ang) * ts * 0.9f * ph, top.y - ph * ts * 1.1f + kotlin.math.sin(ang) * ts * 0.25f))
+                        }
+                    }
+                    1 -> {
+                        // a lively jet and ripples in the basin
+                        val jet = Offset(cx, baseY - hh * 0.8f)
+                        for (k in 0 until 7) {
+                            val ph = (t * 0.9f + k * 0.14f) % 1f
+                            val dx = (k - 3) * ts * 0.1f * ph
+                            val dy = -kotlin.math.sin(ph * 3.1416f) * ts * 0.55f + ph * ts * 0.5f
+                            drawCircle(Color(0xFFD8F4FF).copy(alpha = 0.85f - ph * 0.4f), radius = ps * 0.5f, center = Offset(jet.x + dx, jet.y + dy))
+                        }
+                        val rr = ((t * 0.7f) % 1f)
+                        drawCircle(Color.White.copy(alpha = 0.35f * (1f - rr)), radius = w * (0.18f + 0.22f * rr), center = Offset(cx, baseY - hh * 0.16f),
+                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = ps * 0.5f))
+                        if (dark > 0.1f) drawCircle(Color(0xFF8FD8FF).copy(alpha = min(0.25f, dark * 0.4f)), radius = ts * 1.6f, center = Offset(cx, baseY - hh * 0.4f))
+                    }
+                    else -> {
+                        // the beacon fire flickers; at night it throws a wide warm glow and a beam of light
+                        val fl = Offset(cx - w * 0.03f, baseY - hh * 0.9f)
+                        drawCircle(Color(0xFFFFB347).copy(alpha = 0.22f + 0.08f * sh), radius = ts * (0.8f + 0.1f * sh), center = fl)
+                        if (dark > 0.1f) {
+                            drawCircle(Color(0xFFFFC85A).copy(alpha = min(0.3f, dark * 0.5f)), radius = ts * 3.0f, center = fl)
+                            val ang = t * 0.9f
+                            val len = ts * 4.5f
+                            drawLine(Color(0xFFFFE9A0).copy(alpha = min(0.3f, dark * 0.5f)), fl,
+                                Offset(fl.x + kotlin.math.cos(ang) * len, fl.y + kotlin.math.sin(ang) * len * 0.35f), strokeWidth = ps * 2.2f)
+                        }
+                    }
                 }
             }
             // lit windows at night
