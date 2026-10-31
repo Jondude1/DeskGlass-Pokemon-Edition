@@ -204,6 +204,11 @@ class CivArt {
         'r' to 0xFF3F5E8C.toInt(), 'R' to 0xFF2B4468.toInt(), 'w' to 0xFFE7DCC2.toInt(), 'W' to 0xFFC9B99A.toInt(),
         'd' to 0xFF4A2E1B.toInt(), 'k' to 0xFF9FD3F0.toInt(), 'y' to 0xFFF2D88A.toInt(), 'b' to 0xFF8D909C.toInt(),
     ))
+    val tavern = sprite(TAVERN, mapOf(
+        'c' to 0xFF6E6E78.toInt(), 'r' to 0xFF8A4A2E.toInt(), 'R' to 0xFF6B3720.toInt(), 'w' to 0xFFEBDDBB.toInt(),
+        'W' to 0xFFCDBB92.toInt(), 't' to 0xFF5A3A20.toInt(), 'y' to 0xFFF2D88A.toInt(), 'd' to 0xFF3B2412.toInt(),
+        'g' to 0xFFC8923F.toInt(), 'm' to 0xFFE8C547.toInt(), 'b' to 0xFF8D909C.toInt(),
+    ))
     val wonderSpire = sprite(WONDER_SPIRE, mapOf(
         'c' to 0xFF9FE8F8.toInt(), 'C' to 0xFFD8F8FF.toInt(), 'p' to 0xFF7A5FC0.toInt(), 'w' to 0xFFE7DCC2.toInt(),
         'W' to 0xFFC9B99A.toInt(), 'k' to 0xFF2B3A67.toInt(), 'd' to 0xFF4A2E1B.toInt(), 'b' to 0xFF8D909C.toInt(),
@@ -709,6 +714,19 @@ class CivArt {
             ".sSssssssssSs.",
             ".sssssddsssss.",
             ".SSSSSddSSSSS.",
+        )
+        val TAVERN = listOf(
+            "....cc........",
+            "....cc..rrrr..",
+            "..rrrrrRRRRrr.",
+            ".rrrrrrrrrrrrr",
+            "rrRRRRRRRRRRrr",
+            ".wwwwwwwwwwww.",
+            ".wtyywwwwyytw.",
+            ".wtyywwwwyytw.",
+            "gwwwwwddwwwww.",
+            "gmwWwwddwwWww.",
+            ".bbbbbddbbbbb.",
         )
         val LIBRARY = listOf(
             ".....rrrr.....",

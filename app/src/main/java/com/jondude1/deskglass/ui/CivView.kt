@@ -584,6 +584,7 @@ private fun DrawScope.drawWorld(
                 "granary" -> art.granary
                 "barracks" -> art.barracks
                 "library" -> art.library
+                "tavern" -> art.tavern
                 "wonder" -> when (b.era) { 0 -> art.wonderSpire; 1 -> art.wonderFountain; else -> art.wonderBeacon }
                 else -> art.fire[fireFrame]
             }
@@ -621,6 +622,12 @@ private fun DrawScope.drawWorld(
                         drawCircle(Color(0xFFFFC85A).copy(alpha = a * 0.28f), radius = ts * 2.1f, center = Offset(cx, baseY - hh * 0.75f))
                         drawCircle(Color(0xFFFFD27A).copy(alpha = a * 0.45f), radius = ts * (1.0f + 0.04f * kotlin.math.sin(t * 6f + b.x)), center = Offset(cx, baseY - hh * 0.75f))
                     }
+                    "tavern" -> {
+                        val glow = Color(0xFFFFC870).copy(alpha = min(1f, dark * 1.7f))
+                        drawRect(glow, Offset(cx - w * 0.32f, baseY - hh * 0.5f), Size(ps * 2.4f, ps * 2.4f))
+                        drawRect(glow, Offset(cx + w * 0.17f, baseY - hh * 0.5f), Size(ps * 2.4f, ps * 2.4f))
+                        drawCircle(Color(0xFFFFB45A).copy(alpha = min(0.3f, dark * 0.55f)), radius = ts * 1.3f, center = Offset(cx, baseY - hh * 0.35f))
+                    }
                     "library" -> {
                         val glow = Color(0xFFFFD27A).copy(alpha = min(1f, dark * 1.6f))
                         drawRect(glow, Offset(cx - w * 0.3f, baseY - hh * 0.55f), Size(ps * 2f, ps * 2.4f))
@@ -629,6 +636,26 @@ private fun DrawScope.drawWorld(
                     "workshop" -> drawCircle(Color(0xFFFF9A3A).copy(alpha = min(0.4f, dark * 0.7f)), radius = ts * 0.9f, center = Offset(cx + w * 0.3f, baseY - hh * 0.3f))
                     "market" -> drawCircle(Color(0xFFFFD27A).copy(alpha = min(0.3f, dark * 0.55f)), radius = ts * 1.5f, center = Offset(cx, baseY - hh * 0.4f))
                     "campfire" -> drawCircle(Color(0xFFFF9A3A).copy(alpha = min(0.32f, dark * 0.6f)), radius = ts * 2.2f, center = Offset(cx, baseY - hh * 0.4f))
+                }
+            }
+            if (b.type == "tavern") {
+                // patrons inside: warm windows by day too, music notes and clinking sparks over the door
+                val patrons = sim.villagers.count { it.action == "tavern" && it.phase == "working" && kotlin.math.hypot(it.x - (b.x + 0.5f), it.y - (b.y + 0.5f)) < 2.5f }
+                if (patrons > 0) {
+                    if (dark <= 0.1f) {
+                        val warm = Color(0xFFFFD27A).copy(alpha = 0.8f)
+                        drawRect(warm, Offset(cx - w * 0.32f, baseY - hh * 0.5f), Size(ps * 2.4f, ps * 2.4f))
+                        drawRect(warm, Offset(cx + w * 0.17f, baseY - hh * 0.5f), Size(ps * 2.4f, ps * 2.4f))
+                    }
+                    for (k in 0 until 3) {
+                        val ph = (t * 0.55f + k * 0.33f + b.x * 0.1f) % 1f
+                        val nx = cx - w * 0.2f + k * ps * 4f + kotlin.math.sin(t * 2f + k) * ps * 1.5f
+                        val ny = baseY - hh - ph * ts * 1.2f
+                        val nc = if (k % 2 == 0) Color(0xFFC77DFF) else Color(0xFFFFE066)
+                        drawCircle(nc.copy(alpha = 1f - ph), radius = ps * 0.9f, center = Offset(nx, ny))
+                        drawRect(nc.copy(alpha = 1f - ph), Offset(nx + ps * 0.6f, ny - ps * 3f), Size(ps * 0.5f, ps * 3f))
+                    }
+                    if (kotlin.math.sin(t * 5f + b.y) > 0.8f) drawCircle(Color.White.copy(alpha = 0.7f), radius = ps * 1.2f, center = Offset(cx + w * 0.05f, baseY - hh * 0.2f))
                 }
             }
             if (b.type == "wonder") {
