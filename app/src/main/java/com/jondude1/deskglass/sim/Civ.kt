@@ -174,7 +174,7 @@ private val ACTIONS = setOf(
     "build_well", "build_workshop", "build_market", "build_lamp",
     "fetch_water", "craft", "trade", "dance", "patrol", "play",
     "build_granary", "build_barracks", "build_library", "haul", "drill", "study", "attack",
-    "forage_herbs", "swim", "stargaze", "carve", "pick_flowers",
+    "forage_herbs", "swim", "stargaze", "carve", "pick_flowers", "delve",
 )
 
 private val DX = intArrayOf(1, -1, 0, 0)
@@ -245,6 +245,25 @@ class CivSim(
     var herbed = 0
     var stargazed = 0
     var carved = 0
+    // rift expeditions: a party walks to a violet rift, clears four rooms and brings back loot and relics
+    var riftState = 0 // 0 closed, 1 party gathering, 2 delving
+    var riftX = 0f
+    var riftY = 0f
+    var riftRoom = 0
+    var riftRoomT = 0f
+    var riftOpenedAt = -999.0
+    var riftResultAt = -999.0
+    var riftWon = false
+    var riftRoomsDone = 0
+    val party = ArrayList<Int>()
+    private var nextRiftAt = DAY_LEN * 1.0
+    var expeditions = 0
+    var expWins = 0
+    var expRetreats = 0
+    var roomsCleared = 0
+    var relics = 0
+    var deepestRoom = 0
+    var wardensSlain = 0
     var posies = 0
     var wastedGathers = 0
     var smartSurplus = true
@@ -298,6 +317,7 @@ class CivSim(
     var weddingNames = ""
     var deedBannerAt = -999.0
     var deedBannerName = ""
+    var deedBannerTag = ""
     var deedBannerSub = ""
     private var nextDeedAt = 0.0
     private var worldClock = 0f
@@ -364,6 +384,7 @@ class CivSim(
         hides = 0
         goods = 0
         raidsRepelled = 0; ogresSlain = 0; bossesSlain = 0; warlordsSlain = 0; golemsSlain = 0; shamansSlain = 0; foeStats.clear(); lastWarlordAt = -999.0; goldenAt = -1.0; deeds.clear(); babiesBorn = 0; weds = 0; feudsStarted = 0; feudsEnded = 0; bffs.clear(); feudEnds.clear(); courting.clear(); weddingAt = -999.0; nextRelAt = 0.0; deedBannerAt = -999.0; nextDeedAt = 0.0
+        riftState = 0; party.clear(); expeditions = 0; expWins = 0; expRetreats = 0; roomsCleared = 0; relics = 0; deepestRoom = 0; wardensSlain = 0; nextRiftAt = time + DAY_LEN
         nextThreatAt = DAY_LEN * 1.4; lastBossAt = -999.0
         traffic.fill(0f)
         fauna.reset()
@@ -1031,6 +1052,13 @@ class CivSim(
                 val b = nearestBuilding(v, "campfire") ?: return false
                 return go(v, "carve", b.y * GW + b.x)
             }
+            "delve" -> {
+                if (riftState != 1 || party.size >= 4 || isChild(v) || v.hp < 60f || v.id in party) return false
+                val i = riftY.toInt() * GW + riftX.toInt()
+                if (!go(v, "delve", i)) return false
+                party.add(v.id)
+                return true
+            }
             "pick_flowers" -> {
                 if (friendFor(v) == null) return false
                 val i = nearestTile(v, T.BUSH)
@@ -1102,6 +1130,7 @@ class CivSim(
             v.action == "stargaze" -> { v.phase = "working"; v.workLeft = 8f }
             v.action == "carve" -> { v.phase = "working"; v.workLeft = 7f }
             v.action == "pick_flowers" -> { v.phase = "working"; v.workLeft = 4f }
+            v.action == "delve" -> { v.phase = "working"; v.workLeft = 9999f }
             v.action == "patrol" -> { v.phase = "working"; v.workLeft = 3f }
             v.action.startsWith("critter_") -> critters.onArrive(v)
             v.action == "tell_story" -> {
@@ -1388,6 +1417,7 @@ class CivSim(
                 }
                 finish(v)
             }
+            "delve" -> finish(v)
             "pick_flowers" -> {
                 val f = friendFor(v)
                 if (f != null) {
@@ -2239,6 +2269,7 @@ class CivSim(
         "stargaze" -> "watching the stars"
         "carve" -> "carving wooden toys"
         "pick_flowers" -> "picking wildflowers for a friend"
+        "delve" -> if (riftState == 2) "fighting deep inside the rift" else "marching to the rift"
         "haul" -> "filling the granary"
         "drill" -> "drilling with the guard"
         "study" -> "reading in the library"
@@ -2285,6 +2316,7 @@ class CivSim(
         if (canStargaze() && count("campfire") > 0) a.add("stargaze")
         if (wood >= 8 && goods < 30 && count("campfire") > 0) a.add("carve")
         a.add("pick_flowers")
+        if (riftState == 1 && party.size < 4) a.add("delve")
         if (canBuild("granary") && wood >= 14 && stone >= 6) a.add("build_granary")
         if (canBuild("library") && wood >= 18 && stone >= 12) a.add("build_library")
         if (canBuild("barracks") && wood >= 16 && stone >= 14 && metal >= 2) a.add("build_barracks")
@@ -3016,6 +3048,9 @@ class CivSim(
             Deed("dex", "Field Naturalists", "Caught 15 species.", "+30 food") { critters.caught.size >= 15 },
             Deed("level", "Trainer's Pride", "A critter reached level 25.", "joy for all") { critters.critters.any { it.level >= 25 } },
             Deed("legend", "Legend Bound", "Bonded with a legendary critter.", "joy for all") { critters.legendsOwned() > 0 },
+            Deed("delver", "Into the Rift", "A party cleared a rift.", "+30 stone, +20 wood") { expWins >= 1 },
+            Deed("delver3", "Rift Walkers", "Cleared three rift expeditions.", "joy for all") { expWins >= 3 },
+            Deed("relic", "Relic Keepers", "Brought home 3 rift relics.", "+40 food, +20 stone") { relics >= 3 },
             Deed("golden", "Golden Age", "Completed every legacy goal.", "joy for all") { goldenAt >= 0.0 },
         )
     }
@@ -3047,7 +3082,7 @@ class CivSim(
                 for (v in villagers) v.happiness = min(100f, v.happiness + 15f)
                 festivalUntil = max(festivalUntil, time + 25.0)
             }
-            deedBannerAt = time; deedBannerName = d.title; deedBannerSub = d.text + "  " + r
+            deedBannerAt = time; deedBannerTag = ""; deedBannerName = d.title; deedBannerSub = d.text + "  " + r
             addLog("Deed done: ${d.title} - ${d.text} (${deeds.size}/${allDeeds.size})")
             mark("Deed: ${d.title}.")
             for (v in villagers) v.remember("the village earned: ${d.title}")
@@ -3064,6 +3099,150 @@ class CivSim(
             event("A Golden Age begins! The village has beaten every threat and grown into a legend of the land.")
             mark("The Golden Age began.")
         }
+    }
+
+    // ---- rift expeditions ----
+
+    private fun partyMembers(): List<Villager> = party.mapNotNull { id -> villagers.firstOrNull { it.id == id } }
+
+    private fun delvePower(v: Villager): Float {
+        var p = (if (isFighter(v)) 1.0f else 0.6f) * (v.hp / 100f).coerceIn(0.3f, 1f) + 0.1f * toolBonus()
+        var lv = 0
+        for (c in critters.critters) if (c.owner == v.id && c.companion) lv += c.level
+        p += min(1.5f, lv / 20f)
+        return p
+    }
+
+    private fun cancelRift(text: String) {
+        for (m in partyMembers()) if (m.action == "delve") finish(m)
+        party.clear()
+        riftState = 0
+        nextRiftAt = time + 60.0
+        addLog(text)
+    }
+
+    private fun openRift() {
+        val cands = villagers.filter {
+            !isChild(it) && it.hp > 60f && it.hunger < 65f && it.energy > 35f && it.phase != "sleeping" &&
+                !it.action.startsWith("critter_") && it.action != "attack"
+        }.sortedByDescending { delvePower(it) }
+        if (cands.size < 3) { nextRiftAt = time + 40.0; return }
+        var site = -1
+        for (k in 0 until 24) {
+            val ang = rnd.nextFloat() * 6.28f
+            val r = 14f + rnd.nextFloat() * 8f
+            val x = (GW / 2f + Math.cos(ang.toDouble()).toFloat() * r).toInt().coerceIn(2, GW - 3)
+            val y = (GH / 2f + Math.sin(ang.toDouble()).toFloat() * r * 0.7f).toInt().coerceIn(2, GH - 3)
+            val i = y * GW + x
+            if (blocked(i) || tiles[i] == T.WATER) continue
+            if (findPath(cellOf(cands[0]), i) == null) continue
+            site = i
+            break
+        }
+        if (site < 0) { nextRiftAt = time + 40.0; return }
+        riftX = site % GW + 0.5f
+        riftY = site / GW + 0.5f
+        party.clear()
+        for (c in cands) {
+            if (party.size >= 4) break
+            if (go(c, "delve", site)) { party.add(c.id); c.thought = "the rift calls" }
+        }
+        if (party.size < 3) { cancelRift("A rift flickered shut before a party could gather."); return }
+        riftState = 1
+        riftOpenedAt = time
+        riftRoom = 0
+        riftRoomsDone = 0
+        fx.add(Fx("spawn", riftX, riftY, time, 1.6f))
+        val names = partyMembers().joinToString(", ") { it.name }
+        event("A violet rift flickers open beyond the village. $names grab their gear and march in to see what lies beyond.")
+    }
+
+    private fun endRift(ok: Boolean, text: String) {
+        for (m in partyMembers()) {
+            if (m.action == "delve") finish(m)
+            m.happiness = min(100f, m.happiness + (if (ok) 10f else 2f))
+            m.remember(if (ok) "came back alive from the rift with loot" else "was driven out of the rift")
+        }
+        expeditions++
+        if (ok) expWins++ else expRetreats++
+        deepestRoom = max(deepestRoom, riftRoomsDone)
+        riftWon = ok
+        riftResultAt = time
+        fx.add(Fx("spawn", riftX, riftY, time, 1.4f))
+        deedBannerAt = time
+        deedBannerTag = "RIFT EXPEDITION"
+        deedBannerName = if (ok) "Rift Cleared" else "Party Driven Back"
+        deedBannerSub = text
+        event(text)
+        mark(if (ok) "A party cleared a rift." else "A rift party was driven back.")
+        party.clear()
+        riftState = 0
+        nextRiftAt = time + DAY_LEN * (1.6 + rnd.nextFloat() * 0.8)
+    }
+
+    private fun resolveRoom(ms: List<Villager>) {
+        val power = ms.sumOf { delvePower(it).toDouble() }.toFloat() + 0.12f * relics
+        val diff = 1.3f + 0.75f * riftRoom + 0.25f * age + (if (riftRoom == 4) 0.8f else 0f)
+        val chance = (0.68f + (power - diff) * 0.22f).coerceIn(0.15f, 0.95f)
+        val foe = when (riftRoom) { 1 -> "gloomwebs in Gloomweb Hollow"; 2 -> "shard crawlers in their nest"; 3 -> "echo wraiths in the Echo Hall"; else -> "the Rift Warden" }
+        val win = rnd.nextFloat() < chance
+        val hit = ms[rnd.nextInt(ms.size)]
+        hit.hp = max(15f, hit.hp - (if (win) 6f + rnd.nextInt(10) else 18f + rnd.nextInt(14)))
+        fx.add(Fx("clash", riftX + (rnd.nextFloat() - 0.5f) * 1.6f, riftY + (rnd.nextFloat() - 0.5f), time, 1.0f))
+        if (!win) {
+            endRift(false, "${hit.name} and the party were driven out by $foe. They limp home wounded.")
+            return
+        }
+        roomsCleared++
+        riftRoomsDone = riftRoom
+        for (m in ms) m.happiness = min(100f, m.happiness + 3f)
+        val loot = when (riftRoom) {
+            1 -> { stone += 14; wood += 10; "14 stone, 10 wood" }
+            2 -> { hides += 4; if (age >= 2) { ore += 5; "4 hides, 5 ore" } else { stone += 10; "4 hides, 10 stone" } }
+            3 -> { food += 20; critters.scrolls[1] = critters.scrolls[1] + 1; if (age >= 2) { metal += 3; "20 food, 3 metal, a fine scroll" } else "20 food, a fine scroll" }
+            else -> { relics++; wardensSlain++; critters.scrolls[2] = critters.scrolls[2] + 1; metal += 4; wood += 20; stone += 20; "a rift relic, a rare scroll, 4 metal" }
+        }
+        addLog("The party defeats $foe (room $riftRoom/4): $loot.")
+        if (riftRoom >= 4) {
+            for (v in villagers) v.happiness = min(100f, v.happiness + 4f)
+            festivalUntil = max(festivalUntil, time + 20.0)
+            endRift(true, "The party slays the Rift Warden and carries home a glowing relic: $loot.")
+            return
+        }
+        riftRoom++
+        fx.add(Fx("spawn", riftX, riftY, time, 1.0f))
+    }
+
+    private fun expeditionTick(dt: Float) {
+        if (riftState == 0) {
+            for (v in villagers) if (v.action == "delve") finish(v)
+            if (time < nextRiftAt || villagers.size < 7) return
+            if (predators.any { isThreat(it.kind) } || isNight() || plagueUntil > time) { nextRiftAt = time + 30.0; return }
+            openRift()
+            return
+        }
+        val ms = partyMembers().filter { it.action == "delve" }
+        party.retainAll(ms.map { it.id }.toSet())
+        if (riftState == 1) {
+            val here = ms.count { it.phase == "working" }
+            if (ms.size < 2) { cancelRift("The rift party fell apart before it could go in."); return }
+            if (here == ms.size || time - riftOpenedAt > 100.0) {
+                if (here < 2) { cancelRift("The rift party never reached the rift."); return }
+                for (m in ms) if (m.phase != "working") { finish(m); party.removeAll { it == m.id } }
+                riftState = 2
+                riftRoom = 1
+                riftRoomT = 0f
+                addLog("The party steps into the rift.")
+                fx.add(Fx("spawn", riftX, riftY, time, 1.2f))
+            }
+            return
+        }
+        val inside = ms.filter { it.phase == "working" }
+        if (inside.size < 2) { endRift(false, "The rift party was scattered and fled home."); return }
+        riftRoomT += dt
+        if (riftRoomT < 11f) return
+        riftRoomT = 0f
+        resolveRoom(inside)
     }
 
     // ---- tick ----
@@ -3296,6 +3475,7 @@ class CivSim(
         ageTick(dt)
         planTick()
         threatTick()
+        expeditionTick(dt)
         goldenTick()
         deedTick()
         relationTick()
@@ -3418,7 +3598,7 @@ class CivSim(
             o.put("nextId", nextId)
             o.put("hides", hides)
             o.put("goods", goods)
-            o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("golems", golemsSlain).put("shamans", shamansSlain).put("golden", goldenAt).put("deeds", deeds.joinToString(",")).put("babies", babiesBorn).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" })
+            o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("expN", expeditions).put("expW", expWins).put("expR", expRetreats).put("expRooms", roomsCleared).put("relics", relics).put("expDeep", deepestRoom).put("wardens", wardensSlain).put("golems", golemsSlain).put("shamans", shamansSlain).put("golden", goldenAt).put("deeds", deeds.joinToString(",")).put("babies", babiesBorn).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" })
             o.put("traffic", String(CharArray(traffic.size) { i -> '0' + min(9, (traffic[i] / 4f).toInt()) }))
             val ks = JSONArray()
             kingdoms.forEach {
@@ -3536,6 +3716,7 @@ class CivSim(
             goods = o.optInt("goods", 0)
             raidsRepelled = o.optInt("raids", 0); ogresSlain = o.optInt("ogres", 0); bossesSlain = o.optInt("bosses", 0); warlordsSlain = o.optInt("warlords", 0); golemsSlain = o.optInt("golems", 0); shamansSlain = o.optInt("shamans", 0)
             goldenAt = o.optDouble("golden", -1.0)
+            expeditions = o.optInt("expN", 0); expWins = o.optInt("expW", 0); expRetreats = o.optInt("expR", 0); roomsCleared = o.optInt("expRooms", 0); relics = o.optInt("relics", 0); deepestRoom = o.optInt("expDeep", 0); wardensSlain = o.optInt("wardens", 0)
             deeds.clear(); o.optString("deeds", "").split(",").filter { it.isNotBlank() }.forEach { deeds.add(it) }
             babiesBorn = o.optInt("babies", 0)
             weds = o.optInt("weds", 0); feudsStarted = o.optInt("feudsS", 0); feudsEnded = o.optInt("feudsE", 0)
@@ -3559,7 +3740,7 @@ class CivSim(
     companion object {
         private const val SYSTEM = """You play one villager in a small pixel-art village, as a distinct character with a job, a personality, a way of speaking and a dream. Reply with ONLY a JSON object, no other text:
 {"thought": "<your private thought, first person, under 14 words, in your voice>", "action": "<one action>", "target": "<villager name, only for talk>", "say": "<one short sentence you say aloud in your own voice, or empty>"}
-Actions: gather_wood, gather_stone, gather_food (berries), fish (at the lake), hunt (game in the forest, hunter-gatherers' best food), tend_farm (needs a farm, Farming Age on), explore (scouting far away), tell_story (at the fire, lifts everyone's spirits), huddle (stay by the fire), build_hut (6 wood + 2 stone), build_farm (4 wood, Farming Age on), build_campfire (3 stone), mine_ore (Bronze Age on), smelt (2 ore + 1 wood at a forge, Bronze Age on), build_smelter (4 wood + 6 stone, Bronze Age on), build_well (4 wood + 6 stone), build_workshop (10 wood + 4 stone), build_market (12 wood + 6 stone), build_lamp (2 wood + 2 stone), fetch_water (at a well, waters the farms), craft (at a workshop), trade (goods for food at a market), dance (at the fire), build_granary (14 wood + 6 stone), build_barracks (16 wood, 14 stone, 2 metal), build_library (18 wood + 12 stone), haul (fill the granary), drill (train at the barracks), study (read at the library), attack (charge the enemy), patrol (walk the edge of the village and watch), play (children), carve (whittle wooden toys at the fire from spare wood; the children cheer up), pick_flowers (gather wildflowers and give them to a friend), forage_herbs (pick healing herbs: mends you and hurt people nearby, use when hurt or when others are hurt), swim (summer days at the lake, lifts mood), stargaze (clear evenings at the fire, lifts mood), eat (needs food in stock), sleep, talk (set target and say), wander. Use only the actions listed as available to you in the message.
+Actions: gather_wood, gather_stone, gather_food (berries), fish (at the lake), hunt (game in the forest, hunter-gatherers' best food), tend_farm (needs a farm, Farming Age on), explore (scouting far away), delve (join the rift expedition, only while a rift is open), tell_story (at the fire, lifts everyone's spirits), huddle (stay by the fire), build_hut (6 wood + 2 stone), build_farm (4 wood, Farming Age on), build_campfire (3 stone), mine_ore (Bronze Age on), smelt (2 ore + 1 wood at a forge, Bronze Age on), build_smelter (4 wood + 6 stone, Bronze Age on), build_well (4 wood + 6 stone), build_workshop (10 wood + 4 stone), build_market (12 wood + 6 stone), build_lamp (2 wood + 2 stone), fetch_water (at a well, waters the farms), craft (at a workshop), trade (goods for food at a market), dance (at the fire), build_granary (14 wood + 6 stone), build_barracks (16 wood, 14 stone, 2 metal), build_library (18 wood + 12 stone), haul (fill the granary), drill (train at the barracks), study (read at the library), attack (charge the enemy), patrol (walk the edge of the village and watch), play (children), carve (whittle wooden toys at the fire from spare wood; the children cheer up), pick_flowers (gather wildflowers and give them to a friend), forage_herbs (pick healing herbs: mends you and hurt people nearby, use when hurt or when others are hurt), swim (summer days at the lake, lifts mood), stargaze (clear evenings at the fire, lifts mood), eat (needs food in stock), sleep, talk (set target and say), wander. Use only the actions listed as available to you in the message.
 Mostly do the work of your job, but react to your needs, the weather, wolves, news and what others say. Talk about what you have seen, feel or remember, with opinions and feelings. Never repeat a line or an action you just did, and vary your sentences. Stay alive: eat when hungry, sleep when tired or at night.
 Speak only about facts given in the message: your needs, the stock, the weather, people nearby and what they said, family, village history and news. Never invent buildings, people, resources or events. Answer what others actually said to you. If you are a child, use very short, simple words."""
         private const val SYSTEM_SHORT = """Reply with ONLY a JSON object: {"thought": "", "action": "<one allowed action>", "target": "", "say": "<one short sentence using only the facts given, or empty>"}"""

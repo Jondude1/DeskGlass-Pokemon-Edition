@@ -721,7 +721,7 @@ fun DrawScope.deedBanner(sim: CivSim, g: Geo, namePaint: android.graphics.Paint)
         namePaint.textAlign = android.graphics.Paint.Align.CENTER
         namePaint.color = android.graphics.Color.argb((a * 255).toInt(), 150, 240, 190)
         namePaint.textSize = g.ts * 0.5f
-        nc.drawText("DEED ${sim.deeds.size}/${sim.allDeeds.size}", size.width / 2f, top + h * 0.28f, namePaint)
+        nc.drawText(if (sim.deedBannerTag.isEmpty()) "DEED ${sim.deeds.size}/${sim.allDeeds.size}" else sim.deedBannerTag, size.width / 2f, top + h * 0.28f, namePaint)
         namePaint.color = android.graphics.Color.argb((a * 255).toInt(), 255, 245, 200)
         namePaint.textSize = g.ts * 0.95f
         nc.drawText(sim.deedBannerName, size.width / 2f, top + h * 0.62f, namePaint)

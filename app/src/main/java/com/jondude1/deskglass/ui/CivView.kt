@@ -655,6 +655,7 @@ private fun DrawScope.drawWorld(
 
     // wildlife, then villagers
     villageStock(sim, art, geo)
+    riftSite(sim, geo)
     lifeCritters(sim, art, geo)
     drawDrops(sim, geo)
     drawCritters(sim, art, cart, geo, sun)
@@ -1361,7 +1362,7 @@ fun VillageScreen(vm: MainViewModel, fullscreen: Boolean, onFullscreen: (Boolean
                     )
                 }
                 Text(
-                    "Renown: ${sim.renownTitle()} · deeds ${sim.deeds.size}/${sim.allDeeds.size}",
+                    "Renown: ${sim.renownTitle()} · deeds ${sim.deeds.size}/${sim.allDeeds.size}" + (if (sim.expeditions > 0) " · rifts cleared ${sim.expWins}/${sim.expeditions} · relics ${sim.relics}" else ""),
                     color = Color(0xFF9BE3BC), fontSize = 14.sp,
                 )
                 Text(

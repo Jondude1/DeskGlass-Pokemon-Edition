@@ -188,3 +188,44 @@ fun DrawScope.villageStock(sim: CivSim, art: CivArt, g: Geo) {
         scarecrow(x, y, u, g.t, b.ready >= 2 && g.dark < 0.4f)
     }
 }
+
+/**
+ * The rift of an expedition: a violet veil between two rune stones with four pips showing how many rooms the party has
+ * cleared. Fades out after the party comes home.
+ */
+fun DrawScope.riftSite(sim: CivSim, g: Geo) {
+    val since = (sim.time - sim.riftResultAt).toFloat()
+    if (sim.riftState == 0 && (since < 0f || since > 5f)) return
+    val open = if (sim.riftState == 0) (1f - since / 5f).coerceIn(0f, 1f) else 1f
+    val u = g.ps
+    val cx = g.ox + sim.riftX * g.ts
+    val cy = g.oy + sim.riftY * g.ts
+    val pulse = 0.8f + 0.2f * sin(g.t * 3.2f)
+    val hh = g.ts * 1.7f * open
+    val ww = g.ts * 0.85f * open
+    val tint = if (sim.riftState == 0 && !sim.riftWon) Color(0xFFB04A4A) else Color(0xFF9A5CFF)
+    drawOval(tint.copy(alpha = 0.22f * open * pulse), Offset(cx - g.ts * 1.5f, cy - g.ts * 0.45f), Size(g.ts * 3f, g.ts * 0.95f))
+    drawOval(Color(0xFF2A1450).copy(alpha = 0.92f * open), Offset(cx - ww, cy - hh * 1.8f), Size(ww * 2f, hh * 1.8f))
+    drawOval(tint.copy(alpha = 0.55f * open * pulse), Offset(cx - ww * 0.65f, cy - hh * 1.6f), Size(ww * 1.3f, hh * 1.4f))
+    drawOval(Color.White.copy(alpha = 0.35f * open * pulse), Offset(cx - ww * 0.25f, cy - hh * 1.3f), Size(ww * 0.5f, hh * 0.8f))
+    val stone = Color(0xFF6C7080)
+    val dark = Color(0xFF454957)
+    drawRect(stone, Offset(cx - ww - u * 2.5f, cy - hh * 1.9f), Size(u * 2.5f, hh * 1.9f))
+    drawRect(dark, Offset(cx - ww - u * 2.5f, cy - hh * 1.9f), Size(u * 0.8f, hh * 1.9f))
+    drawRect(stone, Offset(cx + ww, cy - hh * 1.9f), Size(u * 2.5f, hh * 1.9f))
+    drawRect(dark, Offset(cx + ww + u * 1.7f, cy - hh * 1.9f), Size(u * 0.8f, hh * 1.9f))
+    for (k in 0 until 7) {
+        val ph = (g.t * 0.6f + k * 0.37f) % 1f
+        val sx = cx + sin(k * 2.1f + g.t) * ww * 0.8f
+        val sy = cy - ph * hh * 2f
+        drawRect(Color(0xFFE6D0FF).copy(alpha = (1f - ph) * 0.8f * open), Offset(sx, sy), Size(u * 1.2f, u * 1.2f))
+    }
+    if (sim.riftState == 2) {
+        for (k in 1..4) {
+            val on = k <= sim.riftRoomsDone
+            val cur = k == sim.riftRoom
+            val c = if (on) Color(0xFF7FD6A8) else if (cur) Color(0xFFFFE08A).copy(alpha = pulse) else Color(0xFF5A5470)
+            drawRect(c, Offset(cx + (k - 2.5f) * u * 4f, cy - hh * 1.9f - u * 5f), Size(u * 3f, u * 3f))
+        }
+    }
+}

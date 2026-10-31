@@ -89,6 +89,7 @@ fun main(args: Array<String>) {
     var viol = 0
     for (t in listOf("hut","farm","campfire","smelter","well","workshop","market","lamp")) if (sim.buildings.count{it.type==t} > sim.capFor(t) + 1) viol++
     println("FAUNA " + sim.fauna.animals.groupingBy { it.kind }.eachCount() + " capViolations=$viol")
+    println("RIFTS expeditions=${sim.expeditions} wins=${sim.expWins} retreats=${sim.expRetreats} rooms=${sim.roomsCleared} deepest=${sim.deepestRoom} relics=${sim.relics} wardens=${sim.wardensSlain} state=${sim.riftState}")
     println("THREATS raids=${sim.raidsRepelled} ogres=${sim.ogresSlain} bosses=${sim.bossesSlain} golden=${sim.goldenAt} pop=${sim.villagers.size} legacy=${sim.legacy().count{it.second}}/${sim.legacy().size} legends=${sim.critters.legendsOwned()}")
     println("FOES kinds=${sim.foeStats.size} ${sim.foeStats.toSortedMap()} warlords=${sim.warlordsSlain} golems=${sim.golemsSlain} shamans=${sim.shamansSlain}")
     println("WEATHER day=${sim.day()} season=${sim.seasonName()} events=${sim.wxStats.toSortedMap()} distinct=${sim.wxStats.size}")
