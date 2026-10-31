@@ -39,6 +39,8 @@ class Building(val type: String, val x: Int, val y: Int, var era: Int = 0) {
     var boostUntil = 0.0
     var ready = 0
     var timer = 0f
+    /** Sim time when villagers raised it; the view plays a construction animation for a few seconds. */
+    var built = -999.0
 }
 
 class Persona(val trait: String, val voice: String, val dream: String, val lines: List<String>)
@@ -333,6 +335,8 @@ class CivSim(
     var tavernVisits = 0
     var recoveries = 0
     var totemVisits = 0
+    /** Buildings raised by villagers (each plays a visible construction animation). */
+    var raised = 0
     var totemBlessUntil = -999.0
     var omens = 0
     private var nextInfirmaryAt = 0.0
@@ -1390,6 +1394,7 @@ class CivSim(
                 if (type == "wonder" && i >= 0 && !occupied[i] && tiles[i] == T.GRASS) {
                     val kind = (0..2).firstOrNull { k -> buildings.none { it.type == "wonder" && it.era == k } } ?: 0
                     addBuilding("wonder", i % GW, i / GW, kind)
+                    buildings.last().built = time; raised++
                     val nm = wonderName(kind)
                     addLog("${v.name} and the village raise the $nm!")
                     event("The $nm rises over the village: ${wonderBlurb(kind)}")
@@ -1401,6 +1406,7 @@ class CivSim(
                     wonderFx = time; wonderFxKind = kind
                 } else if (i >= 0 && !occupied[i] && tiles[i] == T.GRASS) {
                     addBuilding(type, i % GW, i / GW)
+                    buildings.last().built = time; raised++
                     addLog("${v.name} built a $label.")
                     narrate("${v.name} finishes a $label")
                     v.remember("built a $label")
@@ -3513,6 +3519,8 @@ class CivSim(
             Deed("inn", "Hospitable Hearth", "Welcomed five visitors.", "+20 wood, +10 stone") { visitTotal() >= 5 },
             Deed("tourney1", "Into the Ring", "A grand tournament was fought.", "+20 food") { critters.tourneys >= 1 },
             Deed("tourney4", "Arena Fame", "Four grand tournaments crowned a champion.", "+20 stone, +10 food") { critters.tourneys >= 4 },
+            Deed("raise10", "Master Builders", "Raised ten new buildings.", "+20 wood, +10 stone") { raised >= 10 },
+            Deed("raise30", "A Town Takes Shape", "Raised thirty new buildings.", "joy for all") { raised >= 30 },
             Deed("guests", "Every Kind of Guest", "Met a merchant, a bard and a pilgrim.", "joy for all") { listOf("merchant", "bard", "pilgrim").all { (visitStats[it] ?: 0) >= 1 } },
             Deed("egg1", "Warm Nest", "A critter egg hatched in the village.", "+20 food") { critters.eggsHatched >= 1 },
             Deed("egg6", "Cradle of Critters", "Six critter eggs hatched.", "+20 food, +10 wood") { critters.eggsHatched >= 6 },
@@ -4228,7 +4236,7 @@ class CivSim(
             o.put("nextId", nextId)
             o.put("hides", hides)
             o.put("goods", goods)
-            o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("expN", expeditions).put("expW", expWins).put("expR", expRetreats).put("expRooms", roomsCleared).put("relics", relics).put("expDeep", deepestRoom).put("wardens", wardensSlain).put("golems", golemsSlain).put("frostPacks", frostPacksBroken).put("pilfF", pilfersFoiled).put("pilfL", pilfersLost).put("swarms", swarmsBroken).put("hornets", hornetsSwatted).put("liches", lichesSlain).put("bones", bonesRaised).put("shamans", shamansSlain).put("golden", goldenAt).put("visits", visitStats.entries.joinToString(",") { "${it.key}:${it.value}" }).put("deeds", deeds.joinToString(",")).put("tavern", tavernVisits).put("snowmen", snowmenBuilt).put("leafR", leafPilesRaked).put("kites", kitesFlown).put("sprops", seasonProps.joinToString(",") { "${it.kind}:${it.x.toInt()}:${it.y.toInt()}" }).put("totemV", totemVisits).put("omens", omens).put("recov", recoveries).put("babies", babiesBorn).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" })
+            o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("expN", expeditions).put("expW", expWins).put("expR", expRetreats).put("expRooms", roomsCleared).put("relics", relics).put("expDeep", deepestRoom).put("wardens", wardensSlain).put("golems", golemsSlain).put("frostPacks", frostPacksBroken).put("pilfF", pilfersFoiled).put("pilfL", pilfersLost).put("swarms", swarmsBroken).put("hornets", hornetsSwatted).put("liches", lichesSlain).put("bones", bonesRaised).put("shamans", shamansSlain).put("golden", goldenAt).put("visits", visitStats.entries.joinToString(",") { "${it.key}:${it.value}" }).put("deeds", deeds.joinToString(",")).put("tavern", tavernVisits).put("snowmen", snowmenBuilt).put("leafR", leafPilesRaked).put("kites", kitesFlown).put("sprops", seasonProps.joinToString(",") { "${it.kind}:${it.x.toInt()}:${it.y.toInt()}" }).put("totemV", totemVisits).put("raised", raised).put("omens", omens).put("recov", recoveries).put("babies", babiesBorn).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" })
             o.put("traffic", String(CharArray(traffic.size) { i -> '0' + min(9, (traffic[i] / 4f).toInt()) }))
             val ks = JSONArray()
             kingdoms.forEach {
@@ -4362,7 +4370,7 @@ class CivSim(
             snowmenBuilt = o.optInt("snowmen", 0); leafPilesRaked = o.optInt("leafR", 0); kitesFlown = o.optInt("kites", 0)
             seasonProps.clear()
             for (e in o.optString("sprops", "").split(",")) { val kv = e.split(":"); if (kv.size == 3) seasonProps.add(SeasonProp(kv[0], (kv[1].toIntOrNull() ?: 0) + 0.5f, (kv[2].toIntOrNull() ?: 0) + 0.5f, time)) }
-            tavernVisits = o.optInt("tavern", 0); totemVisits = o.optInt("totemV", 0); omens = o.optInt("omens", 0); recoveries = o.optInt("recov", 0)
+            tavernVisits = o.optInt("tavern", 0); totemVisits = o.optInt("totemV", 0); raised = o.optInt("raised", 0); omens = o.optInt("omens", 0); recoveries = o.optInt("recov", 0)
             weds = o.optInt("weds", 0); feudsStarted = o.optInt("feudsS", 0); feudsEnded = o.optInt("feudsE", 0)
             bffs.clear(); o.optString("bffs", "").split(",").filter { it.contains("-") }.forEach { bffs.add(it) }
             courting.clear(); o.optString("courting", "").split(",").forEach { c -> val kv = c.split("@"); if (kv.size == 2) kv[1].toDoubleOrNull()?.let { courting[kv[0]] = it } }

@@ -45,6 +45,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
@@ -599,7 +600,57 @@ private fun DrawScope.drawWorld(
                 shadow(cx, baseY, w * 0.9f, 3.5f * ps)
                 if (b.type != "campfire") castShadow(art, sp, cx, baseY, w, hh, sun)
             }
-            img(sp, cx - w / 2f, baseY - hh, w, hh)
+            val cAge = (sim.time - b.built).toFloat()
+            val cDur = if (b.type == "wonder") 24f else 9f
+            val cSite = b.type != "farm" && b.type != "campfire" && b.type != "lamp" && cAge >= 0f && cAge < cDur
+            if (cSite) {
+                // construction site: the walls rise from the ground inside a timber scaffold, with dust and hammer sparks
+                val cShown = hh * (0.12f + 0.88f * (cAge / cDur))
+                clipRect(cx - w / 2f, baseY - cShown, cx + w / 2f + ps, baseY + ps) {
+                    img(sp, cx - w / 2f, baseY - hh, w, hh)
+                }
+                val cWood = Color(0xFF8A6A3C)
+                val cPlank = Color(0xFFB88F52)
+                val cx0 = cx - w * 0.55f
+                val cx1 = cx + w * 0.55f
+                val cTop = baseY - min(hh, cShown + ps * 4f)
+                drawRect(cWood, Offset(cx0, cTop), Size(ps * 1.3f, baseY - cTop))
+                drawRect(cWood, Offset(cx1, cTop), Size(ps * 1.3f, baseY - cTop))
+                var cy2 = baseY - ps * 6f
+                while (cy2 > cTop) {
+                    drawRect(cPlank, Offset(cx0, cy2), Size(cx1 - cx0 + ps * 1.3f, ps * 1.1f))
+                    cy2 -= ps * 7f
+                }
+                val cWall = baseY - cShown
+                for (k in 0 until 3) {
+                    val ph = (t * 3f + k * 0.37f) % 1f
+                    drawRect(
+                        Color(0xFFFFE9A0).copy(alpha = 1f - ph),
+                        Offset(cx + (k - 1) * w * 0.25f + kotlin.math.sin(t * 9f + k) * ps * 2f, cWall - ph * ps * 8f),
+                        Size(ps * 1.2f, ps * 1.2f),
+                    )
+                }
+                for (k in 0 until 4) {
+                    val ph = (t * 0.8f + k * 0.25f) % 1f
+                    drawCircle(
+                        Color(0xFFD8C9A8).copy(alpha = 0.4f * (1f - ph)), radius = ps * (2f + 5f * ph),
+                        center = Offset(cx + (k - 1.5f) * w * 0.3f, baseY - ps * 2f * ph),
+                    )
+                }
+            } else {
+                img(sp, cx - w / 2f, baseY - hh, w, hh)
+                if (b.built > 0.0 && cAge >= cDur && cAge < cDur + 1.4f) {
+                    // finished: a little burst of sparkles over the roof
+                    val cf = (cAge - cDur) / 1.4f
+                    for (k in 0 until 8) {
+                        val ang = k * 0.785f
+                        drawCircle(
+                            Color(0xFFFFF0A8).copy(alpha = 1f - cf), radius = ps * 0.9f,
+                            center = Offset(cx + kotlin.math.cos(ang) * w * 0.6f * cf, baseY - hh * 0.6f + kotlin.math.sin(ang) * hh * 0.5f * cf - cf * ps * 4f),
+                        )
+                    }
+                }
+            }
             if (b.type == "farm") crops(b, geo, cx - w / 2f, baseY - hh)
             if (b.type == "hall" && b.era >= 3) {
                 banner(cx - ps * 0.4f, baseY - hh + ps * 0.5f, ps * 9f, Color(sim.kingdoms[0].color), ps, t, 7f)
