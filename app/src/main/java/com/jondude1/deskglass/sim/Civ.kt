@@ -1967,7 +1967,7 @@ class CivSim(
     /** A short history of the big moments, kept in the save file. */
     fun mark(text: String) {
         chronicle.add("Day ${day()}: $text")
-        while (chronicle.size > 40) chronicle.removeAt(0)
+        while (chronicle.size > 160) chronicle.removeAt(0)
     }
 
     /** Called by the screen when a frame of the sim throws, so one bug never takes the app down. */
@@ -4385,7 +4385,7 @@ class CivSim(
             o.put("seed", seed)
             o.put("time", time)
             o.put("wood", wood).put("stone", stone).put("food", food)
-            o.put("chron", JSONArray(chronicle.takeLast(40)))
+            o.put("chron", JSONArray(chronicle.takeLast(160)))
             o.put("ore", ore).put("metal", metal).put("smelted", totalSmelted).put("explored", explored).put("age", age)
             o.put("nextId", nextId)
             o.put("hides", hides)

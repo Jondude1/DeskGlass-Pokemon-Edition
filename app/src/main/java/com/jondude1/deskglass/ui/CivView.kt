@@ -1458,6 +1458,7 @@ fun VillageScreen(vm: MainViewModel, fullscreen: Boolean, onFullscreen: (Boolean
     var whisper by remember { mutableStateOf("") }
     var confirmReset by remember { mutableStateOf(false) }
     var showDex by remember { mutableStateOf(false) }
+    var showBook by remember { mutableStateOf(false) }
     val cam = remember { CivCamera() }
     LaunchedEffect(Unit) {
         while (true) {
@@ -1470,6 +1471,10 @@ fun VillageScreen(vm: MainViewModel, fullscreen: Boolean, onFullscreen: (Boolean
 
     if (showDex) {
         CritterDexScreen(sim) { showDex = false }
+        return
+    }
+    if (showBook) {
+        VillageBookScreen(sim) { showBook = false }
         return
     }
 
@@ -1505,6 +1510,7 @@ fun VillageScreen(vm: MainViewModel, fullscreen: Boolean, onFullscreen: (Boolean
         BackBar("Summoner's Village", null, trailing = {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 GlassButton("Speed ${sim.speed}x", { sim.speed = nextSpeed(sim.speed) })
+                GlassButton("Book ${sim.deeds.size}/${sim.allDeeds.size}", { showBook = true })
                 GlassButton("Critterdex ${sim.critters.caught.size}/${com.jondude1.deskglass.sim.Dex.COUNT}", { showDex = true })
                 GlassButton("Fullscreen", { onFullscreen(true) }, filled = true)
                 GlassButton("Settings", onSettings)
