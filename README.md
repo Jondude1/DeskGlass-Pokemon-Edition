@@ -38,3 +38,6 @@ Every couple of village days a violet rift opens beyond the village. A party of 
 
 ## Wild life
 The land now has foxes that stalk and catch rabbits, squirrels and hedgehogs (asleep in winter), dragonflies by the water in summer, fish leaping in the ponds, geese flying in a V in spring and autumn, and at dusk fireflies, bats and owls. Two new deeds: Friend of the Wild and Red Hunter.
+
+## Grand tournament
+Every few village days the best critter owners meet in a sand ring with pennants and a cheering crowd: semi-finals, then a final. The champion is crowned (a gold crown shows over their head), their critter gains levels, the village feasts, and winners earn the titles Champion and Grandmaster plus two new deeds.

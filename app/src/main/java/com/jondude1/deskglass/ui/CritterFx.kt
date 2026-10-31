@@ -365,6 +365,7 @@ fun DrawScope.drawCritterEffects(sim: CivSim, cart: CritterArt, g: Geo) {
     val cw = sim.critters
     for (e in cw.encounters.toList()) {
         if (e.state == "walk") continue
+        if (e.kind == "spar" && e.tour) arenaFx(e, g)
         if (e.kind != "summon") ring(e, g)
         when (e.state) {
             "turn" -> moveFx(e, g)
@@ -381,6 +382,69 @@ fun DrawScope.drawCritterEffects(sim: CivSim, cart: CritterArt, g: Geo) {
     }
     for (s in cw.swaps.toList()) swapFx(sim, s, cart, g)
     for (s in cw.evolutions.toList()) evolutionOverlay(sim, s, g)
+    if (cw.champUntil > sim.time) {
+        val champ = sim.villagers.firstOrNull { it.id == cw.champId }
+        if (champ != null) crownFx(g.ox + champ.x * g.ts, g.oy + (champ.y + 0.45f) * g.ts - g.ts * 1.35f, g)
+    }
+}
+
+private val CROWD_SHIRTS = longArrayOf(0xFFC0392BL, 0xFF2E86C1L, 0xFF27AE60L, 0xFFD4AC0DL, 0xFF8E44ADL, 0xFFE67E22L)
+private val CROWD_SKIN = longArrayOf(0xFFF1C9A0L, 0xFFD9A57BL, 0xFFB57A52L, 0xFF8A5A3AL)
+
+/** The tournament ring: sand, a fence of pennants and a cheering crowd on three sides. */
+private fun DrawScope.arenaFx(e: Enc, g: Geo) {
+    val ps = g.ps
+    val ts = g.ts
+    val mx = g.ox + (e.ax + e.bx) / 2f * ts
+    val my = g.oy + ((e.ay + e.by) / 2f + 0.45f) * ts
+    val rx = (abs(e.bx - e.ax) / 2f + 1.9f) * ts
+    val ry = ts * 0.95f
+    drawOval(Color(0xFFD9B77A).copy(alpha = 0.30f), Offset(mx - rx, my - ry), Size(rx * 2f, ry * 2f))
+    drawOval(Color(0xFF8A5A2B).copy(alpha = 0.55f), Offset(mx - rx, my - ry), Size(rx * 2f, ry * 2f), style = Stroke(width = ps * 1.5f))
+    val cheer = e.state == "result"
+    // pennant poles around the ring
+    for (k in 0 until 10) {
+        val ang = k * 2f * PI.toFloat() / 10f
+        val px = mx + cos(ang) * rx
+        val py = my + sin(ang) * ry
+        drawRect(Color(0xFF5A3A1E), Offset(px - ps * 0.5f, py - ts * 0.6f), Size(ps, ts * 0.6f))
+        val wave = sin(g.t * 3.2f + k) * ps * 0.7f
+        val col = if (k % 2 == 0) Color(0xFFD63031) else Color(0xFFF1C40F)
+        drawRect(col, Offset(px + ps * 0.5f, py - ts * 0.6f), Size(ps * 3.2f + wave, ps * 1.8f))
+    }
+    // the crowd stands behind the far side and at both ends
+    for (k in 0 until 14) {
+        val u = k / 13f
+        val ang = PI.toFloat() * (0.9f + 1.2f * u)
+        val fx = mx + cos(ang) * (rx + ts * 0.45f)
+        val fy = my + sin(ang) * (ry + ts * 0.3f)
+        val bob = if (cheer) abs(sin(g.t * 6f + k * 1.7f)) * ps * 2.2f else abs(sin(g.t * 2.4f + k * 1.3f)) * ps * 0.8f
+        val shirt = Color(CROWD_SHIRTS[(k * 5 + 1) % CROWD_SHIRTS.size])
+        val skin = Color(CROWD_SKIN[(k * 3) % CROWD_SKIN.size])
+        val top = fy - bob
+        drawRect(Color.Black.copy(alpha = 0.18f), Offset(fx - ps * 1.8f, fy + ps * 2.4f), Size(ps * 3.6f, ps * 1.1f))
+        drawRect(shirt, Offset(fx - ps * 1.5f, top - ps * 3f), Size(ps * 3f, ps * 3.4f))
+        drawRect(skin, Offset(fx - ps * 1.1f, top - ps * 5.4f), Size(ps * 2.2f, ps * 2.2f))
+        if (cheer) {
+            drawRect(skin, Offset(fx - ps * 2.4f, top - ps * 4.4f), Size(ps * 0.9f, ps * 2.4f))
+            drawRect(skin, Offset(fx + ps * 1.5f, top - ps * 4.4f), Size(ps * 0.9f, ps * 2.4f))
+        }
+    }
+}
+
+/** A little gold crown above the champion. */
+private fun DrawScope.crownFx(cx: Float, y: Float, g: Geo) {
+    val ps = g.ps
+    val bob = sin(g.t * 3f) * ps * 0.6f
+    val top = y + bob
+    val gold = Color(0xFFF4C430)
+    drawRect(gold, Offset(cx - ps * 2.6f, top), Size(ps * 5.2f, ps * 1.8f))
+    drawRect(gold, Offset(cx - ps * 2.6f, top - ps * 1.6f), Size(ps * 1.2f, ps * 1.6f))
+    drawRect(gold, Offset(cx - ps * 0.6f, top - ps * 2.2f), Size(ps * 1.2f, ps * 2.2f))
+    drawRect(gold, Offset(cx + ps * 1.4f, top - ps * 1.6f), Size(ps * 1.2f, ps * 1.6f))
+    drawRect(Color(0xFFD63031), Offset(cx - ps * 0.5f, top + ps * 0.4f), Size(ps, ps))
+    val tw = (sin(g.t * 5f) * 0.5f + 0.5f)
+    drawRect(Color.White.copy(alpha = 0.4f + 0.5f * tw), Offset(cx + ps * 3f, top - ps * 2.4f), Size(ps * 0.9f, ps * 0.9f))
 }
 
 private fun DrawScope.ring(e: Enc, g: Geo) {

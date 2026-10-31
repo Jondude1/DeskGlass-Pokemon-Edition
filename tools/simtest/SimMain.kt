@@ -96,6 +96,7 @@ fun main(args: Array<String>) {
     println("WEATHER day=${sim.day()} season=${sim.seasonName()} events=${sim.wxStats.toSortedMap()} distinct=${sim.wxStats.size}")
     println("RELATIONS weddings=${sim.weds} couples=${sim.villagers.count { it.partner >= 0 } / 2} bffs=${sim.bffs.size} feudsStarted=${sim.feudsStarted} feudsEnded=${sim.feudsEnded} activeFeuds=${sim.villagers.count { sim.feudWith(it) != null } / 2} babiesBorn=${sim.babiesBorn}")
     println("VISITORS total=${sim.visitTotal()} ${sim.visitStats.toSortedMap()}")
+    println("TOURNEY held=${sim.critters.tourneys} matches=${sim.critters.tourMatches} forfeits=${sim.critters.tourForfeits} champ=${sim.critters.champName} on=${sim.critters.tourOn}")
     println("DEEDS ${sim.deeds.size}/${sim.allDeeds.size} renown=${sim.renownTitle()} ${sim.deeds}")
     println("TITLES earned=${sim.titlesEarned} villagersTitled=${sim.villagers.count { it.titles.isNotEmpty() }} list=${sim.villagers.filter { it.titles.isNotEmpty() }.joinToString { it.name + ":" + it.titles.joinToString("/") }} bonds=${sim.villagers.count { sim.bondsOf(it).isNotEmpty() }} career=${sim.villagers.count { sim.careerLines(it).isNotEmpty() }}")
     println("STATUS inflicted(burn,poison,stun,chill,fright)=${Battle.inflictedCount.drop(1)} ticks=${Battle.count.drop(1)} tickDamage=${Battle.tickTotal}")

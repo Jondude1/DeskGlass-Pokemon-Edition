@@ -60,6 +60,8 @@ class EvolveScene(val uid: Int, val from: Int, val to: Int, var x: Float, var y:
 /** One meeting between a villager and a critter: a summoning ritual, a battle with a binding, a friendly bout or training. */
 class Enc(val kind: String, val v: Villager) {
     var v2: Villager? = null
+    /** True for a match of the grand tournament. */
+    var tour = false
     var mine: Critter? = null
     var mine2: Critter? = null
     var foe: Critter? = null
@@ -283,6 +285,9 @@ class CritterWorld(private val sim: CivSim) {
         scrolls[0] = 1; scrolls[1] = 0; scrolls[2] = 0
         circleX = -1f
         circleY = -1f
+        tourneys = 0; tourMatches = 0; champName = ""; champId = -1; champUntil = -1.0; tourNextAt = -1.0
+        tourOn = false; tourLabel = ""; tourCur = null; tourWait = 0.0; tourTries = 0
+        tourPairs.clear(); tourAdv.clear()
         anchors.clear()
         yardX = -1f
         yardY = -1f
@@ -410,6 +415,7 @@ class CritterWorld(private val sim: CivSim) {
             wildTick(dt)
             keptTick(dt)
             triggerTick(dt)
+            tourTick()
             for (e in encounters.toList()) encTick(e, dt)
             evoTick()
             pops.removeAll { sim.time - it.born > it.life }
@@ -422,6 +428,134 @@ class CritterWorld(private val sim: CivSim) {
 
     /** The most recent problem the critter layer hit, kept so a bug can be found. */
     var lastError: Exception? = null
+
+
+    // ---- grand tournament ----
+
+    var tourneys = 0
+    var tourMatches = 0
+    var tourForfeits = 0
+    var champName = ""
+    var champId = -1
+    var champUntil = -1.0
+    var tourNextAt = -1.0
+    var tourOn = false
+    var tourLabel = ""
+    private var tourWait = 0.0
+    private var tourTries = 0
+    private var tourCur: IntArray? = null
+    private val tourPairs = ArrayList<IntArray>()
+    private val tourAdv = ArrayList<Int>()
+
+    private fun vById(id: Int): Villager? = sim.villagers.firstOrNull { it.id == id }
+
+    private fun tourBuild(ids: List<Int>) {
+        tourPairs.clear()
+        val l = ids.shuffled(rnd)
+        var i = 0
+        while (i + 1 < l.size) { tourPairs.add(intArrayOf(l[i], l[i + 1])); i += 2 }
+        if (i < l.size) tourAdv.add(l[i])
+        tourLabel = if (ids.size > 2) "Semi-final" else "Final"
+        tourTries = 0
+    }
+
+    private fun tourTick() {
+        if (tourNextAt < 0.0) tourNextAt = sim.time + DAY_LEN * 1.3
+        if (!tourOn) {
+            if (sim.time < tourNextAt) return
+            if (sim.villagers.size < 6 || sim.predators.isNotEmpty() || sim.isNight() || sim.storm() || sim.raining()) { tourNextAt = sim.time + 25.0; return }
+            val cands = sim.villagers.filter { v ->
+                !sim.isChild(v) && v.hp > 60f && !busy(v) && companionOf(v)?.let { ready(it) } == true
+            }.sortedByDescending { companionOf(it)?.level ?: 0 }.take(4)
+            if (cands.size < 2) { tourNextAt = sim.time + 30.0; return }
+            tourOn = true
+            tourAdv.clear()
+            tourBuild(cands.map { it.id })
+            sim.deedBannerAt = sim.time; sim.deedBannerTag = "GRAND TOURNAMENT"
+            sim.deedBannerName = "${cands.size} summoners enter the ring"
+            sim.deedBannerSub = cands.joinToString(", ") { it.name }
+            sim.note("A grand tournament begins: " + cands.joinToString(", ") { "${it.name} and ${companionOf(it)?.name ?: "critter"}" } + ".")
+            tourWait = sim.time + 4.0
+            return
+        }
+        if (encounters.any { it.tour }) return
+        tourCur?.let { c ->
+            tourAdv.add(c[((rnd.nextFloat() * 2f).toInt()).coerceIn(0, 1)])
+            tourCur = null
+        }
+        if (sim.time < tourWait) return
+        if (tourPairs.isEmpty()) {
+            if (tourAdv.size <= 1) { tourFinish(); return }
+            val ids = tourAdv.toList()
+            tourAdv.clear()
+            tourBuild(ids)
+            tourWait = sim.time + 3.0
+            return
+        }
+        val p = tourPairs[0]
+        val a = vById(p[0])
+        val b = vById(p[1])
+        val ca = a?.let { companionOf(it) }
+        val cb = b?.let { companionOf(it) }
+        if (a == null || b == null || ca == null || cb == null) {
+            tourPairs.removeAt(0)
+            if (a != null && ca != null) tourAdv.add(p[0]) else if (b != null && cb != null) tourAdv.add(p[1])
+            tourWait = sim.time + 2.0
+            return
+        }
+        if (a.phase != "idle" && a.phase != "sleeping" && tourTries >= 1 && !busy(a)) sim.releaseVillager(a)
+        if (a.phase == "idle" && ready(ca) && ready(cb) && !busy(a) && !busy(b)) {
+            if (startSpar(a, b, ca, cb, true)) {
+                tourPairs.removeAt(0)
+                tourCur = p
+                tourTries = 0
+                return
+            }
+        }
+        tourTries++
+        tourWait = sim.time + 2.5
+        if (tourTries >= 12) {
+            tourForfeits++
+            tourPairs.removeAt(0)
+            tourAdv.add(p[(rnd.nextFloat() * 2f).toInt().coerceIn(0, 1)])
+            tourTries = 0
+        }
+    }
+
+    private fun tourFinish() {
+        val w = tourAdv.firstOrNull()?.let { vById(it) }
+        tourOn = false
+        tourPairs.clear()
+        tourAdv.clear()
+        tourCur = null
+        tourNextAt = sim.time + DAY_LEN * (3.0 + rnd.nextFloat() * 1.5)
+        if (w == null) {
+            sim.note("The tournament ends without a champion.")
+            return
+        }
+        tourneys++
+        champId = w.id
+        champName = w.name
+        champUntil = sim.time + DAY_LEN * 0.7
+        val c = companionOf(w)
+        if (c != null) {
+            c.gainXp(30 + c.level * 4)
+            c.wins++
+            checkEvolve(c)
+        }
+        sim.bumpStat(w, "tourney")
+        w.happiness = 100f
+        w.remember("won the grand tournament with ${c?.name ?: "a critter"}")
+        for (v in sim.villagers) v.happiness = min(100f, v.happiness + 10f)
+        sim.festivalUntil = max(sim.festivalUntil, sim.time + 45.0)
+        sim.food += 12
+        sim.deedBannerAt = sim.time; sim.deedBannerTag = "CHAMPION"
+        sim.deedBannerName = "${w.name} wins the tournament"
+        sim.deedBannerSub = "${c?.name ?: "A critter"} is crowned in the ring  +12 food"
+        sim.fx.add(Fx("spawn", w.x, w.y, sim.time, 1.6f))
+        sim.note("${w.name} and ${c?.name ?: "their critter"} win the grand tournament.")
+        sim.mark("${w.name} won the grand tournament.")
+    }
 
     // ---- wild critters ----
 
@@ -1086,10 +1220,11 @@ class CritterWorld(private val sim: CivSim) {
         circleY = c[1] + 3f
     }
 
-    private fun startSpar(v: Villager, v2: Villager, c1: Critter, c2: Critter): Boolean {
+    private fun startSpar(v: Villager, v2: Villager, c1: Critter, c2: Critter, tour: Boolean = false): Boolean {
         val goal = cellNear(v2.x, v2.y, v.x, v.y)
         if (goal < 0) return false
         val e = Enc("spar", v)
+        e.tour = tour
         e.v2 = v2
         e.mine = c1
         e.mine2 = c2
@@ -1103,7 +1238,7 @@ class CritterWorld(private val sim: CivSim) {
         v2.workLeft = 999f
         v2.path = IntArray(0)
         v2.talkTo = null
-        v.say = "Care for a friendly match, ${v2.name}?"
+        v.say = if (tour) "$tourLabel: you and me, ${v2.name}!" else "Care for a friendly match, ${v2.name}?"
         v.sayLeft = 3f
         return true
     }
@@ -1219,7 +1354,7 @@ class CritterWorld(private val sim: CivSim) {
                 e.vy = my + 0.15f
                 e.wx = clampX(mx + dir * 2.3f)
                 e.wy = my + 0.15f
-                e.banner = "${v.name} and ${v2.name} start a friendly match"
+                e.banner = if (e.tour) "$tourLabel: ${v.name} vs ${v2.name}" else "${v.name} and ${v2.name} start a friendly match"
                 e.bannerT = 1.5f
             }
             "train" -> {
@@ -1725,14 +1860,23 @@ class CritterWorld(private val sim: CivSim) {
                 val c1 = e.mine!!
                 val c2 = e.mine2!!
                 val w1 = winner == 0
-                val x1 = if (w1) 12 + c1.level * 3 else 8 + c1.level * 2
-                val x2 = if (!w1) 12 + c2.level * 3 else 8 + c2.level * 2
+                val bonus = if (e.tour) 8 else 0
+                val x1 = bonus + (if (w1) 12 + c1.level * 3 else 8 + c1.level * 2)
+                val x2 = bonus + (if (!w1) 12 + c2.level * 3 else 8 + c2.level * 2)
                 val l1 = c1.gainXp(x1)
                 val l2 = c2.gainXp(x2)
                 if (w1) c1.wins++ else c2.wins++
                 val win = if (w1) c1 else c2
                 e.result = "spar"
                 e.banner = "${win.name} takes the match!"
+                if (e.tour) {
+                    val wv = if (w1) v else e.v2!!
+                    tourAdv.add(wv.id)
+                    tourCur = null
+                    tourMatches++
+                    tourWait = sim.time + 4.0
+                    e.banner = "${wv.name} wins the ${tourLabel.lowercase()}!"
+                }
                 if (l1 + l2 > 0) {
                     e.sub = "${if (l1 > 0) c1.name else c2.name} grew stronger!"
                     e.subT = 2.4f
@@ -1839,6 +1983,7 @@ class CritterWorld(private val sim: CivSim) {
         o.put("next", nextUid)
         o.put("yx", yardX.toDouble()).put("yy", yardY.toDouble())
         o.put("cx", circleX.toDouble()).put("cy", circleY.toDouble())
+        o.put("tourn", tourneys).put("tourM", tourMatches).put("champ", champName)
         val ms = JSONArray()
         for ((id, m) in mages) {
             ms.put(JSONObject().put("id", id).put("t", m.talent).put("rv", m.revealed).put("mt", m.mentor).put("lv", m.lv).put("xp", m.xp).put("mana", m.mana.toDouble()))
@@ -1867,6 +2012,9 @@ class CritterWorld(private val sim: CivSim) {
             yardY = o.optDouble("yy", -1.0).toFloat()
             circleX = o.optDouble("cx", -1.0).toFloat()
             circleY = o.optDouble("cy", -1.0).toFloat()
+            tourneys = o.optInt("tourn", 0)
+            tourMatches = o.optInt("tourM", 0)
+            champName = o.optString("champ", "")
             if (yardX >= 0f) { yardX += shx; yardY += shy }
             if (circleX >= 0f) { circleX += shx; circleY += shy }
             val ms = o.optJSONArray("mages")

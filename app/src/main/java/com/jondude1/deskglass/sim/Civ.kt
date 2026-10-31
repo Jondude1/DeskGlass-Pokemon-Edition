@@ -1123,6 +1123,8 @@ class CivSim(
         TitleDef("stories", 40, "the Taleweaver", "told 40 tales"),
         TitleDef("posies", 25, "the Kindhearted", "gave 25 posies"),
         TitleDef("carved", 30, "the Toymaker", "carved 30 toys"),
+        TitleDef("tourney", 1, "the Champion", "won a grand tournament"),
+        TitleDef("tourney", 3, "the Grandmaster", "won three grand tournaments"),
     )
 
     /** What this villager has done so far, in short lines for the hero view. */
@@ -1130,7 +1132,7 @@ class CivSim(
         val out = ArrayList<String>()
         fun add(k: String, label: String) { if (v.stat(k) > 0) out.add("$label ${v.stat(k)}") }
         add("slain", "Foes beaten"); add("rooms", "Rift rooms"); add("gathered", "Loads gathered"); add("built", "Built")
-        add("fish", "Fish"); add("stories", "Tales told"); add("posies", "Posies given"); add("carved", "Toys carved")
+        add("tourney", "Tournaments won"); add("fish", "Fish"); add("stories", "Tales told"); add("posies", "Posies given"); add("carved", "Toys carved")
         return out
     }
 
@@ -1145,6 +1147,8 @@ class CivSim(
         villagers.filter { it !== v && (v.affinity[it.id] ?: 0) >= 2 }.map { it to (v.affinity[it.id] ?: 0) }.sortedByDescending { it.second }.take(3)
 
     var titlesEarned = 0
+
+    fun bumpStat(v: Villager, k: String) { v.bump(k); checkTitles(v) }
 
     private fun checkTitles(v: Villager) {
         for (d in TITLE_DEFS) {
@@ -3134,6 +3138,8 @@ class CivSim(
             Deed("foxhunt", "Red Hunter", "Watched a fox catch its supper.", "+10 food") { (fauna.seen["fox catch"] ?: 0) >= 1 },
             Deed("road", "Open Road", "Welcomed a travelling visitor to the fire.", "+15 food") { visitTotal() >= 1 },
             Deed("inn", "Hospitable Hearth", "Welcomed five visitors.", "+20 wood, +10 stone") { visitTotal() >= 5 },
+            Deed("tourney1", "Into the Ring", "A grand tournament was fought.", "+20 food") { critters.tourneys >= 1 },
+            Deed("tourney4", "Arena Fame", "Four grand tournaments crowned a champion.", "+20 stone, +10 food") { critters.tourneys >= 4 },
             Deed("guests", "Every Kind of Guest", "Met a merchant, a bard and a pilgrim.", "joy for all") { listOf("merchant", "bard", "pilgrim").all { (visitStats[it] ?: 0) >= 1 } },
             Deed("zoo", "Critter Keepers", "Own 10 critters.", "+20 food") { critters.critters.size >= 10 },
             Deed("dex", "Field Naturalists", "Caught 15 species.", "+30 food") { critters.caught.size >= 15 },
@@ -3455,7 +3461,7 @@ class CivSim(
     private var nextEventAt = DAY_LEN * 0.3
     private var alertUntil = 0.0
     private var rainUntil = 0.0
-    private var festivalUntil = 0.0
+    var festivalUntil = 0.0
 
     private fun event(text: String) {
         addLog(text)
