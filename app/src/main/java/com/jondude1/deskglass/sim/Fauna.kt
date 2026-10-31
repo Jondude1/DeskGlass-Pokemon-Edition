@@ -28,6 +28,11 @@ class Animal(val kind: String, var x: Float, var y: Float, val id: Int) {
     var chase = 0f        // fox: how long the current chase has lasted
     var cool = 0f         // fox: rest after a hunt
     var life = 0f         // fish and other short-lived things
+    var pet: Pet? = null  // dog: the village pet this animal is
+    var bark = 0f         // dog: time left of the current bark
+    var fetch = 0         // dog: 0 waiting by the owner, 1 running to the stick, 2 bringing it back
+    var curled = false    // dog: asleep beside its owner
+    var guard = false     // dog: standing between its owner and a foe
 }
 
 /**
@@ -44,6 +49,7 @@ class Fauna(private val sim: CivSim) {
     private var nightClock = 5f
     private var skyClock = 20f
     private var fishClock = 6f
+    private var petClock = 1f
     /** Wild-life happenings seen this run (used by the headless harness and the naturalist deed). Not saved. */
     val seen = HashMap<String, Int>()
     val kindsSeen = HashSet<String>()
@@ -185,12 +191,14 @@ class Fauna(private val sim: CivSim) {
             if (count("bird") < 9) spawnBird()
         }
         spawnWild(dt)
+        petClock -= dt
+        if (petClock <= 0f) { petClock = 2f; ensurePets() }
         val it = animals.iterator()
         while (it.hasNext()) {
             val a = it.next()
             if (!step(a, dt)) it.remove()
         }
-        for (a in animals) kindsSeen.add(a.kind)
+        for (a in animals) if (a.kind != "dog") kindsSeen.add(a.kind)
     }
 
     /** Night creatures, migrating geese, leaping fish and the animals that sleep through winter. */
@@ -327,6 +335,135 @@ class Fauna(private val sim: CivSim) {
         return true
     }
 
+    /** Every village pet gets a dog on the map: new strays trot in from afar, loaded ones start by their owner. */
+    private fun ensurePets() {
+        for (p in sim.pets.toList()) {
+            if (animals.any { it.pet === p }) continue
+            val o = sim.villagers.firstOrNull { it.id == p.owner } ?: sim.villagers.firstOrNull() ?: continue
+            var a: Animal? = null
+            if (p.fresh) a = spawn("dog", { x, y -> land(x, y) }, tries = 200, avoid = 9f)
+            if (a == null) {
+                a = Animal("dog", o.x + 0.6f, o.y + 0.3f, nextId++)
+                a.phase = rnd.nextFloat() * 6.28f
+                animals.add(a)
+            }
+            a.pet = p
+            a.speed = 2.2f
+            p.fresh = false
+        }
+    }
+
+    private fun dogWalk(a: Animal, gx: Float, gy: Float, sp: Float, dt: Float): Boolean {
+        val dx = gx - a.x
+        val dy = gy - a.y
+        val d = hypot(dx, dy)
+        if (d < 0.05f) { a.moving = false; return true }
+        val st = min(sp * dt, d)
+        var nx = a.x + dx / d * st
+        var ny = a.y + dy / d * st
+        if (!land(nx.toInt(), ny.toInt())) {
+            // slide along the obstacle if one axis is open
+            if (land(nx.toInt(), a.y.toInt())) ny = a.y
+            else if (land(a.x.toInt(), ny.toInt())) nx = a.x
+            else { a.moving = false; return false }
+        }
+        a.x = nx
+        a.y = ny
+        a.moving = true
+        if (abs(dx) > 0.03f) a.facing = if (dx > 0f) 1 else -1
+        return true
+    }
+
+    /** A dog stays close to its owner, sleeps beside them, plays fetch and guards against foes. */
+    private fun dogStep(a: Animal, dt: Float): Boolean {
+        val pet = a.pet ?: return false
+        if (!sim.pets.contains(pet)) return false
+        if (a.bark > 0f) a.bark -= dt
+        if (a.cool > 0f) a.cool -= dt
+        var o = sim.villagers.firstOrNull { it.id == pet.owner }
+        if (o == null) {
+            val n = sim.villagers.minByOrNull { hypot(it.x - a.x, it.y - a.y) }
+            if (n == null) { a.moving = false; return true }
+            sim.dogRehomed(pet, n)
+            o = n
+        }
+        val dOwner = hypot(o.x - a.x, o.y - a.y)
+        if (dOwner > 30f) { a.x = o.x + 0.6f; a.y = o.y + 0.3f; a.moving = false; return true }
+        val wasGuard = a.guard
+        a.guard = false
+        a.curled = false
+        // a foe near the owner: stand between them and bark
+        var foe: Predator? = null
+        var fd = 10f
+        for (p in sim.predators) {
+            val d = hypot(p.x - o.x, p.y - o.y)
+            if (d < fd) { fd = d; foe = p }
+        }
+        if (foe != null) {
+            a.guard = true
+            val ux = (foe.x - o.x) / max(0.1f, fd)
+            val uy = (foe.y - o.y) / max(0.1f, fd)
+            val gx = o.x + ux * min(2.4f, fd * 0.5f)
+            val gy = o.y + uy * min(2.4f, fd * 0.5f)
+            dogWalk(a, gx, gy, 3.6f, dt)
+            a.facing = if (foe.x >= a.x) 1 else -1
+            if (a.cool <= 0f) { a.bark = 1.3f; a.cool = 5f; if (!wasGuard) sim.dogBarks++ }
+            return true
+        }
+        val fetching = o.action == "walk_dog" && o.phase == "working"
+        if (!fetching) a.fetch = 0
+        if (o.phase == "sleeping") {
+            if (dOwner > 1.4f) dogWalk(a, o.x + 0.7f, o.y + 0.3f, 2.4f, dt) else { a.moving = false; a.curled = true }
+            return true
+        }
+        if (fetching) {
+            when (a.fetch) {
+                0 -> {
+                    if (dOwner > 1.3f) dogWalk(a, o.x + 0.8f, o.y + 0.2f, 3.2f, dt)
+                    else {
+                        a.moving = false
+                        a.pause -= dt
+                        if (a.pause <= 0f) {
+                            // the owner throws a stick somewhere open nearby
+                            for (n in 0 until 8) {
+                                val ang = rnd.nextFloat() * 6.28f
+                                val len = 3f + rnd.nextFloat() * 3f
+                                val sx = o.x + cos(ang) * len
+                                val sy = o.y + sin(ang) * len * 0.7f
+                                if (land(sx.toInt(), sy.toInt())) { a.tx = sx; a.ty = sy; a.fetch = 1; break }
+                            }
+                            a.pause = 0.6f
+                        }
+                    }
+                }
+                1 -> {
+                    dogWalk(a, a.tx, a.ty, 4.2f, dt)
+                    if (hypot(a.tx - a.x, a.ty - a.y) < 0.5f || !a.moving) a.fetch = 2
+                }
+                else -> {
+                    dogWalk(a, o.x + 0.8f, o.y + 0.2f, 4.0f, dt)
+                    if (dOwner < 1.4f) { a.fetch = 0; a.pause = 0.5f }
+                }
+            }
+            return true
+        }
+        // follow: trot when far, run when very far, otherwise amble about near the owner
+        if (dOwner > 3.2f) {
+            dogWalk(a, o.x + (if (a.id % 2 == 0) 0.9f else -0.9f), o.y + 0.4f, if (dOwner > 7f) 3.8f else 2.2f, dt)
+            a.pause = 0f
+        } else if (a.pause > 0f) {
+            a.pause -= dt
+            a.moving = false
+        } else if (a.tx != a.x || a.ty != a.y) {
+            if (hypot(a.tx - a.x, a.ty - a.y) < 0.2f || !dogWalk(a, a.tx, a.ty, 1.2f, dt)) { a.tx = a.x; a.ty = a.y; a.pause = 2f + rnd.nextFloat() * 4f; a.moving = false }
+        } else {
+            a.tx = o.x + (rnd.nextFloat() - 0.5f) * 4.5f
+            a.ty = o.y + (rnd.nextFloat() - 0.5f) * 3f
+            if (!land(a.tx.toInt(), a.ty.toInt())) { a.tx = a.x; a.ty = a.y; a.pause = 1.5f }
+        }
+        return true
+    }
+
     private fun step(a: Animal, dt: Float): Boolean {
         a.phase += dt
         if (a.life < 0f) return false
@@ -402,6 +539,7 @@ class Fauna(private val sim: CivSim) {
                 return true
             }
             "fox" -> if (foxThink(a, dt)) return true
+            "dog" -> return dogStep(a, dt)
         }
         val scare = when (a.kind) { "rabbit" -> 3.4f; "deer" -> 4.6f; "duck" -> 2.8f; "fox" -> 4.2f; "squirrel" -> 2.6f; "hedgehog" -> 2.2f; else -> 1.6f }
         if (a.flee <= 0f && threat(a, scare)) {

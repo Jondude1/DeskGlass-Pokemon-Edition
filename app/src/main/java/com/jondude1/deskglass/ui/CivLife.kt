@@ -350,6 +350,12 @@ fun DrawScope.drawVillagers(sim: CivSim, art: CivArt, g: Geo, sun: Sun) {
                 drawCircle(Color(0xFFF4F8FF).copy(alpha = 0.9f * (1f - p)), radius = ps * (0.7f + 0.5f * (k % 2)), center = Offset(cx + fx * ps * (1f + p * 4f), feetY - ps * (3f + 6f * sin(p * PI.toFloat()))))
             }
         }
+        if (working && v.action == "walk_dog") {
+            for (k in 0 until 3) {
+                val p = (t * 1.1f + k * 0.33f + v.id * 0.09f) % 1f
+                drawCircle(Color(0xFFFFE066).copy(alpha = 0.9f * (1f - p)), radius = ps * 0.6f, center = Offset(cx + (k - 1f) * ps * 2.2f, feetY - ps * (9f + p * 8f)))
+            }
+        }
         if (working && v.action == "rake_leaves") {
             val lc = listOf(Color(0xFFB5502A), Color(0xFFD98A2B), Color(0xFFE8B63A))
             for (k in 0 until 5) {
@@ -736,6 +742,72 @@ fun DrawScope.drawFauna(sim: CivSim, art: CivArt, g: Geo) {
                     drawRect(Color(0xFFF7F3EA), Offset(px + w * 0.33f, py - h * 0.85f - bob), Size(w * 0.14f, h * 0.2f))
                     drawRect(Color(0xFF3A2416), Offset(px - w * 0.3f, py - h * 0.35f - bob), Size(ps * 1.1f, h * 0.35f))
                     drawRect(Color(0xFF3A2416), Offset(px + w * 0.05f, py - h * 0.35f + (if (a.moving) ps * 0.5f else 0f) - bob), Size(ps * 1.1f, h * 0.35f))
+                }
+            }
+            "dog" -> {
+                val pal = a.id % 3
+                val coat = when (pal) { 0 -> Color(0xFFC8923F); 1 -> Color(0xFFEDE3D0); else -> Color(0xFF5A544C) }
+                val dark = when (pal) { 0 -> Color(0xFF8A5A22); 1 -> Color(0xFF9A6A30); else -> Color(0xFF2B2824) }
+                val moving = a.moving
+                val sit = !moving && !a.curled && !a.guard && a.fetch == 0
+                val bob = if (moving) abs(sin(t * (if (a.fetch == 1 || a.speed > 3f) 14f else 9f) + a.id)) * ps * 0.7f else 0f
+                val wag = if (a.curled) 0f else sin(t * (if (moving || a.fetch != 0) 16f else 10f) + a.id) * ps * 0.9f
+                if (a.fetch == 1) {
+                    val sx = g.ox + a.tx * ts
+                    val sy = g.oy + a.ty * ts
+                    drawRect(Color(0xFF7A5230), Offset(sx - ps * 1.8f, sy - ps * 1.0f), Size(ps * 3.6f, ps * 0.8f))
+                    drawRect(Color(0xFF5E7F3A), Offset(sx + ps * 1.2f, sy - ps * 1.6f), Size(ps * 0.9f, ps * 0.7f))
+                }
+                drawOval(Color.Black.copy(alpha = 0.22f), Offset(px - ps * 4f, py - ps * 0.8f), Size(ps * 8f, ps * 1.8f))
+                withTransform({ scale(dir, 1f, Offset(px, py)) }) {
+                    if (a.curled) {
+                        drawOval(coat, Offset(px - ps * 3.4f, py - ps * 3.2f), Size(ps * 6.8f, ps * 3.2f))
+                        drawOval(dark, Offset(px - ps * 2.2f, py - ps * 3.0f), Size(ps * 2.6f, ps * 1.4f))
+                        drawRect(coat, Offset(px + ps * 1.8f, py - ps * 3.6f), Size(ps * 2.4f, ps * 2.0f))
+                        drawRect(dark, Offset(px + ps * 3.2f, py - ps * 2.6f), Size(ps * 1.0f, ps * 0.9f))
+                        drawRect(Color(0xFF201410), Offset(px + ps * 2.9f, py - ps * 3.0f), Size(ps * 0.5f, ps * 0.4f))
+                    } else if (sit) {
+                        drawRect(coat, Offset(px - ps * 2.4f, py - ps * 5.6f), Size(ps * 3.8f, ps * 4.6f))
+                        drawRect(dark, Offset(px - ps * 3.4f + wag * 0.4f, py - ps * 1.8f), Size(ps * 2.6f, ps * 0.9f))
+                        drawRect(coat, Offset(px + ps * 0.6f, py - ps * 7.6f), Size(ps * 3.0f, ps * 2.6f))
+                        drawRect(dark, Offset(px + ps * 0.4f, py - ps * 8.2f), Size(ps * 1.0f, ps * 1.8f))
+                        drawRect(dark, Offset(px + ps * 2.8f, py - ps * 6.6f), Size(ps * 1.2f, ps * 1.0f))
+                        drawRect(Color(0xFF201410), Offset(px + ps * 2.4f, py - ps * 7.0f), Size(ps * 0.5f, ps * 0.5f))
+                        drawRect(coat, Offset(px + ps * 0.4f, py - ps * 2.6f), Size(ps * 1.2f, ps * 1.8f))
+                    } else {
+                        val lift = if (a.bark > 0f) ps * 1.0f else 0f
+                        // tail, body, legs, head, ear, snout
+                        drawRect(dark, Offset(px - ps * 4.8f, py - ps * 6.4f - bob + wag), Size(ps * 1.3f, ps * 2.6f))
+                        drawRect(coat, Offset(px - ps * 3.6f, py - ps * 5.2f - bob), Size(ps * 6.4f, ps * 2.8f))
+                        drawRect(dark, Offset(px - ps * 2.2f, py - ps * 5.2f - bob), Size(ps * 2.2f, ps * 1.2f))
+                        val lg = if (moving) sin(t * 14f + a.id) * ps * 0.9f else 0f
+                        drawRect(dark, Offset(px - ps * 3.2f + lg, py - ps * 2.5f - bob * 0.3f), Size(ps * 1.1f, ps * 2.4f))
+                        drawRect(dark, Offset(px - ps * 1.2f - lg, py - ps * 2.5f - bob * 0.3f), Size(ps * 1.1f, ps * 2.4f))
+                        drawRect(dark, Offset(px + ps * 0.8f - lg, py - ps * 2.5f - bob * 0.3f), Size(ps * 1.1f, ps * 2.4f))
+                        drawRect(dark, Offset(px + ps * 1.9f + lg, py - ps * 2.5f - bob * 0.3f), Size(ps * 1.1f, ps * 2.4f))
+                        drawRect(coat, Offset(px + ps * 2.4f, py - ps * 6.6f - bob - lift), Size(ps * 3.0f, ps * 2.8f))
+                        drawRect(dark, Offset(px + ps * 2.2f, py - ps * 7.2f - bob - lift), Size(ps * 1.0f, ps * 1.8f))
+                        drawRect(dark, Offset(px + ps * 4.8f, py - ps * 5.6f - bob - lift), Size(ps * 1.3f, ps * 1.1f))
+                        drawRect(Color(0xFF201410), Offset(px + ps * 4.0f, py - ps * 6.2f - bob - lift), Size(ps * 0.5f, ps * 0.5f))
+                        if (a.bark > 0f) drawRect(Color(0xFFD9566B), Offset(px + ps * 4.6f, py - ps * 4.6f - bob - lift), Size(ps * 1.4f, ps * 0.8f))
+                        if (a.fetch == 2) drawRect(Color(0xFF7A5230), Offset(px + ps * 4.4f, py - ps * 4.7f - bob), Size(ps * 3.6f, ps * 0.8f))
+                    }
+                }
+                if (a.bark > 0f) {
+                    val bx = px + dir * ps * 7f
+                    val by = py - ps * 12f - (1.3f - a.bark) * ps * 3f
+                    for (k in 0..1) {
+                        val ox = bx + (k - 0.5f) * ps * 3.4f
+                        drawRect(Color(0xFFFFB347), Offset(ox, by), Size(ps * 0.9f, ps * 2.4f))
+                        drawRect(Color(0xFFFFB347), Offset(ox, by + ps * 3.2f), Size(ps * 0.9f, ps * 0.9f))
+                    }
+                } else if (a.curled) {
+                    val zp = (t * 0.5f + a.id * 0.2f) % 1f
+                    drawRect(Color.White.copy(alpha = 0.8f * (1f - zp)), Offset(px + dir * ps * 3f + zp * ps * 3f, py - ps * (6f + zp * 7f)), Size(ps * 1.6f, ps * 0.5f))
+                    drawRect(Color.White.copy(alpha = 0.8f * (1f - zp)), Offset(px + dir * ps * 3f + zp * ps * 3f + ps * 1.0f, py - ps * (6f + zp * 7f) + ps * 0.5f), Size(ps * 0.5f, ps * 1.0f))
+                } else if (!moving && !a.guard && ((t * 0.7f + a.id) % 7f) < 1.1f) {
+                    val hp = ((t * 0.7f + a.id) % 7f) / 1.1f
+                    drawCircle(Color(0xFFFF7A9A).copy(alpha = 1f - hp), radius = ps * 1.0f, center = Offset(px + dir * ps * 1f, py - ps * (10f + hp * 6f)))
                 }
             }
             "squirrel" -> {

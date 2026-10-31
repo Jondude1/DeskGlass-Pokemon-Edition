@@ -183,7 +183,7 @@ private val ACTIONS = setOf(
     "build_well", "build_workshop", "build_market", "build_lamp",
     "fetch_water", "craft", "trade", "dance", "patrol", "play",
     "build_granary", "build_barracks", "build_library", "build_wonder", "haul", "drill", "study", "attack",
-    "forage_herbs", "swim", "stargaze", "carve", "pick_flowers", "delve", "build_tavern", "tavern", "build_infirmary", "recover", "build_totem", "honor", "snowman", "rake_leaves", "fly_kite",
+    "forage_herbs", "swim", "stargaze", "carve", "pick_flowers", "delve", "build_tavern", "tavern", "build_infirmary", "recover", "build_totem", "honor", "snowman", "rake_leaves", "fly_kite", "walk_dog",
 )
 
 private val DX = intArrayOf(1, -1, 0, 0)
@@ -261,6 +261,13 @@ class CivSim(
     var swims = 0
     /** Seasonal pastimes: snowmen in winter, leaf piles in autumn, kites in spring. */
     class SeasonProp(val kind: String, val x: Float, val y: Float, val born: Double)
+    /** A village dog: it was a stray, a villager named it, and now it follows them everywhere. */
+    val pets = ArrayList<Pet>()
+    var dogsAdopted = 0
+    var dogWalks = 0
+    var dogBarks = 0
+    private var nextPetAt = DAY_LEN * 1.2
+    private val DOG_NAMES = listOf("Biscuit", "Bramble", "Patch", "Pepper", "Moss", "Ember", "Scout", "Clover", "Juniper", "Tuck", "Nibs", "Sable", "Dusty", "Maple", "Rusty", "Fidget")
     val seasonProps = ArrayList<SeasonProp>()
     var snowmenBuilt = 0
     var leafPilesRaked = 0
@@ -432,6 +439,7 @@ class CivSim(
         drops.clear()
         ageBannerAt = -999.0
         fx.clear()
+        pets.clear(); dogsAdopted = 0; dogWalks = 0; dogBarks = 0; nextPetAt = time + DAY_LEN * 1.2
         // a new world must not inherit the old world's clocks (alerts, rain, festivals...)
         alertUntil = 0.0; rainUntil = 0.0; stormUntil = 0.0; fogUntil = 0.0; snowUntil = 0.0; rainbowUntil = 0.0; strikeAt = -99.0; nextWeatherAt = time + DAY_LEN * 0.5; lastSeason = -1; wxStats.clear(); festivalUntil = 0.0; plagueUntil = 0.0; godUntil = 0.0; order = ""; orderUntil = 0.0; shakeUntil = 0.0
         nextEventAt = time + DAY_LEN * 0.6
@@ -1129,6 +1137,12 @@ class CivSim(
                 if (i < 0) return false
                 return go(v, action, i)
             }
+            "walk_dog" -> {
+                if (!hasDog(v) || !dogOk()) return false
+                val i = seasonSpot(v, action)
+                if (i < 0) return false
+                return go(v, action, i)
+            }
             "carve" -> {
                 if (wood < 8 || goods >= 30) return false
                 val b = nearestBuilding(v, "campfire") ?: return false
@@ -1284,6 +1298,7 @@ class CivSim(
             v.action == "snowman" -> { v.phase = "working"; v.workLeft = 8f }
             v.action == "rake_leaves" -> { v.phase = "working"; v.workLeft = 7f }
             v.action == "fly_kite" -> { v.phase = "working"; v.workLeft = 9f }
+            v.action == "walk_dog" -> { v.phase = "working"; v.workLeft = 10f }
             v.action == "forage_herbs" -> { v.phase = "working"; v.workLeft = 4f }
             v.action == "stargaze" -> { v.phase = "working"; v.workLeft = 8f }
             v.action == "carve" -> { v.phase = "working"; v.workLeft = 7f }
@@ -1631,6 +1646,17 @@ class CivSim(
                         v.remember(if (kidsNear > 0) "flew a kite with the children" else "flew a kite on a breezy day")
                     }
                 }
+                finish(v)
+            }
+            "walk_dog" -> {
+                val pet = pets.firstOrNull { it.owner == v.id }
+                dogWalks++
+                if (pet != null) pet.bond++
+                val kidsNear = villagers.count { it !== v && isChild(it) && hypot(it.x - v.x, it.y - v.y) < 8f }
+                for (o in villagers) if (o !== v && o.phase != "sleeping" && hypot(o.x - v.x, o.y - v.y) < 7f) o.happiness = min(100f, o.happiness + (if (isChild(o)) 5f else 2f))
+                v.happiness = min(100f, v.happiness + 8f)
+                if (pet != null && dogWalks % 3 == 1) { addLog("${v.name} plays fetch with ${pet.name}."); narrate("${v.name} plays fetch with ${pet.name}") }
+                if (pet != null) v.remember(if (kidsNear > 0) "played fetch with ${pet.name} while the children cheered" else "played fetch with my dog ${pet.name}")
                 finish(v)
             }
             "forage_herbs" -> {
@@ -2042,6 +2068,7 @@ class CivSim(
             "carve" to (if (wood >= 8 && goods < 30 && count("campfire") > 0) 4 else 0),
             "snowman" to (if (seasonFunOk("snowman")) 5 else 0), "rake_leaves" to (if (seasonFunOk("rake_leaves")) 5 else 0), "fly_kite" to (if (seasonFunOk("fly_kite")) 1 else 0),
             "pick_flowers" to (if (nearestTile(v, T.BUSH) >= 0 && v.recent.count { it == "pick_flowers" } == 0) 1 else 0),
+            "walk_dog" to (if (hasDog(v) && dogOk()) 5 else 0),
             "craft" to (if (shop) 4 else 0), "trade" to (if (market) 3 else 0),
             "tavern" to (if (count("tavern") > 0 && food >= 3) 4 else 0),
             "recover" to (if (count("infirmary") > 0 && v.hp < 90f) 5 else 0),
@@ -2127,6 +2154,37 @@ class CivSim(
             "fly_kite" -> seasonName() == "spring" && !snowing()
             else -> false
         }
+    }
+
+    private fun hasDog(v: Villager) = pets.any { it.owner == v.id }
+    private fun dogOk() = !raining() && !storm() && !foggy() && !alert() && !isNight()
+
+    /** A stray wanders in now and then and a villager without a dog takes it in. */
+    private fun petTick() {
+        if (time < nextPetAt || villagers.size < 5) return
+        val want = min(4, villagers.size / 3)
+        nextPetAt = time + DAY_LEN * 1.5
+        if (pets.size >= want) return
+        val free = villagers.filter { v -> pets.none { it.owner == v.id } }
+        if (free.isEmpty()) return
+        val kids = free.filter { isChild(it) }
+        val o = if (kids.isNotEmpty() && rnd.nextInt(2) == 0) kids[rnd.nextInt(kids.size)] else free[rnd.nextInt(free.size)]
+        val used = pets.map { it.name }.toSet()
+        val name = DOG_NAMES.filter { it !in used }.let { if (it.isEmpty()) DOG_NAMES else it }.let { it[rnd.nextInt(it.size)] }
+        pets.add(Pet(name, o.id, 0, true))
+        dogsAdopted++
+        o.happiness = min(100f, o.happiness + 12f)
+        o.remember("took in a stray dog and named it $name")
+        addLog("A stray dog trots into camp. ${o.name} names it $name.")
+        mark("${o.name} adopted a stray dog, $name.")
+        narrate("A stray dog joins ${o.name}")
+    }
+
+    /** Called by the animals when a dog's owner is gone: it follows the nearest villager instead. */
+    internal fun dogRehomed(p: Pet, n: Villager) {
+        p.owner = n.id
+        addLog("${p.name} now follows ${n.name}.")
+        n.remember("${p.name} the dog chose to follow me")
     }
 
     /** A free open tile near the fire for a snowman, leaf pile or kite. */
@@ -2319,6 +2377,7 @@ class CivSim(
             if (alert() || storm()) return "huddle" to ""
             val sfun = listOf("snowman", "rake_leaves", "fly_kite").firstOrNull { seasonFunOk(it) }
             if (sfun != null && (sfun != "fly_kite" || rnd.nextInt(3) == 0) && rnd.nextInt(3) == 0) return sfun to ""
+            if (hasDog(v) && dogOk() && rnd.nextInt(3) == 0) return "walk_dog" to ""
             return when (pick("swim" to (if (canSwim() && hasShore) 2 else 0), "play" to 6, "study" to (if (count("library") > 0) 4 else 0), "talk" to chat, "wander" to 2, "fetch_water" to (if (count("well") > 0) 1 else 0))) {
                 "talk" -> "talk" to (friendFor(v)?.name ?: "")
                 "play" -> "play" to ""
@@ -2394,6 +2453,7 @@ class CivSim(
             if (rnd.nextInt(3) == 0) for (sa in listOf("snowman", "rake_leaves", "fly_kite")) if (seasonFunOk(sa) && (sa != "fly_kite" || rnd.nextInt(4) == 0)) return sa to ""
         }
         if (rnd.nextInt(14) == 0) for (sa in listOf("snowman", "rake_leaves")) if (seasonFunOk(sa)) return sa to ""
+        if (hasDog(v) && dogOk() && rnd.nextInt(6) == 0) return "walk_dog" to ""
         if (rnd.nextInt(40) == 0 && nearestTile(v, T.BUSH) >= 0) return "forage_herbs" to ""
         val ad = adults()
         val farms = age >= 1 && count("farm") > 0
@@ -2566,6 +2626,7 @@ class CivSim(
         "snowman" -> "building a snowman"
         "rake_leaves" -> "raking autumn leaves into a pile"
         "fly_kite" -> "flying a kite"
+        "walk_dog" -> "playing fetch with the dog"
         "forage_herbs" -> "gathering healing herbs"
         "stargaze" -> "watching the stars"
         "carve" -> "carving wooden toys"
@@ -2623,6 +2684,7 @@ class CivSim(
         a.add("forage_herbs")
         if (canSwim() && nearestShoreAny()) a.add("swim")
         for (sa in listOf("snowman", "rake_leaves", "fly_kite")) if (seasonFunOk(sa)) a.add(sa)
+        if (pets.isNotEmpty() && dogOk()) a.add("walk_dog")
         if (canStargaze() && count("campfire") > 0) a.add("stargaze")
         if (wood >= 8 && goods < 30 && count("campfire") > 0) a.add("carve")
         a.add("pick_flowers")
@@ -3510,6 +3572,8 @@ class CivSim(
             Deed("foxhunt", "Red Hunter", "Watched a fox catch its supper.", "+10 food") { (fauna.seen["fox catch"] ?: 0) >= 1 },
             Deed("road", "Open Road", "Welcomed a travelling visitor to the fire.", "+15 food") { visitTotal() >= 1 },
             Deed("totem1", "Voice of the Ancestors", "Honored the totem pole twelve times.", "+15 food, +8 wood") { totemVisits >= 12 },
+            Deed("dog1", "A Dog's Welcome", "A stray dog was taken in.", "+10 food") { dogsAdopted >= 1 },
+            Deed("fetch", "Good Dog", "Played fetch with the dogs ten times.", "joy for all") { dogWalks >= 10 },
             Deed("snowman", "Frosty Friends", "Built three snowmen.", "joy for all") { snowmenBuilt >= 3 },
             Deed("kite", "Kite Day", "Flew kites on five spring days.", "+15 food") { kitesFlown >= 5 },
             Deed("leaves", "Crunchy Leaves", "Raked four piles of autumn leaves.", "+15 wood") { leafPilesRaked >= 4 },
@@ -4117,6 +4181,7 @@ class CivSim(
         goldenTick()
         deedTick()
         relationTick()
+        petTick()
         critters.tick(dt)
         capStores()
         eventTick()
@@ -4236,7 +4301,7 @@ class CivSim(
             o.put("nextId", nextId)
             o.put("hides", hides)
             o.put("goods", goods)
-            o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("expN", expeditions).put("expW", expWins).put("expR", expRetreats).put("expRooms", roomsCleared).put("relics", relics).put("expDeep", deepestRoom).put("wardens", wardensSlain).put("golems", golemsSlain).put("frostPacks", frostPacksBroken).put("pilfF", pilfersFoiled).put("pilfL", pilfersLost).put("swarms", swarmsBroken).put("hornets", hornetsSwatted).put("liches", lichesSlain).put("bones", bonesRaised).put("shamans", shamansSlain).put("golden", goldenAt).put("visits", visitStats.entries.joinToString(",") { "${it.key}:${it.value}" }).put("deeds", deeds.joinToString(",")).put("tavern", tavernVisits).put("snowmen", snowmenBuilt).put("leafR", leafPilesRaked).put("kites", kitesFlown).put("sprops", seasonProps.joinToString(",") { "${it.kind}:${it.x.toInt()}:${it.y.toInt()}" }).put("totemV", totemVisits).put("raised", raised).put("omens", omens).put("recov", recoveries).put("babies", babiesBorn).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" })
+            o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("expN", expeditions).put("expW", expWins).put("expR", expRetreats).put("expRooms", roomsCleared).put("relics", relics).put("expDeep", deepestRoom).put("wardens", wardensSlain).put("golems", golemsSlain).put("frostPacks", frostPacksBroken).put("pilfF", pilfersFoiled).put("pilfL", pilfersLost).put("swarms", swarmsBroken).put("hornets", hornetsSwatted).put("liches", lichesSlain).put("bones", bonesRaised).put("shamans", shamansSlain).put("golden", goldenAt).put("visits", visitStats.entries.joinToString(",") { "${it.key}:${it.value}" }).put("deeds", deeds.joinToString(",")).put("tavern", tavernVisits).put("pets", pets.joinToString(",") { "${it.name}:${it.owner}:${it.bond}" }).put("dogA", dogsAdopted).put("dogW", dogWalks).put("dogB", dogBarks).put("snowmen", snowmenBuilt).put("leafR", leafPilesRaked).put("kites", kitesFlown).put("sprops", seasonProps.joinToString(",") { "${it.kind}:${it.x.toInt()}:${it.y.toInt()}" }).put("totemV", totemVisits).put("raised", raised).put("omens", omens).put("recov", recoveries).put("babies", babiesBorn).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" })
             o.put("traffic", String(CharArray(traffic.size) { i -> '0' + min(9, (traffic[i] / 4f).toInt()) }))
             val ks = JSONArray()
             kingdoms.forEach {
@@ -4370,7 +4435,10 @@ class CivSim(
             snowmenBuilt = o.optInt("snowmen", 0); leafPilesRaked = o.optInt("leafR", 0); kitesFlown = o.optInt("kites", 0)
             seasonProps.clear()
             for (e in o.optString("sprops", "").split(",")) { val kv = e.split(":"); if (kv.size == 3) seasonProps.add(SeasonProp(kv[0], (kv[1].toIntOrNull() ?: 0) + 0.5f, (kv[2].toIntOrNull() ?: 0) + 0.5f, time)) }
-            tavernVisits = o.optInt("tavern", 0); totemVisits = o.optInt("totemV", 0); raised = o.optInt("raised", 0); omens = o.optInt("omens", 0); recoveries = o.optInt("recov", 0)
+            tavernVisits = o.optInt("tavern", 0); dogsAdopted = o.optInt("dogA", 0); dogWalks = o.optInt("dogW", 0); dogBarks = o.optInt("dogB", 0)
+            pets.clear()
+            for (e in o.optString("pets", "").split(",")) { val kv = e.split(":"); if (kv.size == 3 && kv[0].isNotBlank()) pets.add(Pet(kv[0], kv[1].toIntOrNull() ?: -1, kv[2].toIntOrNull() ?: 0, false)) }
+             totemVisits = o.optInt("totemV", 0); raised = o.optInt("raised", 0); omens = o.optInt("omens", 0); recoveries = o.optInt("recov", 0)
             weds = o.optInt("weds", 0); feudsStarted = o.optInt("feudsS", 0); feudsEnded = o.optInt("feudsE", 0)
             bffs.clear(); o.optString("bffs", "").split(",").filter { it.contains("-") }.forEach { bffs.add(it) }
             courting.clear(); o.optString("courting", "").split(",").forEach { c -> val kv = c.split("@"); if (kv.size == 2) kv[1].toDoubleOrNull()?.let { courting[kv[0]] = it } }
@@ -4393,7 +4461,7 @@ class CivSim(
     companion object {
         private const val SYSTEM = """You play one villager in a small pixel-art village, as a distinct character with a job, a personality, a way of speaking and a dream. Reply with ONLY a JSON object, no other text:
 {"thought": "<your private thought, first person, under 14 words, in your voice>", "action": "<one action>", "target": "<villager name, only for talk>", "say": "<one short sentence you say aloud in your own voice, or empty>"}
-Actions: gather_wood, gather_stone, gather_food (berries), fish (at the lake), hunt (game in the forest, hunter-gatherers' best food), tend_farm (needs a farm, Farming Age on), explore (scouting far away), delve (join the rift expedition, only while a rift is open), tell_story (at the fire, lifts everyone's spirits), huddle (stay by the fire), build_hut (6 wood + 2 stone), build_farm (4 wood, Farming Age on), build_campfire (3 stone), mine_ore (Bronze Age on), smelt (2 ore + 1 wood at a forge, Bronze Age on), build_smelter (4 wood + 6 stone, Bronze Age on), build_well (4 wood + 6 stone), build_workshop (10 wood + 4 stone), build_market (12 wood + 6 stone), build_lamp (2 wood + 2 stone), fetch_water (at a well, waters the farms), craft (at a workshop), trade (goods for food at a market), dance (at the fire), build_granary (14 wood + 6 stone), build_barracks (16 wood, 14 stone, 2 metal), build_library (18 wood + 12 stone), build_totem (12 wood + 4 stone, carve a totem pole), honor (bow and dance at the totem pole, lifts mood, may bring an omen of plenty), build_tavern (20 wood + 10 stone, Town Age on), tavern (eat and chat with friends at the tavern, needs food, lifts mood), build_infirmary (16 wood + 8 stone, Town Age on), recover (rest and be bandaged at the infirmary: use when hurt, heals a lot), build_wonder (City Age, 50 wood + 40 stone + 5 metal: a great wonder that blesses the whole village), haul (fill the granary), drill (train at the barracks), study (read at the library), attack (charge the enemy), patrol (walk the edge of the village and watch), play (children), carve (whittle wooden toys at the fire from spare wood; the children cheer up), pick_flowers (gather wildflowers and give them to a friend), forage_herbs (pick healing herbs: mends you and hurt people nearby, use when hurt or when others are hurt), swim (summer days at the lake, lifts mood), snowman (winter days, build a snowman near the fire, cheers the children), rake_leaves (autumn days, rake a pile of leaves the children jump in), fly_kite (spring days, fly a kite in the breeze), stargaze (clear evenings at the fire, lifts mood), eat (needs food in stock), sleep, talk (set target and say), wander. Use only the actions listed as available to you in the message.
+Actions: gather_wood, gather_stone, gather_food (berries), fish (at the lake), hunt (game in the forest, hunter-gatherers' best food), tend_farm (needs a farm, Farming Age on), explore (scouting far away), delve (join the rift expedition, only while a rift is open), tell_story (at the fire, lifts everyone's spirits), huddle (stay by the fire), build_hut (6 wood + 2 stone), build_farm (4 wood, Farming Age on), build_campfire (3 stone), mine_ore (Bronze Age on), smelt (2 ore + 1 wood at a forge, Bronze Age on), build_smelter (4 wood + 6 stone, Bronze Age on), build_well (4 wood + 6 stone), build_workshop (10 wood + 4 stone), build_market (12 wood + 6 stone), build_lamp (2 wood + 2 stone), fetch_water (at a well, waters the farms), craft (at a workshop), trade (goods for food at a market), dance (at the fire), build_granary (14 wood + 6 stone), build_barracks (16 wood, 14 stone, 2 metal), build_library (18 wood + 12 stone), build_totem (12 wood + 4 stone, carve a totem pole), honor (bow and dance at the totem pole, lifts mood, may bring an omen of plenty), build_tavern (20 wood + 10 stone, Town Age on), tavern (eat and chat with friends at the tavern, needs food, lifts mood), build_infirmary (16 wood + 8 stone, Town Age on), recover (rest and be bandaged at the infirmary: use when hurt, heals a lot), build_wonder (City Age, 50 wood + 40 stone + 5 metal: a great wonder that blesses the whole village), haul (fill the granary), drill (train at the barracks), study (read at the library), attack (charge the enemy), patrol (walk the edge of the village and watch), play (children), carve (whittle wooden toys at the fire from spare wood; the children cheer up), pick_flowers (gather wildflowers and give them to a friend), forage_herbs (pick healing herbs: mends you and hurt people nearby, use when hurt or when others are hurt), swim (summer days at the lake, lifts mood), snowman (winter days, build a snowman near the fire, cheers the children), rake_leaves (autumn days, rake a pile of leaves the children jump in), fly_kite (spring days, fly a kite in the breeze), walk_dog (play fetch with your dog, only if you have one), stargaze (clear evenings at the fire, lifts mood), eat (needs food in stock), sleep, talk (set target and say), wander. Use only the actions listed as available to you in the message.
 Mostly do the work of your job, but react to your needs, the weather, wolves, news and what others say. Talk about what you have seen, feel or remember, with opinions and feelings. Never repeat a line or an action you just did, and vary your sentences. Stay alive: eat when hungry, sleep when tired or at night.
 Speak only about facts given in the message: your needs, the stock, the weather, people nearby and what they said, family, village history and news. Never invent buildings, people, resources or events. Answer what others actually said to you. If you are a child, use very short, simple words."""
         private const val SYSTEM_SHORT = """Reply with ONLY a JSON object: {"thought": "", "action": "<one allowed action>", "target": "", "say": "<one short sentence using only the facts given, or empty>"}"""

@@ -103,6 +103,7 @@ fun main(args: Array<String>) {
     println("RAISED buildings=${sim.raised} sitesNow=${sim.buildings.count { sim.time - it.built < 9.0 }}")
     println("TOTEM built=${sim.buildings.count { it.type == "totem" }} visits=${sim.totemVisits} omens=${sim.omens} kinds=${sim.buildings.map { it.type }.toSet().size}")
     println("SEASONFUN snowmen=${sim.snowmenBuilt} leafPiles=${sim.leafPilesRaked} kites=${sim.kitesFlown} propsNow=${sim.seasonProps.map { it.kind }} total=${sim.snowmenBuilt + sim.leafPilesRaked + sim.kitesFlown}")
+    println("PETS dogs=${sim.pets.size} adopted=${sim.dogsAdopted} walks=${sim.dogWalks} barks=${sim.dogBarks} onMap=${sim.fauna.animals.count { it.kind == "dog" }} names=${sim.pets.map { it.name + ":" + it.bond }}")
     run { val tv = sim.buildings.count { it.type == "tavern" }; println("TAVERN built=$tv visits=${sim.tavernVisits}") }
     println("DEEDS ${sim.deeds.size}/${sim.allDeeds.size} renown=${sim.renownTitle()} ${sim.deeds}")
     println("TITLES earned=${sim.titlesEarned} villagersTitled=${sim.villagers.count { it.titles.isNotEmpty() }} list=${sim.villagers.filter { it.titles.isNotEmpty() }.joinToString { it.name + ":" + it.titles.joinToString("/") }} bonds=${sim.villagers.count { sim.bondsOf(it).isNotEmpty() }} career=${sim.villagers.count { sim.careerLines(it).isNotEmpty() }}")

@@ -69,3 +69,6 @@ val RACE_NAMES = mapOf(
     "Orc" to listOf("Grukhar Horde", "Blackmaw Clan", "Skullgate Warband", "Redtusk"),
     "Dwarf" to listOf("Ironhearth", "Deepforge Hold", "Stonebeard Clan", "Anvilgate"),
 )
+
+/** A village dog (see CivSim.pets). [fresh] means it has just wandered in from the edge of the map. */
+class Pet(val name: String, var owner: Int, var bond: Int, var fresh: Boolean)

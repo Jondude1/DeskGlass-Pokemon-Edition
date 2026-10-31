@@ -47,3 +47,6 @@ After dark villagers carry swaying lanterns that light their path, the moon glit
 
 ## Critter eggs
 Bonded critters that share a type now lay speckled eggs (sometimes golden) on a straw nest in the village. Each wobbles and cracks as it nears hatching, then a new low-level critter bursts out, is named, and bonds with its parent's summoner if they have room. Two new deeds: Warm Nest and Cradle of Critters.
+
+## Village dogs
+Strays wander in from the edge of the map every couple of village days (up to four) and a villager, often a child, takes each one in and names it. Dogs trot after their owner, sit and wag, curl up beside them when they sleep, stand between them and a raider barking, and play fetch (new "walk_dog" action) with a thrown stick while friends and children cheer. Two new deeds: A Dog's Welcome and Good Dog.
