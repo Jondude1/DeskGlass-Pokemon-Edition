@@ -204,6 +204,11 @@ class CivArt {
         'r' to 0xFF3F5E8C.toInt(), 'R' to 0xFF2B4468.toInt(), 'w' to 0xFFE7DCC2.toInt(), 'W' to 0xFFC9B99A.toInt(),
         'd' to 0xFF4A2E1B.toInt(), 'k' to 0xFF9FD3F0.toInt(), 'y' to 0xFFF2D88A.toInt(), 'b' to 0xFF8D909C.toInt(),
     ))
+    val totem = sprite(TOTEM, mapOf(
+        'w' to 0xFFB98A57.toInt(), 'W' to 0xFF8A6238.toInt(), 'r' to 0xFFC0392B.toInt(), 'b' to 0xFF3F7FBF.toInt(),
+        'y' to 0xFFF2D04A.toInt(), 'k' to 0xFF2A1A10.toInt(), 'f' to 0xFF3FA060.toInt(), 'F' to 0xFF2A7A48.toInt(),
+        's' to 0xFF9A9CA6.toInt(), 'S' to 0xFF737580.toInt(),
+    ))
     val tavern = sprite(TAVERN, mapOf(
         'c' to 0xFF6E6E78.toInt(), 'r' to 0xFF8A4A2E.toInt(), 'R' to 0xFF6B3720.toInt(), 'w' to 0xFFEBDDBB.toInt(),
         'W' to 0xFFCDBB92.toInt(), 't' to 0xFF5A3A20.toInt(), 'y' to 0xFFF2D88A.toInt(), 'd' to 0xFF3B2412.toInt(),
@@ -731,6 +736,24 @@ class CivArt {
             ".sSssssssssSs.",
             ".sssssddsssss.",
             ".SSSSSddSSSSS.",
+        )
+        val TOTEM = listOf(
+            "f..yyy..F",
+            "fF.yyy.Ff",
+            ".FfwwwfF.",
+            "..wkwkw..",
+            "..wwrww..",
+            "..wWWWw..",
+            ".bbbbbbb.",
+            "wwwkwkwww",
+            "wwwwywwww",
+            "wwwrrrwww",
+            ".WwwwwwW.",
+            "..wkwkw..",
+            "..wwwww..",
+            "..wWbWw..",
+            ".sssSsSss",
+            "sSSsssSSs",
         )
         val TAVERN = listOf(
             "....cc........",

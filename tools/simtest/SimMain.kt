@@ -100,6 +100,7 @@ fun main(args: Array<String>) {
     println("EGGS laid=${sim.critters.eggsLaid} hatched=${sim.critters.eggsHatched} golden=${sim.critters.goldenHatched} pending=${sim.critters.eggs.count { it.hatchedAt < 0.0 }} critters=${sim.critters.critters.size}")
     println("TOURNEY held=${sim.critters.tourneys} matches=${sim.critters.tourMatches} forfeits=${sim.critters.tourForfeits} champ=${sim.critters.champName} on=${sim.critters.tourOn}")
     println("HEALTH hurtShare=%.2f%% infirmaries=${sim.buildings.count { it.type == "infirmary" }} recoveries=${sim.recoveries}".format(100.0 * hurtSamples / samples.coerceAtLeast(1)))
+    println("TOTEM built=${sim.buildings.count { it.type == "totem" }} visits=${sim.totemVisits} omens=${sim.omens} kinds=${sim.buildings.map { it.type }.toSet().size}")
     run { val tv = sim.buildings.count { it.type == "tavern" }; println("TAVERN built=$tv visits=${sim.tavernVisits}") }
     println("DEEDS ${sim.deeds.size}/${sim.allDeeds.size} renown=${sim.renownTitle()} ${sim.deeds}")
     println("TITLES earned=${sim.titlesEarned} villagersTitled=${sim.villagers.count { it.titles.isNotEmpty() }} list=${sim.villagers.filter { it.titles.isNotEmpty() }.joinToString { it.name + ":" + it.titles.joinToString("/") }} bonds=${sim.villagers.count { sim.bondsOf(it).isNotEmpty() }} career=${sim.villagers.count { sim.careerLines(it).isNotEmpty() }}")

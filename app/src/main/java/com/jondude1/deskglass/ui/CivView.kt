@@ -585,6 +585,7 @@ private fun DrawScope.drawWorld(
                 "barracks" -> art.barracks
                 "library" -> art.library
                 "tavern" -> art.tavern
+                "totem" -> art.totem
                 "infirmary" -> art.infirmary
                 "wonder" -> when (b.era) { 0 -> art.wonderSpire; 1 -> art.wonderFountain; else -> art.wonderBeacon }
                 else -> art.fire[fireFrame]
@@ -678,6 +679,26 @@ private fun DrawScope.drawWorld(
                     }
                     if (kotlin.math.sin(t * 5f + b.y) > 0.8f) drawCircle(Color.White.copy(alpha = 0.7f), radius = ps * 1.2f, center = Offset(cx + w * 0.05f, baseY - hh * 0.2f))
                 }
+            }
+            if (b.type == "totem") {
+                // worshippers make the carved faces glow; a blessing leaves golden motes drifting up
+                val honoring = sim.villagers.count { it.action == "honor" && it.phase == "working" && kotlin.math.hypot(it.x - (b.x + 0.5f), it.y - (b.y + 0.5f)) < 2.5f }
+                val blessed = sim.time < sim.totemBlessUntil
+                if (honoring > 0) {
+                    val pulse = 0.35f + 0.15f * kotlin.math.sin(t * 5f + b.x)
+                    drawCircle(Color(0xFFFFD86B).copy(alpha = pulse), radius = ts * 0.9f, center = Offset(cx, baseY - hh * 0.55f))
+                    drawRect(Color(0xFFFFF2A8), Offset(cx - ps * 1.6f, baseY - hh * 0.7f), Size(ps * 1.2f, ps * 1.2f))
+                    drawRect(Color(0xFFFFF2A8), Offset(cx + ps * 0.6f, baseY - hh * 0.7f), Size(ps * 1.2f, ps * 1.2f))
+                }
+                if (blessed) {
+                    for (k in 0 until 5) {
+                        val ph = (t * 0.4f + k * 0.2f + b.y * 0.13f) % 1f
+                        val mx = cx + kotlin.math.sin(t * 1.5f + k * 1.7f) * ts * 0.7f
+                        val my = baseY - hh * 0.4f - ph * ts * 1.8f
+                        drawRect(Color(0xFFFFE27A).copy(alpha = 1f - ph), Offset(mx, my), Size(ps * 1.1f, ps * 1.1f))
+                    }
+                }
+                if (dark > 0.1f) drawCircle(Color(0xFFFF9A3A).copy(alpha = min(0.18f, dark * 0.3f)), radius = ts * 1.1f, center = Offset(cx, baseY - hh * 0.3f))
             }
             if (b.type == "wonder") {
                 val sh = kotlin.math.sin(t * 2.2f + b.x)
