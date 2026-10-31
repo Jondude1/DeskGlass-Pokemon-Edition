@@ -29,3 +29,6 @@ Type an order in the "Speak to the village" box (attack, defend, hide, gather, b
 
 ## Romance and rivalry
 Adults who talk a lot grow close, court and are married at the hall or campfire (flower arch, petals, banner). Couples have the babies, mourn when one dies, can become best friends with others, and sometimes fall out in feuds that end in a handshake. Friendships now survive saves.
+
+## New critter lines
+Three more three-stage lines roam the wild: the fungus line (Puffcap, Sporecap, Mycelord), the jelly line (Jellipip, Lanternjelly, Aurorajelly) and the digger line (Molekin, Tunnelmole, Drillmaw). The Critterdex now holds 71 species.

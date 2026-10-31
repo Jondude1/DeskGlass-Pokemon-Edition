@@ -50,7 +50,7 @@ class Species(
 
 object Dex {
     const val DUMMY = 0
-    const val COUNT = 62
+    const val COUNT = 71
     const val MAX_LEVEL = 50
 
     // ---- moves ----
@@ -186,6 +186,18 @@ object Dex {
         s(60, "Stormroc", CType.SPARK, CType.GALE, 1, 100, 122, 92, 130, -1, 0, 5, "legend", 0, "A thunderbird whose wingbeats are the first storm of spring."),
         s(61, "Ironwarden", CType.IRON, CType.STONE, 1, 130, 116, 146, 56, -1, 0, 5, "legend", 0, "A colossus of riveted stone that has guarded the old gate for ages."),
         s(62, "Voidwyrm", CType.SHADE, CType.SPIRIT, 1, 118, 130, 98, 112, -1, 0, 5, "legend", 1, "The dragon that sleeps behind every rift. It answers only to the bravest."),
+        // Fungus line: a mushroom pup that grows a vast spotted cap
+        s(63, "Puffcap", CType.LEAF, CType.VENOM, 1, 44, 46, 46, 36, 64, 18, 2, "forest", 0, "A tiny mushroom pup that puffs sleepy spores when startled."),
+        s(64, "Sporecap", CType.LEAF, CType.VENOM, 2, 66, 66, 70, 44, 65, 34, 2, "forest", 0, "Its cap grows wider with every rain and drips glowing spores."),
+        s(65, "Mycelord", CType.LEAF, CType.VENOM, 3, 94, 90, 98, 50, -1, 0, 3, "forest", 0, "A lord of the deep woods whose roots reach every tree in the valley."),
+        // Jelly line: a night-lit drifter of the river
+        s(66, "Jellipip", CType.TIDE, CType.GLOW, 1, 46, 40, 44, 48, 67, 18, 2, "water", 0, "A pale little jelly that blinks pink when it is happy."),
+        s(67, "Lanternjelly", CType.TIDE, CType.GLOW, 2, 68, 58, 66, 62, 68, 34, 2, "water", 0, "A lantern glows in its bell and lures lost fishermen home."),
+        s(68, "Aurorajelly", CType.TIDE, CType.GLOW, 3, 92, 84, 88, 78, -1, 0, 3, "water", 0, "Ribbons of green light trail behind it like the northern lights."),
+        // Digger line: a mole that tunnels under the village and learns to drill
+        s(69, "Molekin", CType.STONE, null, 1, 52, 50, 58, 30, 70, 18, 2, "ore", 0, "A shy mole with a pink nose that sniffs out buried ore."),
+        s(70, "Tunnelmole", CType.STONE, CType.IRON, 2, 76, 74, 90, 38, 71, 34, 2, "ore", 0, "It wears a steel cap and digs tunnels faster than miners."),
+        s(71, "Drillmaw", CType.STONE, CType.IRON, 3, 102, 104, 116, 44, -1, 0, 3, "ore", 0, "A bulky digger with a spinning drill snout that bores through any rock."),
     )
 
     private val dummy = Species(

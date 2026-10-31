@@ -2982,7 +2982,7 @@ class CivSim(
         "Grow to 20 villagers" to (villagers.size >= 20),
         "Raise a barracks and a library" to (count("barracks") > 0 && count("library") > 0),
         "Slay a rift drake" to (bossesSlain >= 1),
-        "Summon a legend" to (critters.legendsOwned() > 0 || critters.caught.any { it >= 57 }),
+        "Summon a legend" to (critters.legendsOwned() > 0 || critters.caught.any { it in 57..62 }),
         "Train a critter to level 40" to critters.critters.any { it.level >= 40 },
     )
 
