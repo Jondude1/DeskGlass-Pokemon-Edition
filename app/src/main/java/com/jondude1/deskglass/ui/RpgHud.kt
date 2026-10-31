@@ -58,6 +58,9 @@ fun RpgHud(sim: CivSim, id: Int, tick: Long, modifier: Modifier = Modifier) {
             verticalArrangement = Arrangement.spacedBy(5.dp),
         ) {
             Text(v.name, color = Color(0xFFFFE9A0), fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            if (v.titles.isNotEmpty()) {
+                Text("★ " + v.titles.joinToString(" · ") { it.removePrefix("the ").replaceFirstChar { c -> c.uppercase() } }, color = Color(0xFFFFD84A), fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 2)
+            }
             Text(
                 (if (sim.isChild(v)) "Child" else v.job) + " · age ${sim.ageYears(v)} · ${sim.mood(v)}",
                 color = Glass.InkDim, fontSize = 11.sp,
@@ -66,6 +69,16 @@ fun RpgHud(sim: CivSim, id: Int, tick: Long, modifier: Modifier = Modifier) {
             StatBar("FOOD", 1f - v.hunger / 100f, Color(0xFFE89A2B))
             StatBar("NRG", v.energy / 100f, Color(0xFF4F9BFF))
             StatBar("JOY", v.happiness / 100f, Color(0xFFFFD84A))
+            val bonds = sim.bondsOf(v)
+            val mate = sim.partnerOf(v)
+            if (mate != null || bonds.isNotEmpty()) {
+                Text(
+                    (if (mate != null) "♥ ${mate.name}  " else "") + bonds.filter { it.first !== mate }.joinToString("  ") { "☺ ${it.first.name}" },
+                    color = Color(0xFFF2A6C4), fontSize = 11.sp, maxLines = 2,
+                )
+            }
+            val career = sim.careerLines(v)
+            if (career.isNotEmpty()) Text(career.take(4).joinToString(" · "), color = Glass.InkFaint, fontSize = 10.sp, maxLines = 2)
         }
         // adventure log, left, above the dialogue box
         val log = v.diary.takeLast(6)

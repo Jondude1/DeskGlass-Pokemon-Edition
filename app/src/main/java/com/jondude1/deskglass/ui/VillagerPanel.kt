@@ -44,6 +44,7 @@ fun VillagerPanel(sim: CivSim, id: Int, tick: Long, modifier: Modifier = Modifie
             (if (sim.isChild(v)) "Child" else v.job) + " · age ${sim.ageYears(v)} · feeling ${sim.mood(v)}",
             color = Glass.InkDim, fontSize = 12.sp,
         )
+        if (v.titles.isNotEmpty()) Text("★ " + v.titles.joinToString(", "), color = Color(0xFFFFD84A), fontSize = 12.sp, fontWeight = FontWeight.Medium)
         if (v.parents.isNotBlank()) Text("child of ${v.parents}", color = Glass.InkFaint, fontSize = 11.sp)
         sim.partnerOf(v)?.let { Text("Married to ${it.name}", color = Color(0xFFF28CB1), fontSize = 12.sp) }
         sim.bestFriendOf(v)?.let { Text("Best friend: ${it.name}", color = Color(0xFF9FD8B0), fontSize = 12.sp) }
@@ -57,6 +58,15 @@ fun VillagerPanel(sim: CivSim, id: Int, tick: Long, modifier: Modifier = Modifie
             color = Glass.InkFaint, fontSize = 11.sp,
         )
         if (v.thought.isNotBlank()) Text("“${v.thought}”", color = Glass.InkDim, fontSize = 12.sp)
+
+        val career = sim.careerLines(v)
+        val bonds = sim.bondsOf(v)
+        if (career.isNotEmpty() || bonds.isNotEmpty()) {
+            Text("CAREER", color = Glass.InkFaint, fontSize = 11.sp, letterSpacing = 2.sp, modifier = Modifier.padding(top = 6.dp))
+            for (line in career) Text(line, color = Glass.InkDim, fontSize = 12.sp)
+            if (bonds.isNotEmpty()) Text("Close to " + bonds.joinToString(", ") { it.first.name }, color = Color(0xFF9FD8B0), fontSize = 12.sp)
+            sim.nextTitleText(v)?.let { Text(it, color = Glass.InkFaint, fontSize = 11.sp) }
+        }
 
         Text("SUMMONING", color = Glass.InkFaint, fontSize = 11.sp, letterSpacing = 2.sp, modifier = Modifier.padding(top = 6.dp))
         when {

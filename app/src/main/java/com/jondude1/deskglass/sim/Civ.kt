@@ -140,6 +140,13 @@ class Villager(val id: Int, val name: String, var job: String, val personaIdx: I
     val said = ArrayList<String>()
     var replyTo: Villager? = null
     var partner = -1
+    /** Lifetime deeds counted for the hero view: slain, rooms, gathered, built, fish, stories, posies, carved. */
+    val st = HashMap<String, Int>()
+    /** Earned epithets, oldest first ("the Wolfbane"). */
+    val titles = ArrayList<String>()
+    fun stat(k: String): Int = st[k] ?: 0
+    fun bump(k: String, n: Int = 1) { st[k] = (st[k] ?: 0) + n }
+    val epithet: String get() = titles.lastOrNull() ?: ""
 
     fun remember(text: String) {
         memories.add(text)
@@ -383,7 +390,7 @@ class CivSim(
         lastBirth = time
         hides = 0
         goods = 0
-        raidsRepelled = 0; ogresSlain = 0; bossesSlain = 0; warlordsSlain = 0; golemsSlain = 0; shamansSlain = 0; foeStats.clear(); lastWarlordAt = -999.0; goldenAt = -1.0; deeds.clear(); babiesBorn = 0; weds = 0; feudsStarted = 0; feudsEnded = 0; bffs.clear(); feudEnds.clear(); courting.clear(); weddingAt = -999.0; nextRelAt = 0.0; deedBannerAt = -999.0; nextDeedAt = 0.0
+        raidsRepelled = 0; ogresSlain = 0; bossesSlain = 0; warlordsSlain = 0; golemsSlain = 0; shamansSlain = 0; foeStats.clear(); lastWarlordAt = -999.0; goldenAt = -1.0; deeds.clear(); babiesBorn = 0; weds = 0; feudsStarted = 0; feudsEnded = 0; bffs.clear(); feudEnds.clear(); courting.clear(); weddingAt = -999.0; nextRelAt = 0.0; deedBannerAt = -999.0; nextDeedAt = 0.0; titlesEarned = 0
         riftState = 0; party.clear(); expeditions = 0; expWins = 0; expRetreats = 0; roomsCleared = 0; relics = 0; deepestRoom = 0; wardensSlain = 0; nextRiftAt = time + DAY_LEN
         nextThreatAt = DAY_LEN * 1.4; lastBossAt = -999.0
         traffic.fill(0f)
@@ -1093,7 +1100,73 @@ class CivSim(
         return false
     }
 
+    private class TitleDef(val stat: String, val need: Int, val title: String, val why: String)
+    private val TITLE_DEFS = listOf(
+        TitleDef("slain", 6, "the Wolfbane", "helped slay 6 foes"),
+        TitleDef("slain", 25, "the Shieldbearer", "stood in 25 victories"),
+        TitleDef("slain", 60, "the Warden", "fought off 60 foes"),
+        TitleDef("rooms", 8, "the Delver", "cleared 8 rift rooms"),
+        TitleDef("rooms", 30, "the Riftwalker", "cleared 30 rift rooms"),
+        TitleDef("gathered", 250, "the Tireless", "gathered 250 loads"),
+        TitleDef("built", 10, "the Builder", "raised 10 buildings"),
+        TitleDef("fish", 60, "the Angler", "landed 60 catches"),
+        TitleDef("stories", 40, "the Taleweaver", "told 40 tales"),
+        TitleDef("posies", 25, "the Kindhearted", "gave 25 posies"),
+        TitleDef("carved", 30, "the Toymaker", "carved 30 toys"),
+    )
+
+    /** What this villager has done so far, in short lines for the hero view. */
+    fun careerLines(v: Villager): List<String> {
+        val out = ArrayList<String>()
+        fun add(k: String, label: String) { if (v.stat(k) > 0) out.add("$label ${v.stat(k)}") }
+        add("slain", "Foes beaten"); add("rooms", "Rift rooms"); add("gathered", "Loads gathered"); add("built", "Built")
+        add("fish", "Fish"); add("stories", "Tales told"); add("posies", "Posies given"); add("carved", "Toys carved")
+        return out
+    }
+
+    /** The next title this villager is working toward, in words, or null. */
+    fun nextTitleText(v: Villager): String? {
+        val d = TITLE_DEFS.filter { it.title !in v.titles }.minByOrNull { (it.need - v.stat(it.stat)).toFloat() / it.need } ?: return null
+        return "Next: ${d.title.removePrefix("the ").replaceFirstChar { c -> c.uppercase() }} (${v.stat(d.stat)}/${d.need})"
+    }
+
+    /** Closest friends first, with how close they are. */
+    fun bondsOf(v: Villager): List<Pair<Villager, Int>> =
+        villagers.filter { it !== v && (v.affinity[it.id] ?: 0) >= 2 }.map { it to (v.affinity[it.id] ?: 0) }.sortedByDescending { it.second }.take(3)
+
+    var titlesEarned = 0
+
+    private fun checkTitles(v: Villager) {
+        for (d in TITLE_DEFS) {
+            if (d.title in v.titles || v.stat(d.stat) < d.need) continue
+            v.titles.add(d.title)
+            titlesEarned++
+            deedBannerAt = time; deedBannerTag = "NEW TITLE"; deedBannerName = "${v.name} ${d.title}"; deedBannerSub = d.why.replaceFirstChar { c -> c.uppercase() }
+            addLog("${v.name} earns the name ${d.title.removePrefix("the ").replaceFirstChar { c -> c.uppercase() }}: ${d.why}.")
+            mark("${v.name} became ${d.title}.")
+            v.remember("was named ${d.title} for having ${d.why}")
+            v.happiness = min(100f, v.happiness + 12f)
+            fx.add(Fx("spawn", v.x, v.y, time, 1.4f))
+            break
+        }
+    }
+
+    private fun creditWork(v: Villager) {
+        if (v.phase != "working") return
+        when {
+            v.action.startsWith("gather_") || v.action == "mine_ore" || v.action == "tend_farm" -> v.bump("gathered", max(1, v.gathered))
+            v.action == "fish" -> v.bump("fish", max(1, v.gathered))
+            v.action.startsWith("build_") -> v.bump("built")
+            v.action == "tell_story" -> v.bump("stories")
+            v.action == "pick_flowers" -> v.bump("posies")
+            v.action == "carve" -> v.bump("carved")
+            else -> return
+        }
+        checkTitles(v)
+    }
+
     private fun finish(v: Villager) {
+        creditWork(v)
         v.action = ""
         v.phase = "idle"
         v.idleFor = 0f
@@ -2377,6 +2450,7 @@ class CivSim(
         if (far.isNotEmpty()) sb.append("Elsewhere: " + far.joinToString(", ") { "${it.name} (${doing(it)})" } + "\n")
         val close = villagers.filter { it !== v && (v.affinity[it.id] ?: 0) >= 2 }.joinToString(", ") { it.name }
         val rivals = villagers.filter { it !== v && (v.affinity[it.id] ?: 0) <= -2 }.joinToString(", ") { it.name }
+        if (v.titles.isNotEmpty()) sb.append("Your earned epithets: " + v.titles.joinToString(", ") + ".\n")
         partnerOf(v)?.let { sb.append("Your partner (spouse) is ${it.name}.\n") }
         bestFriendOf(v)?.let { sb.append("Your best friend is ${it.name}.\n") }
         feudWith(v)?.let { sb.append("You are feuding with ${it.name} right now.\n") }
@@ -2867,6 +2941,7 @@ class CivSim(
                 if (meat + hide > 0) drops.add(Drop(p.kind, p.x, p.y, time, meat, hide))
                 onThreatDown(p)
                 val hero = fighters.maxByOrNull { it.hp }
+                for (f in fighters) { f.bump("slain"); checkTitles(f) }
                 if (hero != null) {
                     hero.happiness = min(100f, hero.happiness + 15f)
                     hero.remember("helped kill a ${p.kind}")
@@ -3051,6 +3126,8 @@ class CivSim(
             Deed("delver", "Into the Rift", "A party cleared a rift.", "+30 stone, +20 wood") { expWins >= 1 },
             Deed("delver3", "Rift Walkers", "Cleared three rift expeditions.", "joy for all") { expWins >= 3 },
             Deed("relic", "Relic Keepers", "Brought home 3 rift relics.", "+40 food, +20 stone") { relics >= 3 },
+            Deed("titled", "A Name Earned", "A villager earned an epithet.", "+20 food") { titlesEarned >= 1 },
+            Deed("titled6", "Village of Legends", "Fifteen epithets earned in the village.", "joy for all") { titlesEarned >= 15 },
             Deed("golden", "Golden Age", "Completed every legacy goal.", "joy for all") { goldenAt >= 0.0 },
         )
     }
@@ -3159,7 +3236,9 @@ class CivSim(
 
     private fun endRift(ok: Boolean, text: String) {
         for (m in partyMembers()) {
+            m.bump("rooms", riftRoomsDone)
             if (m.action == "delve") finish(m)
+            checkTitles(m)
             m.happiness = min(100f, m.happiness + (if (ok) 10f else 2f))
             m.remember(if (ok) "came back alive from the rift with loot" else "was driven out of the rift")
         }
@@ -3624,6 +3703,8 @@ class CivSim(
                         .put("hunger", it.hunger.toDouble()).put("energy", it.energy.toDouble())
                         .put("hp", it.hp.toDouble())
                         .put("born", it.born).put("life", it.lifespan).put("par", it.parents).put("partner", it.partner)
+                        .put("st", it.st.entries.filter { e -> e.value != 0 }.joinToString(",") { e -> "${e.key}:${e.value}" })
+                        .put("titles", it.titles.joinToString("|"))
                         .put("aff", it.affinity.entries.filter { e -> e.value != 0 }.joinToString(",") { e -> "${e.key}:${e.value.coerceIn(-20, 40)}" })
                 )
             }
@@ -3704,6 +3785,12 @@ class CivSim(
                 v.born = j.optDouble("born", time - (16 + rnd.nextInt(15) + rnd.nextFloat()) * YEAR)
                 v.parents = j.optString("par", "")
                 v.partner = j.optInt("partner", -1)
+                j.optString("st", "").split(",").forEach { pr ->
+                    val kv = pr.split(":")
+                    val n = if (kv.size == 2) kv[1].toIntOrNull() else null
+                    if (n != null) v.st[kv[0]] = n
+                }
+                j.optString("titles", "").split("|").filter { it.isNotBlank() }.forEach { v.titles.add(it) }
                 j.optString("aff", "").split(",").forEach { pr ->
                     val kv = pr.split(":")
                     if (kv.size == 2) { val k = kv[0].toIntOrNull(); val a = kv[1].toIntOrNull(); if (k != null && a != null) v.affinity[k] = a }
@@ -3729,6 +3816,7 @@ class CivSim(
             if (tr.length == traffic.size) for (i in traffic.indices) traffic[i] = (tr[i] - '0') * 4f
             critters.fromJson(o.optJSONObject("critters"), shx, shy)
             drops.clear()
+            titlesEarned = villagers.sumOf { it.titles.size }
             rels.clear()
             rnd = Random(seed xor time.toLong())
             villagers.isNotEmpty()

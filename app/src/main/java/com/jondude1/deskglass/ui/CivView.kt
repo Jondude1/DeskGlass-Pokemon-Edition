@@ -1172,7 +1172,7 @@ private fun DrawScope.drawWorld(
             if (labels) {
                 namePaint.textSize = ts * 0.34f
                 namePaint.textAlign = Paint.Align.CENTER
-                nc.drawText(v.name, cx, oy + (v.y + 0.45f) * ts + ts * 0.42f, namePaint)
+                nc.drawText(if (v.titles.isNotEmpty()) "★ " + v.name else v.name, cx, oy + (v.y + 0.45f) * ts + ts * 0.42f, namePaint)
             }
             if (v.say.isNotEmpty()) {
                 textPaint.textSize = ts * 0.36f
@@ -1384,7 +1384,7 @@ fun VillageScreen(vm: MainViewModel, fullscreen: Boolean, onFullscreen: (Boolean
                     for (v in sim.villagers) {
                         Column {
                             Text(
-                                (if (sim.isChild(v)) "${v.name}, child (${sim.ageYears(v)})" else "${v.name} the ${v.job.lowercase()} (${sim.ageYears(v)})") +
+                                (if (sim.isChild(v)) "${v.name}, child (${sim.ageYears(v)})" else "${v.name} the ${v.job.lowercase()}${if (v.titles.isNotEmpty()) ", " + v.epithet else ""} (${sim.ageYears(v)})") +
                                     " · ${if (v.action.isEmpty()) "thinking" else v.action.replace('_', ' ')}",
                                 color = Glass.Ink, fontSize = 16.sp, fontWeight = FontWeight.Medium,
                             )
