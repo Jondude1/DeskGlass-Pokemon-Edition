@@ -35,3 +35,6 @@ Three more three-stage lines roam the wild: the fungus line (Puffcap, Sporecap, 
 
 ## Rift expeditions
 Every couple of village days a violet rift opens beyond the village. A party of up to four (fighters and critter owners first) marches in, fights through four rooms (gloomwebs, shard crawlers, echo wraiths, the Rift Warden) and either comes home with loot, scrolls and a relic or is driven back wounded. Pips over the rift show progress; three new deeds and a panel line track the results.
+
+## Wild life
+The land now has foxes that stalk and catch rabbits, squirrels and hedgehogs (asleep in winter), dragonflies by the water in summer, fish leaping in the ponds, geese flying in a V in spring and autumn, and at dusk fireflies, bats and owls. Two new deeds: Friend of the Wild and Red Hunter.

@@ -3119,6 +3119,8 @@ class CivSim(
             Deed("weds3", "Hearth and Home", "Three weddings held in the village.", "joy for all") { weds >= 3 },
             Deed("bff", "Fast Friends", "Two villagers became best friends.", "+10 food, +10 wood") { bffs.isNotEmpty() },
             Deed("bow", "First Bond", "Befriended a critter.", "+10 food") { critters.critters.isNotEmpty() },
+            Deed("naturalist", "Friend of the Wild", "Seen twelve kinds of wild creature.", "+20 food") { fauna.kindsSeen.size >= 12 },
+            Deed("foxhunt", "Red Hunter", "Watched a fox catch its supper.", "+10 food") { (fauna.seen["fox catch"] ?: 0) >= 1 },
             Deed("zoo", "Critter Keepers", "Own 10 critters.", "+20 food") { critters.critters.size >= 10 },
             Deed("dex", "Field Naturalists", "Caught 15 species.", "+30 food") { critters.caught.size >= 15 },
             Deed("level", "Trainer's Pride", "A critter reached level 25.", "joy for all") { critters.critters.any { it.level >= 25 } },

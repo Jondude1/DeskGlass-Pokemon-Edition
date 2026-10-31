@@ -618,7 +618,7 @@ fun DrawScope.drawFauna(sim: CivSim, art: CivArt, g: Geo) {
                 withTransform({ scale(dir, 1f, Offset(px, py)) }) { img(sp, px - w / 2f, py - h + bob, w, h) }
             }
             "frog" -> {
-                if (!vis) continue
+                if (!vis || sim.seasonIdx() == 3) continue
                 val jump = if (a.moving) sin(((t * 5f + a.id) % 1f) * PI.toFloat()) * ps * 3f else 0f
                 drawOval(Color.Black.copy(alpha = 0.2f), Offset(px - ps * 2f, py - ps * 0.5f), Size(ps * 4f, ps * 1.2f))
                 drawRect(Color(0xFF3E9E4A), Offset(px - ps * 1.8f, py - ps * 2.2f - jump), Size(ps * 3.6f, ps * 2f))
@@ -626,7 +626,7 @@ fun DrawScope.drawFauna(sim: CivSim, art: CivArt, g: Geo) {
                 drawRect(Color.White, Offset(px + dir * ps * 0.8f - ps * 0.4f, py - ps * 2.8f - jump), Size(ps * 0.9f, ps * 0.9f))
             }
             "butterfly" -> {
-                if (g.dark > 0.35f || sim.raining()) continue
+                if (g.dark > 0.35f || sim.raining() || sim.seasonIdx() == 3) continue
                 val flap = abs(sin(t * 14f + a.id)) * ps * 1.6f
                 val lift = a.alt * ts * 0.5f + sin(t * 2f + a.id) * ps * 1.2f
                 val c = when (a.id % 4) {
@@ -640,6 +640,115 @@ fun DrawScope.drawFauna(sim: CivSim, art: CivArt, g: Geo) {
                 drawRect(c, Offset(bx - flap - ps * 0.4f, by - ps * 1.2f), Size(flap + ps * 0.5f, ps * 1.8f))
                 drawRect(c, Offset(bx - ps * 0.1f, by - ps * 1.2f), Size(flap + ps * 0.5f, ps * 1.8f))
                 drawRect(Color(0xFF3A2A1A), Offset(bx - ps * 0.3f, by - ps * 1.3f), Size(ps * 0.6f, ps * 2f))
+            }
+            "fox" -> {
+                val run = a.moving && a.target != 0
+                val body = Color(0xFFD9701F)
+                val w = ps * 9f
+                val h = ps * 4.5f
+                val stretch = if (run) 1.15f else 1f
+                drawOval(Color.Black.copy(alpha = 0.22f), Offset(px - w * 0.5f, py - ps * 0.9f), Size(w, ps * 2f))
+                withTransform({ scale(dir, 1f, Offset(px, py)) }) {
+                    val bob = if (a.moving) abs(sin(t * (if (run) 12f else 7f) + a.id)) * ps * 0.6f else 0f
+                    // body, tail (white tip), head with ears and a dark snout
+                    drawRect(body, Offset(px - w * 0.35f * stretch, py - h * 0.85f - bob), Size(w * 0.62f * stretch, h * 0.5f))
+                    drawRect(Color(0xFFF2E7D5), Offset(px - w * 0.25f, py - h * 0.5f - bob), Size(w * 0.42f, h * 0.2f))
+                    drawRect(body, Offset(px - w * 0.62f * stretch, py - h * 0.9f - bob), Size(w * 0.3f, h * 0.38f))
+                    drawRect(Color(0xFFF7F3EA), Offset(px - w * 0.74f * stretch, py - h * 0.95f - bob), Size(w * 0.14f, h * 0.22f))
+                    drawRect(body, Offset(px + w * 0.2f, py - h * 0.75f - bob), Size(w * 0.18f, h * 0.18f))
+                    drawRect(body, Offset(px + w * 0.2f + ps, py - h * 1.0f - bob), Size(w * 0.18f, h * 0.18f))
+                    drawRect(Color(0xFF3A2416), Offset(px + w * 0.17f, py - h * 0.78f - bob), Size(w * 0.12f, h * 0.14f))
+                    drawRect(Color(0xFFF7F3EA), Offset(px + w * 0.33f, py - h * 0.85f - bob), Size(w * 0.14f, h * 0.2f))
+                    drawRect(Color(0xFF3A2416), Offset(px - w * 0.3f, py - h * 0.35f - bob), Size(ps * 1.1f, h * 0.35f))
+                    drawRect(Color(0xFF3A2416), Offset(px + w * 0.05f, py - h * 0.35f + (if (a.moving) ps * 0.5f else 0f) - bob), Size(ps * 1.1f, h * 0.35f))
+                }
+            }
+            "squirrel" -> {
+                if (sim.seasonIdx() == 3 || (!vis && !a.moving)) continue
+                val hop = if (a.moving) abs(sin(t * 10f + a.id)) * ps * 1.4f else 0f
+                drawOval(Color.Black.copy(alpha = 0.2f), Offset(px - ps * 2f, py - ps * 0.5f), Size(ps * 4f, ps * 1.1f))
+                withTransform({ scale(dir, 1f, Offset(px, py)) }) {
+                    drawRect(Color(0xFFA0602E), Offset(px - ps * 2.6f, py - ps * 4.8f - hop), Size(ps * 1.8f, ps * 3.6f))
+                    drawRect(Color(0xFFC08040), Offset(px - ps * 2.2f, py - ps * 5.6f - hop), Size(ps * 1.4f, ps * 1.4f))
+                    drawRect(Color(0xFFA0602E), Offset(px - ps * 1.0f, py - ps * 3.2f - hop), Size(ps * 3.0f, ps * 2.0f))
+                    drawRect(Color(0xFFA0602E), Offset(px + ps * 1.4f, py - ps * 3.9f - hop), Size(ps * 1.6f, ps * 1.7f))
+                    drawRect(Color(0xFFE8D6B0), Offset(px + ps * 2.2f, py - ps * 3.5f - hop), Size(ps * 0.8f, ps * 0.8f))
+                    drawRect(Color(0xFF201410), Offset(px + ps * 2.4f, py - ps * 3.6f - hop), Size(ps * 0.5f, ps * 0.5f))
+                }
+            }
+            "hedgehog" -> {
+                if (!vis && !a.moving) continue
+                val curled = a.flee > 0f
+                drawOval(Color.Black.copy(alpha = 0.2f), Offset(px - ps * 2.6f, py - ps * 0.5f), Size(ps * 5.2f, ps * 1.2f))
+                withTransform({ scale(dir, 1f, Offset(px, py)) }) {
+                    drawOval(Color(0xFF5A4630), Offset(px - ps * 2.6f, py - ps * (if (curled) 4.6f else 3.6f)), Size(ps * 5.2f, ps * (if (curled) 4.2f else 3.2f)))
+                    for (k in 0 until 5) drawRect(Color(0xFF3A2C1C), Offset(px - ps * 2.2f + k * ps * 1.0f, py - ps * (if (curled) 5.0f else 4.0f)), Size(ps * 0.7f, ps * 1.0f))
+                    if (!curled) {
+                        drawRect(Color(0xFFD8B890), Offset(px + ps * 2.0f, py - ps * 2.4f), Size(ps * 1.6f, ps * 1.5f))
+                        drawRect(Color(0xFF201410), Offset(px + ps * 3.2f, py - ps * 2.0f), Size(ps * 0.6f, ps * 0.6f))
+                    }
+                }
+            }
+            "dragonfly" -> {
+                if (g.dark > 0.4f || sim.raining()) continue
+                val lift = a.alt * ts * 0.5f + sin(t * 3f + a.id) * ps
+                val hv = abs(sin(t * 30f + a.id)) * ps * 1.2f
+                val c = if (a.id % 2 == 0) Color(0xFF39C6C0) else Color(0xFFE2503A)
+                drawRect(c, Offset(px - ps * 2.2f * dir - ps * 0.4f, py - lift - ps * 0.5f), Size(ps * 4.4f, ps * 0.9f))
+                drawRect(Color.White.copy(alpha = 0.55f), Offset(px - ps * 0.8f, py - lift - ps * 0.9f - hv), Size(ps * 1.6f, ps * 0.5f + hv))
+                drawRect(Color.White.copy(alpha = 0.55f), Offset(px - ps * 0.8f, py - lift + ps * 0.4f), Size(ps * 1.6f, ps * 0.5f + hv))
+            }
+            "fish" -> {
+                // a quick silver leap out of the water with a ring where it lands
+                val ph = (1f - a.life / 1.1f).coerceIn(0f, 1f)
+                val arc = sin(ph * PI.toFloat()) * ts * 0.9f
+                val ring = ph * ps * 6f
+                drawOval(Color.White.copy(alpha = 0.5f * (1f - ph)), Offset(px - ring, py - ring * 0.4f), Size(ring * 2f, ring * 0.8f), style = Stroke(width = ps * 0.7f))
+                if (ph in 0.12f..0.88f) {
+                    val tilt = (ph - 0.5f) * ps * 3f
+                    drawOval(Color(0xFF9FC4DD), Offset(px - ps * 2f, py - arc - ps * 1.2f + tilt), Size(ps * 4f, ps * 2f))
+                    drawRect(Color(0xFFE8F2F8), Offset(px - ps * 1.4f, py - arc - ps * 0.4f + tilt), Size(ps * 2.6f, ps * 0.6f))
+                    drawRect(Color(0xFF7AA6C2), Offset(px - dir * ps * 2.8f - ps * 0.5f, py - arc - ps * 1.4f + tilt), Size(ps * 1.2f, ps * 1.8f))
+                }
+            }
+            "firefly" -> {
+                if (g.dark < 0.08f) continue
+                val glow = (0.5f + 0.5f * sin(t * 2.6f + a.id * 1.7f)).coerceIn(0f, 1f)
+                val fy = py - a.alt * ts * 0.6f + sin(t * 1.5f + a.id) * ps
+                drawCircle(Color(0xFFE8FF70).copy(alpha = 0.18f * glow), ps * 4.5f, Offset(px, fy))
+                drawCircle(Color(0xFFF6FFB0).copy(alpha = 0.35f + 0.5f * glow), ps * 1.4f, Offset(px, fy))
+            }
+            "owl" -> {
+                val lift = a.alt * ts * 0.6f
+                val flap = sin(t * 4f + a.id)
+                drawOval(Color.Black.copy(alpha = 0.12f), Offset(px - ps * 2.5f, py - ps * 0.6f), Size(ps * 5f, ps * 1.2f))
+                val by = py - lift
+                val col = Color(0xFF6E5A44)
+                drawLine(col, Offset(px - ps * 3.6f, by + flap * ps * 1.4f), Offset(px, by), strokeWidth = ps * 1.6f)
+                drawLine(col, Offset(px + ps * 3.6f, by + flap * ps * 1.4f), Offset(px, by), strokeWidth = ps * 1.6f)
+                drawRect(Color(0xFF8A7358), Offset(px - ps * 1.1f, by - ps * 1.4f), Size(ps * 2.2f, ps * 2.6f))
+                drawRect(Color(0xFFFFE27A), Offset(px - ps * 0.9f, by - ps * 1.0f), Size(ps * 0.7f, ps * 0.7f))
+                drawRect(Color(0xFFFFE27A), Offset(px + ps * 0.2f, by - ps * 1.0f), Size(ps * 0.7f, ps * 0.7f))
+            }
+            "bat" -> {
+                val lift = a.alt * ts * 0.6f + sin(t * 2f + a.id) * ps
+                val flap = sin(t * 16f + a.id)
+                val by = py - lift
+                val col = Color(0xFF1C1626)
+                drawLine(col, Offset(px - ps * 2.6f, by - flap * ps * 1.4f), Offset(px, by), strokeWidth = ps * 1.0f)
+                drawLine(col, Offset(px + ps * 2.6f, by - flap * ps * 1.4f), Offset(px, by), strokeWidth = ps * 1.0f)
+                drawRect(col, Offset(px - ps * 0.6f, by - ps * 0.8f), Size(ps * 1.2f, ps * 1.6f))
+            }
+            "goose" -> {
+                val lift = a.alt * ts
+                val flap = sin(t * 6f + a.id)
+                val by = py - lift
+                val col = Color(0xFFEDEBE4)
+                drawOval(Color.Black.copy(alpha = 0.1f), Offset(px - ps * 2.5f, py - ps * 0.6f), Size(ps * 5f, ps * 1.2f))
+                drawLine(col, Offset(px - ps * 3.8f, by + flap * ps * 2.2f), Offset(px, by), strokeWidth = ps * 1.2f)
+                drawLine(col, Offset(px + ps * 3.8f, by + flap * ps * 2.2f), Offset(px, by), strokeWidth = ps * 1.2f)
+                drawRect(Color(0xFF8A8F99), Offset(px - ps * 1.3f, by - ps * 0.4f), Size(ps * 2.6f, ps * 1.4f))
+                drawRect(Color(0xFF2E2E3A), Offset(px + dir * ps * 1.4f - ps * 0.5f, by - ps * 0.9f), Size(ps * 1.2f, ps * 0.9f))
             }
             "bird" -> {
                 val lift = a.alt * ts
