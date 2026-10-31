@@ -41,3 +41,6 @@ The land now has foxes that stalk and catch rabbits, squirrels and hedgehogs (as
 
 ## Grand tournament
 Every few village days the best critter owners meet in a sand ring with pennants and a cheering crowd: semi-finals, then a final. The champion is crowned (a gold crown shows over their head), their critter gains levels, the village feasts, and winners earn the titles Champion and Grandmaster plus two new deeds.
+
+## Night and dawn visuals
+After dark villagers carry swaying lanterns that light their path, the moon glitters on lakes and ponds, clear winter nights show green, blue and violet aurora ribbons, shooting stars streak across the sky every few seconds, and a low morning mist drifts over the land at dawn.

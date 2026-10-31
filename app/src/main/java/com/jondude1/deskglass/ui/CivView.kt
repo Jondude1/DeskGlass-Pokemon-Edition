@@ -1015,6 +1015,9 @@ private fun DrawScope.drawWorld(
                     light(ox + (hm[0] + 0.5f) * ts, oy + (hm[1] + 0.5f) * ts, ts * 1.8f, 0.5f)
                 }
             }
+            for (v in sim.villagers) {
+                if (carriesLantern(v, dark)) light(ox + (v.x + 0.3f) * ts, oy + (v.y - 0.35f) * ts, ts * 1.7f, 0.5f)
+            }
             art.lightPaint.shader = null
             nc.restoreToCount(layer)
         }
@@ -1058,6 +1061,8 @@ private fun DrawScope.drawWorld(
             drawCircle(Color(0xFFF8FFB0).copy(alpha = 0.9f * tw * (dark / 0.55f)), radius = ts * 0.06f, center = Offset(fx, fy))
         }
     }
+
+    nightMagic(sim, geo)
 
     // seasons turn with the village's own days: blossoms, warm light, falling leaves, snow
     val season = sim.seasonIdx()
