@@ -363,6 +363,7 @@ private fun DrawScope.drawFighter(e: Enc, side: Int, sp: Int, p: Pose, cart: Cri
 /** Everything drawn over the villagers: move effects, rituals, bindings, glyph spells, ground rings and HP bars. */
 fun DrawScope.drawCritterEffects(sim: CivSim, cart: CritterArt, g: Geo) {
     val cw = sim.critters
+    for (egg in cw.eggs.toList()) eggFx(sim, egg, g)
     for (e in cw.encounters.toList()) {
         if (e.state == "walk") continue
         if (e.kind == "spar" && e.tour) arenaFx(e, g)
@@ -385,6 +386,58 @@ fun DrawScope.drawCritterEffects(sim: CivSim, cart: CritterArt, g: Geo) {
     if (cw.champUntil > sim.time) {
         val champ = sim.villagers.firstOrNull { it.id == cw.champId }
         if (champ != null) crownFx(g.ox + champ.x * g.ts, g.oy + (champ.y + 0.45f) * g.ts - g.ts * 1.35f, g)
+    }
+}
+
+/** A critter egg: speckled in its line's colour, a soft nest of straw, wobbling as it nears hatching, shell halves and sparks when it cracks. */
+private fun DrawScope.eggFx(sim: CivSim, egg: com.jondude1.deskglass.sim.Egg, g: Geo) {
+    val ps = g.ps
+    val ts = g.ts
+    val cx = g.ox + egg.x * ts
+    val base = g.oy + (egg.y + 0.45f) * ts
+    val tc = typeColor(Dex.byId(egg.sp).t1)
+    val shell = if (egg.golden) Color(0xFFF6D365) else Color(0xFFF3EBDD)
+    val shade = if (egg.golden) Color(0xFFD9A520) else Color(0xFFD5C7AE)
+    if (egg.hatchedAt >= 0.0) {
+        val p = ((sim.time - egg.hatchedAt) / 2.6).toFloat().coerceIn(0f, 1f)
+        if (p >= 1f) return
+        val a = 1f - p
+        // two shell halves tip apart
+        drawRect(shell.copy(alpha = a), Offset(cx - ps * 3.6f - p * ps * 2f, base - ps * 3f), Size(ps * 3f, ps * 3f))
+        drawRect(shell.copy(alpha = a), Offset(cx + ps * 0.6f + p * ps * 2f, base - ps * 3f), Size(ps * 3f, ps * 3f))
+        drawRect(shade.copy(alpha = a), Offset(cx - ps * 3.6f - p * ps * 2f, base - ps * 0.8f), Size(ps * 3f, ps * 0.8f))
+        drawRect(shade.copy(alpha = a), Offset(cx + ps * 0.6f + p * ps * 2f, base - ps * 0.8f), Size(ps * 3f, ps * 0.8f))
+        drawCircle(Color.White.copy(alpha = 0.55f * a), ts * (0.3f + p * 0.9f), Offset(cx, base - ps * 3f))
+        sparks(cx, base - ps * 3f, p, if (egg.golden) Color(0xFFFFE066) else tc, 12, ts * 1.1f, ps, 97)
+        return
+    }
+    val total = (egg.hatchAt - egg.laid).toFloat().coerceAtLeast(1f)
+    val prog = ((sim.time - egg.laid).toFloat() / total).coerceIn(0f, 1f)
+    // straw nest
+    val straw = Color(0xFFC9A24E)
+    drawOval(Color(0xFF3A2A12).copy(alpha = 0.25f), Offset(cx - ps * 5f, base - ps * 1.2f), Size(ps * 10f, ps * 2.6f))
+    drawRect(straw, Offset(cx - ps * 4f, base - ps * 1.4f), Size(ps * 8f, ps * 1.4f))
+    drawRect(straw.copy(alpha = 0.8f), Offset(cx - ps * 3f, base - ps * 2.2f), Size(ps * 1.2f, ps * 1.0f))
+    drawRect(straw.copy(alpha = 0.8f), Offset(cx + ps * 1.8f, base - ps * 2.2f), Size(ps * 1.2f, ps * 1.0f))
+    // wobble grows as hatching nears
+    val wob = if (prog > 0.75f) sin(g.t * (10f + 14f * prog)) * (prog - 0.75f) * 4f * ps else 0f
+    val ex = cx + wob
+    val top = base - ps * 7.4f
+    drawOval(shade, Offset(ex - ps * 2.8f, top), Size(ps * 5.6f, ps * 7.2f))
+    drawOval(shell, Offset(ex - ps * 2.5f, top + ps * 0.1f), Size(ps * 5.0f, ps * 6.6f))
+    drawRect(tc.copy(alpha = 0.85f), Offset(ex - ps * 1.4f, top + ps * 2.4f), Size(ps * 1.1f, ps * 1.1f))
+    drawRect(tc.copy(alpha = 0.85f), Offset(ex + ps * 0.6f, top + ps * 3.8f), Size(ps * 1.1f, ps * 1.1f))
+    drawRect(tc.copy(alpha = 0.85f), Offset(ex - ps * 0.4f, top + ps * 5.0f), Size(ps * 1.1f, ps * 1.1f))
+    drawRect(Color.White.copy(alpha = 0.7f), Offset(ex - ps * 1.8f, top + ps * 1.2f), Size(ps * 0.9f, ps * 1.3f))
+    if (prog > 0.85f) {
+        // cracks
+        drawRect(Color(0xFF6B5A3A), Offset(ex - ps * 0.2f, top + ps * 1.0f), Size(ps * 0.6f, ps * 1.6f))
+        drawRect(Color(0xFF6B5A3A), Offset(ex + ps * 0.4f, top + ps * 2.4f), Size(ps * 0.6f, ps * 1.2f))
+    }
+    if (egg.golden) {
+        val tw = sin(g.t * 4f + egg.x) * 0.5f + 0.5f
+        drawRect(Color.White.copy(alpha = 0.3f + 0.6f * tw), Offset(ex + ps * 3f, top + ps * 0.5f + tw * ps * 2f), Size(ps, ps))
+        drawRect(Color.White.copy(alpha = 0.9f - 0.6f * tw), Offset(ex - ps * 4f, top + ps * 3.5f - tw * ps * 2f), Size(ps, ps))
     }
 }
 

@@ -46,6 +46,13 @@ class Mage(var talent: Boolean, var lv: Int = 1) {
 /** A critter being infused into its summoner ("in") or called out of the pack ("out"), played out on screen. */
 class Swap(val kind: String, val sp: Int, val x: Float, val y: Float, val owner: Int, val born: Double)
 
+/** A critter egg laid by two bonded critters that share a type. It sits in the village, wobbles near the end and hatches. */
+class Egg(val sp: Int, var x: Float, var y: Float, val laid: Double, val hatchAt: Double, val owner: Int, val golden: Boolean) {
+    /** Set when it cracks open; the shell stays on screen a moment for the burst. */
+    var hatchedAt = -1.0
+    var parents = ""
+}
+
 /** A bit of floating text: damage, XP, what a helper brought home. */
 class Pop(val x: Float, val y: Float, val text: String, val color: Long, val born: Double, val life: Float = 1.6f)
 
@@ -128,6 +135,11 @@ class CritterWorld(private val sim: CivSim) {
     val bodies = HashMap<Int, Body>()
     val mages = HashMap<Int, Mage>()
     val swaps = ArrayList<Swap>()
+    val eggs = ArrayList<Egg>()
+    var eggsLaid = 0
+    var eggsHatched = 0
+    var goldenHatched = 0
+    private var nextEggAt = -1.0
 
     /** Scrolls in the village's keeping: common, fine, rare. */
     val scrolls = intArrayOf(1, 0, 0)
@@ -279,6 +291,7 @@ class CritterWorld(private val sim: CivSim) {
         summonReady.clear()
         mages.clear()
         swaps.clear()
+        eggs.clear(); eggsLaid = 0; eggsHatched = 0; goldenHatched = 0; nextEggAt = -1.0
         errands.clear()
         lessonReady.clear()
         scribeReady.clear()
@@ -416,6 +429,7 @@ class CritterWorld(private val sim: CivSim) {
             keptTick(dt)
             triggerTick(dt)
             tourTick()
+            eggTick()
             for (e in encounters.toList()) encTick(e, dt)
             evoTick()
             pops.removeAll { sim.time - it.born > it.life }
@@ -555,6 +569,77 @@ class CritterWorld(private val sim: CivSim) {
         sim.fx.add(Fx("spawn", w.x, w.y, sim.time, 1.6f))
         sim.note("${w.name} and ${c?.name ?: "their critter"} win the grand tournament.")
         sim.mark("${w.name} won the grand tournament.")
+    }
+
+    // ---- critter eggs ----
+
+    private fun shareType(a: Critter, b: Critter): Boolean =
+        a.species.types.any { it in b.species.types }
+
+    private fun eggTick() {
+        // shells fade after the burst
+        eggs.removeAll { it.hatchedAt >= 0.0 && sim.time - it.hatchedAt > 2.6 }
+        for (e in eggs.toList()) {
+            if (e.hatchedAt < 0.0 && sim.time >= e.hatchAt) hatchEgg(e)
+        }
+        if (nextEggAt < 0.0) nextEggAt = sim.time + DAY_LEN * 1.0
+        if (sim.time < nextEggAt) return
+        nextEggAt = sim.time + DAY_LEN * (0.6 + rnd.nextFloat() * 0.6f)
+        if (eggs.count { it.hatchedAt < 0.0 } >= 4) return
+        if (critters.size >= maxKept() - 1) return
+        val pool = critters.filter { it.level >= 5 && it.species.rarity < 5 && it.faintedUntil <= 0.0 && !inEncounter(it) && evolving(it) == null }
+        if (pool.size < 2) return
+        val shuffled = pool.shuffled(rnd)
+        for (a in shuffled) {
+            val b = shuffled.firstOrNull { it.uid != a.uid && shareType(a, it) } ?: continue
+            val line = Dex.lineOf(if (rnd.nextBoolean()) a.sp else b.sp)
+            val base = line.firstOrNull() ?: continue
+            if (base.rarity >= 5) continue
+            val ba = bodyFor(a)
+            var ex = ba.x + (rnd.nextFloat() - 0.5f) * 1.6f
+            var ey = ba.y + 0.6f
+            if (!walkable(ex.toInt(), ey.toInt())) { ex = ba.x; ey = ba.y }
+            val golden = rnd.nextFloat() < 0.15f
+            val ownerId = if (a.owner >= 0) a.owner else b.owner
+            val egg = Egg(base.id, ex, ey, sim.time, sim.time + DAY_LEN * (0.45 + rnd.nextFloat() * 0.25), ownerId, golden)
+            egg.parents = a.name + " and " + b.name
+            eggs.add(egg)
+            eggsLaid++
+            sim.note("${egg.parents} left a " + (if (golden) "shimmering golden " else "speckled ") + "egg in the village.")
+            if (eggsLaid == 1) sim.mark("The first critter egg was laid by ${egg.parents}.")
+            pop(ex, ey - 0.8f, "an egg!", 0xFFFFE9A8)
+            return
+        }
+    }
+
+    private fun hatchEgg(e: Egg) {
+        e.hatchedAt = sim.time
+        val c = Critter(nextUid++, e.sp, 1 + rnd.nextInt(3) + if (e.golden) 3 else 0)
+        c.heal()
+        c.bond = if (e.golden) 10 else 3
+        c.nick = freshName()
+        val owner = vById(e.owner)
+        val team = if (owner != null) critters.count { it.owner == owner.id } else MAX_TEAM
+        if (owner != null && team < MAX_TEAM) {
+            c.owner = owner.id
+            if (companionOf(owner) == null) c.companion = true
+        }
+        critters.add(c)
+        val b = bodyFor(c)
+        b.x = e.x; b.y = e.y; b.tx = e.x; b.ty = e.y
+        caught.add(e.sp); seen.add(e.sp)
+        eggsHatched++
+        if (e.golden) goldenHatched++
+        pop(e.x, e.y - 0.9f, "hatched!", 0xFFFFE9A8)
+        val sp = Dex.byId(e.sp)
+        sim.note("The egg of ${e.parents} hatched: a Lv ${c.level} ${sp.name}" + (if (c.owner >= 0) ", named ${c.nick} and bonded to ${owner?.name}." else ", named ${c.nick}, who stays on in the village."))
+        if (c.owner >= 0 && owner != null) {
+            owner.happiness = min(100f, owner.happiness + 10f)
+            owner.say = "${c.nick} is out of the egg!"
+            owner.sayLeft = 4f
+            owner.remember("saw ${c.nick} the ${sp.name} hatch")
+        }
+        for (v in sim.villagers) v.happiness = min(100f, v.happiness + 2f)
     }
 
     // ---- wild critters ----
@@ -1998,6 +2083,13 @@ class CritterWorld(private val sim: CivSim) {
             )
         }
         o.put("critters", arr)
+        val ea = JSONArray()
+        for (e in eggs) {
+            if (e.hatchedAt >= 0.0) continue
+            ea.put(JSONObject().put("sp", e.sp).put("x", e.x.toDouble()).put("y", e.y.toDouble()).put("laid", e.laid).put("at", e.hatchAt).put("own", e.owner).put("g", e.golden).put("par", e.parents))
+        }
+        o.put("eggs", ea)
+        o.put("eggN", eggsLaid).put("eggH", eggsHatched).put("eggG", goldenHatched)
         o.put("seen", JSONArray(seen.toList()))
         o.put("caught", JSONArray(caught.toList()))
         return o
@@ -2047,6 +2139,17 @@ class CritterWorld(private val sim: CivSim) {
                     if (c.owner >= 0 && c.nick.isBlank()) c.nick = freshName()
                     critters.add(c)
                     nextUid = max(nextUid, c.uid + 1)
+                }
+            }
+            eggsLaid = o.optInt("eggN", 0); eggsHatched = o.optInt("eggH", 0); goldenHatched = o.optInt("eggG", 0)
+            o.optJSONArray("eggs")?.let { ea ->
+                for (i in 0 until ea.length()) {
+                    val j = ea.getJSONObject(i)
+                    val sp = j.optInt("sp", 0)
+                    if (sp !in 1..Dex.COUNT) continue
+                    val eg = Egg(sp, j.optDouble("x", 0.0).toFloat() + shx, j.optDouble("y", 0.0).toFloat() + shy, j.optDouble("laid", 0.0), j.optDouble("at", 0.0), j.optInt("own", -1), j.optBoolean("g", false))
+                    eg.parents = j.optString("par", "")
+                    eggs.add(eg)
                 }
             }
             val s = o.optJSONArray("seen")

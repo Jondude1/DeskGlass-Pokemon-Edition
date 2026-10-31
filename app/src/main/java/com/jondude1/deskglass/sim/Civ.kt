@@ -3306,6 +3306,8 @@ class CivSim(
             Deed("tourney1", "Into the Ring", "A grand tournament was fought.", "+20 food") { critters.tourneys >= 1 },
             Deed("tourney4", "Arena Fame", "Four grand tournaments crowned a champion.", "+20 stone, +10 food") { critters.tourneys >= 4 },
             Deed("guests", "Every Kind of Guest", "Met a merchant, a bard and a pilgrim.", "joy for all") { listOf("merchant", "bard", "pilgrim").all { (visitStats[it] ?: 0) >= 1 } },
+            Deed("egg1", "Warm Nest", "A critter egg hatched in the village.", "+20 food") { critters.eggsHatched >= 1 },
+            Deed("egg6", "Cradle of Critters", "Six critter eggs hatched.", "+20 food, +10 wood") { critters.eggsHatched >= 6 },
             Deed("zoo", "Critter Keepers", "Own 10 critters.", "+20 food") { critters.critters.size >= 10 },
             Deed("dex", "Field Naturalists", "Caught 15 species.", "+30 food") { critters.caught.size >= 15 },
             Deed("level", "Trainer's Pride", "A critter reached level 25.", "joy for all") { critters.critters.any { it.level >= 25 } },

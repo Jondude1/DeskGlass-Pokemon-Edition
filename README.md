@@ -44,3 +44,6 @@ Every few village days the best critter owners meet in a sand ring with pennants
 
 ## Night and dawn visuals
 After dark villagers carry swaying lanterns that light their path, the moon glitters on lakes and ponds, clear winter nights show green, blue and violet aurora ribbons, shooting stars streak across the sky every few seconds, and a low morning mist drifts over the land at dawn.
+
+## Critter eggs
+Bonded critters that share a type now lay speckled eggs (sometimes golden) on a straw nest in the village. Each wobbles and cracks as it nears hatching, then a new low-level critter bursts out, is named, and bonds with its parent's summoner if they have room. Two new deeds: Warm Nest and Cradle of Critters.
