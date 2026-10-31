@@ -187,6 +187,45 @@ fun DrawScope.villageStock(sim: CivSim, art: CivArt, g: Geo) {
         val y = g.oy + (b.y + 0.97f) * g.ts - u * 1f
         scarecrow(x, y, u, g.t, b.ready >= 2 && g.dark < 0.4f)
     }
+    for (sp in sim.seasonProps.toList()) {
+        val x = g.ox + sp.x * g.ts
+        val y = g.oy + (sp.y + 0.9f) * g.ts
+        if (sp.kind == "snowman") snowman(x, y, u, g.t) else leafPile(x, y, u, g.t)
+    }
+}
+
+private fun DrawScope.snowman(x: Float, y: Float, u: Float, t: Float) {
+    shadowAt(x, y, u * 8f, u)
+    val white = Color(0xFFF4F8FF)
+    val shade = Color(0xFFC9D6EA)
+    drawOval(shade, Offset(x - u * 3.2f, y - u * 4.4f), Size(u * 6.4f, u * 4.6f))
+    drawOval(white, Offset(x - u * 3f, y - u * 4.7f), Size(u * 5.8f, u * 4.4f))
+    drawOval(shade, Offset(x - u * 2.4f, y - u * 7.6f), Size(u * 4.8f, u * 3.8f))
+    drawOval(white, Offset(x - u * 2.2f, y - u * 7.9f), Size(u * 4.4f, u * 3.6f))
+    drawOval(white, Offset(x - u * 1.7f, y - u * 10.4f), Size(u * 3.4f, u * 3.2f))
+    drawRect(Color(0xFF22222C), Offset(x - u * 1.0f, y - u * 9.4f), Size(u * 0.7f, u * 0.7f))
+    drawRect(Color(0xFF22222C), Offset(x + u * 0.4f, y - u * 9.4f), Size(u * 0.7f, u * 0.7f))
+    drawRect(Color(0xFFE8782B), Offset(x - u * 0.2f, y - u * 8.7f), Size(u * 1.8f, u * 0.6f))
+    drawRect(Color(0xFF22222C), Offset(x - u * 1.5f, y - u * 11f), Size(u * 3f, u * 0.6f))
+    drawRect(Color(0xFF22222C), Offset(x - u * 1f, y - u * 12.6f), Size(u * 2f, u * 1.7f))
+    val wave = sin(t * 1.6f + x * 0.02f) * u * 0.5f
+    drawRect(Color(0xFFC0392B), Offset(x - u * 2f + wave, y - u * 7.9f), Size(u * 4f, u * 0.9f))
+    drawRect(Color(0xFFC0392B), Offset(x + u * 1.2f + wave, y - u * 7.2f), Size(u * 0.9f, u * 2f))
+    drawRect(Color(0xFF6B4A2B), Offset(x - u * 5f, y - u * 7f + wave * 0.3f), Size(u * 2.6f, u * 0.5f))
+    drawRect(Color(0xFF6B4A2B), Offset(x + u * 2.4f, y - u * 7f - wave * 0.3f), Size(u * 2.6f, u * 0.5f))
+}
+
+private fun DrawScope.leafPile(x: Float, y: Float, u: Float, t: Float) {
+    shadowAt(x, y, u * 9f, u)
+    val cols = listOf(Color(0xFFB5502A), Color(0xFFD98A2B), Color(0xFFE8B63A), Color(0xFF8E3B22))
+    drawOval(cols[3], Offset(x - u * 4.6f, y - u * 3.2f), Size(u * 9.2f, u * 3.8f))
+    drawOval(cols[0], Offset(x - u * 3.8f, y - u * 4.4f), Size(u * 7.6f, u * 3.8f))
+    drawOval(cols[1], Offset(x - u * 2.6f, y - u * 5.4f), Size(u * 5.2f, u * 3.2f))
+    drawOval(cols[2], Offset(x - u * 1.4f, y - u * 6.0f), Size(u * 2.8f, u * 2.2f))
+    for (k in 0 until 3) {
+        val p = (t * 0.35f + k * 0.34f + x * 0.003f) % 1f
+        drawRect(cols[k % 3].copy(alpha = 0.9f * (1f - p)), Offset(x + sin(p * 7f + k) * u * 5f, y - u * (5f + p * 9f)), Size(u * 1.1f, u * 0.8f))
+    }
 }
 
 /**

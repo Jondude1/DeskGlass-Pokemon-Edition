@@ -344,6 +344,30 @@ fun DrawScope.drawVillagers(sim: CivSim, art: CivArt, g: Geo, sun: Sun) {
                 drawCircle(cols[k % 3].copy(alpha = 0.9f * (1f - p)), radius = ps * 0.7f, center = Offset(cx + sin(t * 2f + k) * ps * 3f, feetY - ps * (5f + p * 9f)))
             }
         }
+        if (working && v.action == "snowman") {
+            for (k in 0 until 4) {
+                val p = (t * 1.2f + k * 0.25f + v.id * 0.13f) % 1f
+                drawCircle(Color(0xFFF4F8FF).copy(alpha = 0.9f * (1f - p)), radius = ps * (0.7f + 0.5f * (k % 2)), center = Offset(cx + fx * ps * (1f + p * 4f), feetY - ps * (3f + 6f * sin(p * PI.toFloat()))))
+            }
+        }
+        if (working && v.action == "rake_leaves") {
+            val lc = listOf(Color(0xFFB5502A), Color(0xFFD98A2B), Color(0xFFE8B63A))
+            for (k in 0 until 5) {
+                val p = (t * 0.9f + k * 0.2f + v.id * 0.07f) % 1f
+                drawRect(lc[k % 3].copy(alpha = 0.9f * (1f - p)), Offset(cx + fx * ps * 2f + sin(p * 6f + k) * ps * 4f, feetY - ps * (2f + p * 9f)), Size(ps * 1.1f, ps * 0.8f))
+            }
+        }
+        if (working && v.action == "fly_kite") {
+            val kx = cx + fx * ps * 6f + sin(t * 1.7f + v.id) * ps * 4f
+            val ky = feetY - ps * (22f + 3f * sin(t * 2.3f + v.id))
+            drawLine(Color.White.copy(alpha = 0.7f), Offset(cx + fx * ps * 1.5f, feetY - ps * 7f), Offset(kx, ky), strokeWidth = ps * 0.35f)
+            val kc = listOf(Color(0xFFE85D75), Color(0xFFFFD166), Color(0xFF4ECDC4))[v.id % 3]
+            val kp = androidx.compose.ui.graphics.Path().apply {
+                moveTo(kx, ky - ps * 3.2f); lineTo(kx + ps * 2.4f, ky); lineTo(kx, ky + ps * 3.2f); lineTo(kx - ps * 2.4f, ky); close()
+            }
+            drawPath(kp, kc)
+            for (k in 1..3) drawCircle(kc.copy(alpha = 0.8f), radius = ps * 0.5f, center = Offset(kx - ps * 0.5f * k + sin(t * 4f + k) * ps, ky + ps * (3.4f + k * 1.8f)))
+        }
         if (working && v.action == "stargaze") {
             for (k in 0 until 4) {
                 val tw = 0.5f + 0.5f * sin(t * 3f + k * 1.7f + v.id)
