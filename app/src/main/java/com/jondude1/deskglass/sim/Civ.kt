@@ -277,6 +277,12 @@ class CivSim(
     private var studied = 0
     var ageBannerAt = -999.0
     var ageBannerName = ""
+    val deeds = LinkedHashSet<String>()
+    var babiesBorn = 0
+    var deedBannerAt = -999.0
+    var deedBannerName = ""
+    var deedBannerSub = ""
+    private var nextDeedAt = 0.0
     private var worldClock = 0f
     private var ownerClock = 0f
     private var nextWorldEventAt = 0.0
@@ -340,7 +346,7 @@ class CivSim(
         lastBirth = time
         hides = 0
         goods = 0
-        raidsRepelled = 0; ogresSlain = 0; bossesSlain = 0; warlordsSlain = 0; golemsSlain = 0; shamansSlain = 0; foeStats.clear(); lastWarlordAt = -999.0; goldenAt = -1.0
+        raidsRepelled = 0; ogresSlain = 0; bossesSlain = 0; warlordsSlain = 0; golemsSlain = 0; shamansSlain = 0; foeStats.clear(); lastWarlordAt = -999.0; goldenAt = -1.0; deeds.clear(); babiesBorn = 0; deedBannerAt = -999.0; nextDeedAt = 0.0
         nextThreatAt = DAY_LEN * 1.4; lastBossAt = -999.0
         traffic.fill(0f)
         fauna.reset()
@@ -2753,6 +2759,72 @@ class CivSim(
         "Train a critter to level 40" to critters.critters.any { it.level >= 40 },
     )
 
+    /** Village deeds: milestones that pay out a reward, flash a banner and raise the village's renown. */
+    class Deed(val id: String, val title: String, val text: String, val reward: String, val check: () -> Boolean)
+
+    val allDeeds: List<Deed> by lazy {
+        listOf(
+            Deed("first_hut", "Roof Over Our Heads", "Three huts stand.", "+20 wood") { count("hut") >= 3 },
+            Deed("big_folk", "A Real Village", "10 villagers live here.", "+30 food") { villagers.size >= 10 },
+            Deed("town", "Bustling Town", "20 villagers live here.", "+40 food, +20 stone") { villagers.size >= 20 },
+            Deed("bronze", "Fire and Ore", "Smelted 10 metal.", "+30 stone") { totalSmelted >= 10 },
+            Deed("builder", "Master Builders", "Raised 25 buildings.", "+40 wood, +20 stone") { buildings.size >= 25 },
+            Deed("city", "City Age", "Reached the City Age.", "joy for all") { age >= 4 },
+            Deed("first_raid", "Hold the Line", "Beat back a raider band.", "+20 food") { raidsRepelled >= 1 },
+            Deed("raid5", "Wall of Spears", "Beat back 5 raider bands.", "+40 wood, +40 stone") { raidsRepelled >= 5 },
+            Deed("ogre", "Ogre Slayer", "Slew an ogre.", "joy for all") { ogresSlain >= 1 },
+            Deed("warlord", "Warlord Felled", "Slew a raider warlord.", "+40 food, +40 wood") { warlordsSlain >= 1 },
+            Deed("golem", "Stone Breaker", "Shattered a rift golem.", "+40 stone") { golemsSlain >= 1 },
+            Deed("drake", "Drake Bane", "Slew a rift drake.", "joy for all") { bossesSlain >= 1 },
+            Deed("cradle", "Cradle Songs", "Five babies born in the village.", "+30 food") { babiesBorn >= 5 },
+            Deed("storm", "Weathered the Storm", "Rode out a thunderstorm.", "+10 food") { (wxStats["storm"] ?: 0) >= 1 },
+            Deed("winter", "Through the Snow", "Survived a winter.", "+30 wood") { (wxStats["season:winter"] ?: 0) >= 1 && day() > 12 },
+            Deed("year", "A Full Year", "Four seasons have come and gone.", "joy for all") { day() >= 13 },
+            Deed("feast", "Harvest Home", "Held an autumn harvest festival.", "+40 food") { (wxStats["harvest festival"] ?: 0) >= 1 },
+            Deed("bow", "First Bond", "Befriended a critter.", "+10 food") { critters.critters.isNotEmpty() },
+            Deed("zoo", "Critter Keepers", "Own 10 critters.", "+20 food") { critters.critters.size >= 10 },
+            Deed("dex", "Field Naturalists", "Caught 15 species.", "+30 food") { critters.caught.size >= 15 },
+            Deed("level", "Trainer's Pride", "A critter reached level 25.", "joy for all") { critters.critters.any { it.level >= 25 } },
+            Deed("legend", "Legend Bound", "Bonded with a legendary critter.", "joy for all") { critters.legendsOwned() > 0 },
+            Deed("golden", "Golden Age", "Completed every legacy goal.", "joy for all") { goldenAt >= 0.0 },
+        )
+    }
+
+    fun renownTitle(): String {
+        val n = deeds.size
+        return when {
+            n >= 20 -> "Immortal Hearth"
+            n >= 15 -> "Famed Realm"
+            n >= 10 -> "Renowned Village"
+            n >= 5 -> "Known Settlement"
+            n >= 1 -> "Rising Hamlet"
+            else -> "Unknown Camp"
+        }
+    }
+
+    private fun deedTick() {
+        if (time < nextDeedAt || villagers.size < 2) return
+        nextDeedAt = time + 3.0
+        for (d in allDeeds) {
+            if (d.id in deeds) continue
+            val ok = try { d.check() } catch (e: Exception) { false }
+            if (!ok) continue
+            deeds.add(d.id)
+            val r = d.reward
+            fun grab(word: String): Int = Regex("\\+(\\d+) $word").find(r)?.groupValues?.get(1)?.toInt() ?: 0
+            wood += grab("wood"); stone += grab("stone"); food += grab("food")
+            if (r.contains("joy") || deeds.size % 5 == 0) {
+                for (v in villagers) v.happiness = min(100f, v.happiness + 15f)
+                festivalUntil = max(festivalUntil, time + 25.0)
+            }
+            deedBannerAt = time; deedBannerName = d.title; deedBannerSub = d.text + "  " + r
+            addLog("Deed done: ${d.title} - ${d.text} (${deeds.size}/${allDeeds.size})")
+            mark("Deed: ${d.title}.")
+            for (v in villagers) v.remember("the village earned: ${d.title}")
+            break
+        }
+    }
+
     private fun goldenTick() {
         if (goldenAt >= 0.0 || villagers.size < 4) return
         if (legacy().all { it.second }) {
@@ -2983,6 +3055,7 @@ class CivSim(
                 a.remember("welcomed baby ${n.name}")
                 b.remember("welcomed baby ${n.name}")
                 addLog("${a.name} and ${b.name} welcome a baby, ${n.name}!")
+                babiesBorn++
                 mark("${n.name} was born to ${a.name} and ${b.name}.")
                 narrate("A baby is born: ${n.name}")
             }
@@ -2992,6 +3065,7 @@ class CivSim(
         planTick()
         threatTick()
         goldenTick()
+        deedTick()
         critters.tick(dt)
         capStores()
         eventTick()
@@ -3109,7 +3183,7 @@ class CivSim(
             o.put("nextId", nextId)
             o.put("hides", hides)
             o.put("goods", goods)
-            o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("golems", golemsSlain).put("shamans", shamansSlain).put("golden", goldenAt)
+            o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("golems", golemsSlain).put("shamans", shamansSlain).put("golden", goldenAt).put("deeds", deeds.joinToString(",")).put("babies", babiesBorn)
             o.put("traffic", String(CharArray(traffic.size) { i -> '0' + min(9, (traffic[i] / 4f).toInt()) }))
             val ks = JSONArray()
             kingdoms.forEach {
@@ -3221,6 +3295,8 @@ class CivSim(
             goods = o.optInt("goods", 0)
             raidsRepelled = o.optInt("raids", 0); ogresSlain = o.optInt("ogres", 0); bossesSlain = o.optInt("bosses", 0); warlordsSlain = o.optInt("warlords", 0); golemsSlain = o.optInt("golems", 0); shamansSlain = o.optInt("shamans", 0)
             goldenAt = o.optDouble("golden", -1.0)
+            deeds.clear(); o.optString("deeds", "").split(",").filter { it.isNotBlank() }.forEach { deeds.add(it) }
+            babiesBorn = o.optInt("babies", 0)
             traffic.fill(0f)
             val tr = o.optString("traffic", "")
             if (tr.length == traffic.size) for (i in traffic.indices) traffic[i] = (tr[i] - '0') * 4f

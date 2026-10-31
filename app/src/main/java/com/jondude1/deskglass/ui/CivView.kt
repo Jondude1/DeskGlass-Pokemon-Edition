@@ -1143,6 +1143,7 @@ private fun DrawScope.drawWorld(
     )
 
     ageBanner(sim, geo, namePaint, bubblePaint)
+    deedBanner(sim, geo, namePaint)
     seasonChip(sim, geo, namePaint)
     critterTexts(sim, geo, labels, textPaint, bubblePaint, namePaint)
 
@@ -1356,6 +1357,14 @@ fun VillageScreen(vm: MainViewModel, fullscreen: Boolean, onFullscreen: (Boolean
                         color = Glass.InkFaint, fontSize = 11.sp,
                     )
                 }
+                Text(
+                    "Renown: ${sim.renownTitle()} · deeds ${sim.deeds.size}/${sim.allDeeds.size}",
+                    color = Color(0xFF9BE3BC), fontSize = 14.sp,
+                )
+                Text(
+                    sim.allDeeds.filter { it.id !in sim.deeds }.take(3).joinToString("   ") { "○ ${it.title}: ${it.text}" },
+                    color = Glass.InkFaint, fontSize = 11.sp,
+                )
                 if (sim.goods > 0) Text("Goods to trade: ${sim.goods}", color = Glass.InkDim, fontSize = 14.sp)
                 Text("Buildings (built/limit): ${sim.buildSummary()}", color = Glass.InkFaint, fontSize = 12.sp)
                 Text("Brain: ${sim.brain}", color = Glass.InkFaint, fontSize = 14.sp)

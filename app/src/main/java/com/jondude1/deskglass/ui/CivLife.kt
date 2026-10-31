@@ -678,3 +678,43 @@ fun DrawScope.seasonChip(sim: CivSim, g: Geo, namePaint: android.graphics.Paint)
         nc.drawText(label, left + w / 2f, top + h * 0.7f, namePaint)
     }
 }
+
+// ---------------------------------------------------------------------------------------------
+// A village deed was done: a banner slides in with the deed's name and reward.
+// ---------------------------------------------------------------------------------------------
+fun DrawScope.deedBanner(sim: CivSim, g: Geo, namePaint: android.graphics.Paint) {
+    val age = (sim.time - sim.deedBannerAt).toFloat()
+    if (age < 0f || age > 6f || sim.deedBannerName.isEmpty()) return
+    val a = when {
+        age < 0.5f -> age / 0.5f
+        age > 4.5f -> ((6f - age) / 1.5f).coerceIn(0f, 1f)
+        else -> 1f
+    }
+    val w = min(size.width * 0.86f, g.ts * 22f)
+    val h = g.ts * 2.2f
+    val left = (size.width - w) / 2f
+    val top = size.height * 0.30f + (1f - a) * g.ts * 2f
+    drawRect(Color(0xFF14202A).copy(alpha = 0.78f * a), Offset(left, top), Size(w, h))
+    drawRect(Color(0xFF7FD6A8).copy(alpha = a), Offset(left, top), Size(g.ps * 1.2f, h))
+    drawRect(Color(0xFF7FD6A8).copy(alpha = a), Offset(left + w - g.ps * 1.2f, top), Size(g.ps * 1.2f, h))
+    // little sparkles drifting up from the banner
+    for (i in 0 until 6) {
+        val fx = left + w * ((i * 0.19f + 0.08f) % 1f)
+        val fy = top - ((age * 1.4f + i * 0.37f) % 1.6f) * g.ts
+        drawRect(Color(0xFFFFF3C8).copy(alpha = 0.7f * a), Offset(fx, fy), Size(g.ps * 1.1f, g.ps * 1.1f))
+    }
+    drawIntoCanvas { c ->
+        val nc = c.nativeCanvas
+        namePaint.textAlign = android.graphics.Paint.Align.CENTER
+        namePaint.color = android.graphics.Color.argb((a * 255).toInt(), 150, 240, 190)
+        namePaint.textSize = g.ts * 0.5f
+        nc.drawText("DEED ${sim.deeds.size}/${sim.allDeeds.size}", size.width / 2f, top + h * 0.28f, namePaint)
+        namePaint.color = android.graphics.Color.argb((a * 255).toInt(), 255, 245, 200)
+        namePaint.textSize = g.ts * 0.95f
+        nc.drawText(sim.deedBannerName, size.width / 2f, top + h * 0.62f, namePaint)
+        namePaint.color = android.graphics.Color.argb((a * 210).toInt(), 255, 255, 255)
+        namePaint.textSize = g.ts * 0.45f
+        nc.drawText(sim.deedBannerSub, size.width / 2f, top + h * 0.88f, namePaint)
+        namePaint.color = android.graphics.Color.argb(230, 255, 255, 255)
+    }
+}
