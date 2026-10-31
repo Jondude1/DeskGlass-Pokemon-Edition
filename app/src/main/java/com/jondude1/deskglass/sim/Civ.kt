@@ -269,6 +269,11 @@ class CivSim(
     private var nextPetAt = DAY_LEN * 1.2
     private val DOG_NAMES = listOf("Biscuit", "Bramble", "Patch", "Pepper", "Moss", "Ember", "Scout", "Clover", "Juniper", "Tuck", "Nibs", "Sable", "Dusty", "Maple", "Rusty", "Fidget")
     val seasonProps = ArrayList<SeasonProp>()
+    /** Heroes' Row: a statue for each villager who earned an epithet. kind is the stat behind the title; tier 0 wood, 1 stone, 2 gilded. */
+    class Statue(val name: String, val title: String, val kind: String, val x: Float, val y: Float, val born: Double, val tier: Int)
+    val statues = ArrayList<Statue>()
+    var statueCheers = 0
+    private var nextStatueAt = 0.0
     var snowmenBuilt = 0
     var leafPilesRaked = 0
     var kitesFlown = 0
@@ -440,6 +445,7 @@ class CivSim(
         drops.clear()
         ageBannerAt = -999.0
         fx.clear()
+        statues.clear(); statueCheers = 0; nextStatueAt = 0.0
         pets.clear(); dogsAdopted = 0; dogWalks = 0; dogBarks = 0; nextPetAt = time + DAY_LEN * 1.2
         // a new world must not inherit the old world's clocks (alerts, rain, festivals...)
         alertUntil = 0.0; rainUntil = 0.0; stormUntil = 0.0; fogUntil = 0.0; snowUntil = 0.0; rainbowUntil = 0.0; strikeAt = -99.0; nextWeatherAt = time + DAY_LEN * 0.5; lastSeason = -1; wxStats.clear(); festivalUntil = 0.0; plagueUntil = 0.0; godUntil = 0.0; order = ""; orderUntil = 0.0; shakeUntil = 0.0
@@ -1253,7 +1259,48 @@ class CivSim(
             v.remember("was named ${d.title} for having ${d.why}")
             v.happiness = min(100f, v.happiness + 12f)
             fx.add(Fx("spawn", v.x, v.y, time, 1.4f))
+            raiseStatue(v, d)
             break
+        }
+    }
+
+    /** The village carves a statue of a newly named hero near the fire (one per hero, up to ten). */
+    private fun raiseStatue(v: Villager, d: TitleDef) {
+        if (statues.size >= 10 || statues.any { it.name == v.name }) return
+        val hub = buildings.firstOrNull { it.type == "hall" } ?: buildings.firstOrNull { it.type == "campfire" } ?: return
+        for (k in 0 until 40) {
+            val ang = rnd.nextFloat() * 6.2832f
+            val r = 3.5f + rnd.nextFloat() * 4.5f
+            val x = (hub.x + 0.5f + kotlin.math.cos(ang) * r).toInt()
+            val y = (hub.y + 0.5f + kotlin.math.sin(ang) * r * 0.7f).toInt()
+            if (x < 1 || y < 1 || x >= GW - 1 || y >= GH - 1) continue
+            if (!walkableTile(x, y) || tiles[y * GW + x] == T.FOREST) continue
+            if (buildings.any { abs(it.x - x) <= 1 && abs(it.y - y) <= 1 }) continue
+            if (statues.any { abs(it.x - (x + 0.5f)) < 2.2f && abs(it.y - (y + 0.5f)) < 2f }) continue
+            if (seasonProps.any { abs(it.x - x) < 2.5f && abs(it.y - y) < 2f }) continue
+            val tier = if (age >= 4) 2 else if (age >= 2) 1 else 0
+            statues.add(Statue(v.name, d.title, d.stat, x + 0.5f, y + 0.5f, time, tier))
+            val what = when (tier) { 0 -> "carved of wood"; 1 -> "cut from stone"; else -> "gilded in gold" }
+            addLog("The village raises a statue of ${v.name} ${d.title}, $what, on Heroes' Row.")
+            mark("A statue of ${v.name} was raised.")
+            narrate("A statue of ${v.name} is unveiled")
+            fx.add(Fx("spawn", x + 0.5f, y + 0.5f, time, 1.6f))
+            for (o in villagers) if (hypot(o.x - x, o.y - y) < 9f) o.happiness = min(100f, o.happiness + 5f)
+            return
+        }
+    }
+
+    /** Villagers who linger near a hero's statue feel proud: a little morale now and then. */
+    private fun statueTick() {
+        if (time < nextStatueAt) return
+        nextStatueAt = time + 12.0
+        if (statues.isEmpty()) return
+        for (v in villagers) {
+            if (v.phase == "sleeping") continue
+            val s = statues.firstOrNull { hypot(v.x - it.x, v.y - it.y) < 4f } ?: continue
+            v.happiness = min(100f, v.happiness + 1.5f)
+            statueCheers++
+            if (statueCheers % 40 == 1) v.remember("looked up at the statue of ${s.name}")
         }
     }
 
@@ -3636,6 +3683,8 @@ class CivSim(
             Deed("relic", "Relic Keepers", "Brought home 3 rift relics.", "+40 food, +20 stone") { relics >= 3 },
             Deed("titled", "A Name Earned", "A villager earned an epithet.", "+20 food") { titlesEarned >= 1 },
             Deed("titled6", "Village of Legends", "Fifteen epithets earned in the village.", "joy for all") { titlesEarned >= 15 },
+            Deed("statue1", "Carved in Memory", "The first hero's statue was raised.", "+10 stone, +10 wood") { statues.isNotEmpty() },
+            Deed("statue6", "Heroes' Row", "Six heroes stand in statue.", "joy for all") { statues.size >= 6 },
             Deed("wonder1", "Wonder of the Land", "Raised a great wonder.", "joy for all") { count("wonder") >= 1 },
             Deed("wonder3", "Three Wonders", "All three great wonders stand together.", "+60 wood, +60 stone") { count("wonder") >= 3 },
             Deed("golden", "Golden Age", "Completed every legacy goal.", "joy for all") { goldenAt >= 0.0 },
@@ -4217,6 +4266,7 @@ class CivSim(
         visitorTick(dt)
         wonderTick(dt)
         infirmaryTick()
+        statueTick()
         goldenTick()
         deedTick()
         relationTick()
@@ -4340,7 +4390,7 @@ class CivSim(
             o.put("nextId", nextId)
             o.put("hides", hides)
             o.put("goods", goods)
-            o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("expN", expeditions).put("expW", expWins).put("expR", expRetreats).put("expRooms", roomsCleared).put("relics", relics).put("expDeep", deepestRoom).put("wardens", wardensSlain).put("golems", golemsSlain).put("frostPacks", frostPacksBroken).put("pilfF", pilfersFoiled).put("pilfL", pilfersLost).put("swarms", swarmsBroken).put("hornets", hornetsSwatted).put("liches", lichesSlain).put("bones", bonesRaised).put("shamans", shamansSlain).put("golden", goldenAt).put("visits", visitStats.entries.joinToString(",") { "${it.key}:${it.value}" }).put("deeds", deeds.joinToString(",")).put("tavern", tavernVisits).put("pets", pets.joinToString(",") { "${it.name}:${it.owner}:${it.bond}" }).put("dogA", dogsAdopted).put("dogW", dogWalks).put("dogB", dogBarks).put("snowmen", snowmenBuilt).put("leafR", leafPilesRaked).put("kites", kitesFlown).put("sprops", seasonProps.joinToString(",") { "${it.kind}:${it.x.toInt()}:${it.y.toInt()}" }).put("totemV", totemVisits).put("raised", raised).put("omens", omens).put("recov", recoveries).put("ranchV", ranchVisits).put("babies", babiesBorn).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" })
+            o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("expN", expeditions).put("expW", expWins).put("expR", expRetreats).put("expRooms", roomsCleared).put("relics", relics).put("expDeep", deepestRoom).put("wardens", wardensSlain).put("golems", golemsSlain).put("frostPacks", frostPacksBroken).put("pilfF", pilfersFoiled).put("pilfL", pilfersLost).put("swarms", swarmsBroken).put("hornets", hornetsSwatted).put("liches", lichesSlain).put("bones", bonesRaised).put("shamans", shamansSlain).put("golden", goldenAt).put("visits", visitStats.entries.joinToString(",") { "${it.key}:${it.value}" }).put("deeds", deeds.joinToString(",")).put("tavern", tavernVisits).put("pets", pets.joinToString(",") { "${it.name}:${it.owner}:${it.bond}" }).put("dogA", dogsAdopted).put("dogW", dogWalks).put("dogB", dogBarks).put("snowmen", snowmenBuilt).put("leafR", leafPilesRaked).put("kites", kitesFlown).put("sprops", seasonProps.joinToString(",") { "${it.kind}:${it.x.toInt()}:${it.y.toInt()}" }).put("statues", statues.joinToString(";") { "${it.name}|${it.title}|${it.kind}|${it.x.toInt()}|${it.y.toInt()}|${it.tier}" }).put("statueC", statueCheers).put("totemV", totemVisits).put("raised", raised).put("omens", omens).put("recov", recoveries).put("ranchV", ranchVisits).put("babies", babiesBorn).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" })
             o.put("traffic", String(CharArray(traffic.size) { i -> '0' + min(9, (traffic[i] / 4f).toInt()) }))
             val ks = JSONArray()
             kingdoms.forEach {
@@ -4474,6 +4524,8 @@ class CivSim(
             snowmenBuilt = o.optInt("snowmen", 0); leafPilesRaked = o.optInt("leafR", 0); kitesFlown = o.optInt("kites", 0)
             seasonProps.clear()
             for (e in o.optString("sprops", "").split(",")) { val kv = e.split(":"); if (kv.size == 3) seasonProps.add(SeasonProp(kv[0], (kv[1].toIntOrNull() ?: 0) + 0.5f, (kv[2].toIntOrNull() ?: 0) + 0.5f, time)) }
+            statues.clear(); statueCheers = o.optInt("statueC", 0)
+            for (e in o.optString("statues", "").split(";")) { val kv = e.split("|"); if (kv.size == 6 && kv[0].isNotBlank()) statues.add(Statue(kv[0], kv[1], kv[2], (kv[3].toIntOrNull() ?: 0) + 0.5f, (kv[4].toIntOrNull() ?: 0) + 0.5f, time, kv[5].toIntOrNull() ?: 0)) }
             tavernVisits = o.optInt("tavern", 0); dogsAdopted = o.optInt("dogA", 0); dogWalks = o.optInt("dogW", 0); dogBarks = o.optInt("dogB", 0)
             pets.clear()
             for (e in o.optString("pets", "").split(",")) { val kv = e.split(":"); if (kv.size == 3 && kv[0].isNotBlank()) pets.add(Pet(kv[0], kv[1].toIntOrNull() ?: -1, kv[2].toIntOrNull() ?: 0, false)) }

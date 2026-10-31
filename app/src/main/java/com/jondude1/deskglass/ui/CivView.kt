@@ -840,6 +840,7 @@ private fun DrawScope.drawWorld(
 
     // wildlife, then villagers
     villageStock(sim, art, geo)
+    heroStatues(sim, geo)
     riftSite(sim, geo)
     lifeCritters(sim, art, geo)
     drawDrops(sim, geo)
@@ -1575,6 +1576,7 @@ fun VillageScreen(vm: MainViewModel, fullscreen: Boolean, onFullscreen: (Boolean
                 )
                 if (sim.goods > 0) Text("Goods to trade: ${sim.goods}", color = Glass.InkDim, fontSize = 14.sp)
                 Text("Buildings (built/limit): ${sim.buildSummary()}", color = Glass.InkFaint, fontSize = 12.sp)
+                if (sim.statues.isNotEmpty()) Text("Heroes' Row: ${sim.statues.size}/10 statues - ${sim.statues.takeLast(3).joinToString(", ") { it.name }}", color = Glass.InkFaint, fontSize = 12.sp)
                 Text("Brain: ${sim.brain}", color = Glass.InkFaint, fontSize = 14.sp)
                 Text(
                     "Critters ${sim.critters.critters.size}/${sim.critters.maxKept()} kept · ${sim.critters.caught.size}/${com.jondude1.deskglass.sim.Dex.COUNT} species caught" +
