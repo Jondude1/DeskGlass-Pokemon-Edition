@@ -139,6 +139,7 @@ class Villager(val id: Int, val name: String, var job: String, val personaIdx: I
     val affinity = HashMap<Int, Int>()
     val said = ArrayList<String>()
     var replyTo: Villager? = null
+    var partner = -1
 
     fun remember(text: String) {
         memories.add(text)
@@ -279,6 +280,18 @@ class CivSim(
     var ageBannerName = ""
     val deeds = LinkedHashSet<String>()
     var babiesBorn = 0
+    // relationships: weddings, best friends and feuds
+    var weds = 0
+    var feudsStarted = 0
+    var feudsEnded = 0
+    val bffs = LinkedHashSet<String>()
+    val feudEnds = HashMap<String, Double>()
+    private val courting = HashMap<String, Double>()
+    private var nextRelAt = 0.0
+    var weddingAt = -999.0
+    var weddingX = 0f
+    var weddingY = 0f
+    var weddingNames = ""
     var deedBannerAt = -999.0
     var deedBannerName = ""
     var deedBannerSub = ""
@@ -346,7 +359,7 @@ class CivSim(
         lastBirth = time
         hides = 0
         goods = 0
-        raidsRepelled = 0; ogresSlain = 0; bossesSlain = 0; warlordsSlain = 0; golemsSlain = 0; shamansSlain = 0; foeStats.clear(); lastWarlordAt = -999.0; goldenAt = -1.0; deeds.clear(); babiesBorn = 0; deedBannerAt = -999.0; nextDeedAt = 0.0
+        raidsRepelled = 0; ogresSlain = 0; bossesSlain = 0; warlordsSlain = 0; golemsSlain = 0; shamansSlain = 0; foeStats.clear(); lastWarlordAt = -999.0; goldenAt = -1.0; deeds.clear(); babiesBorn = 0; weds = 0; feudsStarted = 0; feudsEnded = 0; bffs.clear(); feudEnds.clear(); courting.clear(); weddingAt = -999.0; nextRelAt = 0.0; deedBannerAt = -999.0; nextDeedAt = 0.0
         nextThreatAt = DAY_LEN * 1.4; lastBossAt = -999.0
         traffic.fill(0f)
         fauna.reset()
@@ -1105,6 +1118,7 @@ class CivSim(
                 val o = v.talkTo
                 v.lastTalk = time
                 if (o != null) {
+                    if (o.id == v.partner && rnd.nextInt(2) == 0) v.talkMsg = partnerLine(v, o)
                     v.say = v.talkMsg.take(90)
                     v.sayLeft = 7f
                     noteSaid(v, v.talkMsg)
@@ -1392,6 +1406,133 @@ class CivSim(
 
     // ---- brains ----
 
+    // ---- relationships: courting, weddings, best friends, feuds ----
+
+    private fun pairKey(a: Villager, b: Villager): String = "${min(a.id, b.id)}-${max(a.id, b.id)}"
+    private fun mutual(a: Villager, b: Villager): Int = min(a.affinity[b.id] ?: 0, b.affinity[a.id] ?: 0)
+    private fun kin(a: Villager, b: Villager): Boolean {
+        if (a.parents.contains(b.name) || b.parents.contains(a.name)) return true
+        return a.parents.isNotBlank() && a.parents == b.parents
+    }
+    private fun grownUp(v: Villager): Boolean = !isChild(v) && ageYears(v) in 4..48
+
+    fun partnerOf(v: Villager): Villager? = if (v.partner < 0) null else villagers.firstOrNull { it.id == v.partner }
+    fun bestFriendOf(v: Villager): Villager? =
+        villagers.firstOrNull { o -> o !== v && o.id != v.partner && bffs.contains(pairKey(v, o)) }
+    fun feudWith(v: Villager): Villager? =
+        villagers.firstOrNull { o -> o !== v && feudEnds.containsKey(pairKey(v, o)) }
+    fun areFeuding(a: Villager, b: Villager): Boolean = feudEnds.containsKey(pairKey(a, b))
+
+    private fun partnerLine(v: Villager, o: Villager): String {
+        val l = ArrayList<String>()
+        l.add("I'm glad I have you, ${o.name}.")
+        l.add("Stay close tonight, ${o.name}.")
+        if (o.hunger > 60f) l.add("You look hungry, ${o.name}. Eat something.")
+        if (o.energy < 35f) l.add("You look worn out, ${o.name}. Rest soon.")
+        if (v.hp < 60f) l.add("I'm hurt, ${o.name}, but I'm fine with you here.")
+        if (babiesBorn > 0) l.add("The little ones keep us busy, ${o.name}.")
+        if (isNight()) l.add("Look at the stars with me, ${o.name}.")
+        return l[rnd.nextInt(l.size)]
+    }
+
+    /** When a villager dies, their partner mourns and old friendships and feuds are dropped. */
+    private fun loseBonds(dead: Villager) {
+        val w = villagers.firstOrNull { it.partner == dead.id }
+        if (w != null) {
+            w.partner = -1
+            w.happiness = max(0f, w.happiness - 30f)
+            w.remember("lost my beloved ${dead.name}")
+            addLog("${w.name} mourns ${dead.name}, their beloved.")
+            mark("${w.name} was widowed when ${dead.name} died.")
+        }
+        val dk = bffs.filter { it.split("-").contains(dead.id.toString()) }
+        bffs.removeAll(dk.toSet())
+        feudEnds.keys.filter { it.split("-").contains(dead.id.toString()) }.forEach { feudEnds.remove(it) }
+        courting.keys.filter { it.split("-").contains(dead.id.toString()) }.forEach { courting.remove(it) }
+    }
+
+    private fun relationTick() {
+        if (time < nextRelAt || villagers.size < 2) return
+        nextRelAt = time + 6.0
+        val adults = villagers.filter { grownUp(it) }
+        // feuds end after a while, with a handshake
+        for (k in feudEnds.entries.toList()) {
+            if (time < k.value) continue
+            feudEnds.remove(k.key)
+            val ids = k.key.split("-").mapNotNull { it.toIntOrNull() }
+            val a = villagers.firstOrNull { it.id == ids.getOrNull(0) }
+            val b = villagers.firstOrNull { it.id == ids.getOrNull(1) }
+            if (a != null && b != null) {
+                a.affinity[b.id] = 0; b.affinity[a.id] = 0
+                a.happiness = min(100f, a.happiness + 6f); b.happiness = min(100f, b.happiness + 6f)
+                feudsEnded++
+                addLog("${a.name} and ${b.name} made peace.")
+                a.remember("made peace with ${b.name}"); b.remember("made peace with ${a.name}")
+            }
+        }
+        // new feuds
+        for (i in adults.indices) for (j in i + 1 until adults.size) {
+            val a = adults[i]; val b = adults[j]
+            if (mutual(a, b) <= -2 && !areFeuding(a, b) && feudEnds.size < 3) {
+                feudEnds[pairKey(a, b)] = time + DAY_LEN * 1.5
+                feudsStarted++
+                a.happiness = max(0f, a.happiness - 8f); b.happiness = max(0f, b.happiness - 8f)
+                a.say = "Leave me be, ${b.name}."; a.sayLeft = 6f
+                addLog("${a.name} and ${b.name} have fallen out.")
+                a.remember("fell out with ${b.name}"); b.remember("fell out with ${a.name}")
+                mark("${a.name} and ${b.name} fell out.")
+            }
+        }
+        // best friends
+        for (i in adults.indices) for (j in i + 1 until adults.size) {
+            val a = adults[i]; val b = adults[j]
+            val k = pairKey(a, b)
+            if (k in bffs || a.partner == b.id || mutual(a, b) < 9) continue
+            if (bestFriendOf(a) != null || bestFriendOf(b) != null) continue
+            bffs.add(k)
+            a.happiness = min(100f, a.happiness + 10f); b.happiness = min(100f, b.happiness + 10f)
+            a.say = "We're the best of friends, ${b.name}!"; a.sayLeft = 6f
+            addLog("${a.name} and ${b.name} are now best friends.")
+            a.remember("became best friends with ${b.name}"); b.remember("became best friends with ${a.name}")
+            mark("${a.name} and ${b.name} became best friends.")
+        }
+        // courtship and weddings
+        val single = adults.filter { it.partner < 0 && ageYears(it) >= 5 }
+        for (i in single.indices) for (j in i + 1 until single.size) {
+            val a = single[i]; val b = single[j]
+            val k = pairKey(a, b)
+            if (kin(a, b) || areFeuding(a, b) || mutual(a, b) < 5 || courting.containsKey(k)) continue
+            if (courting.keys.any { c -> c.split("-").contains(a.id.toString()) || c.split("-").contains(b.id.toString()) }) continue
+            courting[k] = time
+            addLog("${a.name} and ${b.name} have grown very close.")
+            a.remember("is falling for ${b.name}"); b.remember("is falling for ${a.name}")
+        }
+        for (e in courting.entries.toList()) {
+            val ids = e.key.split("-").mapNotNull { it.toIntOrNull() }
+            val a = villagers.firstOrNull { it.id == ids.getOrNull(0) }
+            val b = villagers.firstOrNull { it.id == ids.getOrNull(1) }
+            if (a == null || b == null || a.partner >= 0 || b.partner >= 0 || mutual(a, b) < 3) { courting.remove(e.key); continue }
+            if (time - e.value < DAY_LEN * 0.3 || alert() || isNight() || raining() || food < 6) continue
+            courting.remove(e.key)
+            a.partner = b.id; b.partner = a.id
+            weds++
+            weddingAt = time
+            val fire = buildings.firstOrNull { it.type == "hall" } ?: buildings.firstOrNull { it.type == "campfire" }
+            weddingX = (fire?.x ?: a.x.toInt()) + 0.5f
+            weddingY = (fire?.y ?: a.y.toInt()) + 1.6f
+            weddingNames = "${a.name} & ${b.name}"
+            for (o in villagers) o.happiness = min(100f, o.happiness + (if (o === a || o === b) 30f else 8f))
+            festivalUntil = max(festivalUntil, time + 40.0)
+            food = max(0, food - 3)
+            a.say = "I do!"; a.sayLeft = 7f
+            b.say = "And so do I!"; b.sayLeft = 7f
+            event("${a.name} and ${b.name} are married at the ${if (fire?.type == "hall") "hall" else "fire"}! The village celebrates.")
+            mark("${a.name} and ${b.name} were wed.")
+            a.remember("married ${b.name}"); b.remember("married ${a.name}")
+            break
+        }
+    }
+
     // ---- ages and generations ----
 
     /** A short history of the big moments, kept in the save file. */
@@ -1665,6 +1806,7 @@ class CivSim(
     private fun friendFor(v: Villager): Villager? {
         val others = villagers.filter { it !== v }
         if (others.isEmpty()) return null
+        if (v.partner >= 0 && rnd.nextInt(3) == 0) others.firstOrNull { it.id == v.partner }?.let { return it }
         if (rnd.nextInt(3) == 0) return others[rnd.nextInt(others.size)]
         return others.maxByOrNull { (v.affinity[it.id] ?: 0) * 2 + rnd.nextInt(5) }
     }
@@ -2121,6 +2263,9 @@ class CivSim(
         if (far.isNotEmpty()) sb.append("Elsewhere: " + far.joinToString(", ") { "${it.name} (${doing(it)})" } + "\n")
         val close = villagers.filter { it !== v && (v.affinity[it.id] ?: 0) >= 2 }.joinToString(", ") { it.name }
         val rivals = villagers.filter { it !== v && (v.affinity[it.id] ?: 0) <= -2 }.joinToString(", ") { it.name }
+        partnerOf(v)?.let { sb.append("Your partner (spouse) is ${it.name}.\n") }
+        bestFriendOf(v)?.let { sb.append("Your best friend is ${it.name}.\n") }
+        feudWith(v)?.let { sb.append("You are feuding with ${it.name} right now.\n") }
         if (close.isNotEmpty()) sb.append("Your friends: $close.\n")
         if (rivals.isNotEmpty()) sb.append("You don't get along with: $rivals.\n")
         if (v.memories.isNotEmpty()) sb.append("Your recent memories: " + v.memories.joinToString("; ") + "\n")
@@ -2781,6 +2926,9 @@ class CivSim(
             Deed("winter", "Through the Snow", "Survived a winter.", "+30 wood") { (wxStats["season:winter"] ?: 0) >= 1 && day() > 12 },
             Deed("year", "A Full Year", "Four seasons have come and gone.", "joy for all") { day() >= 13 },
             Deed("feast", "Harvest Home", "Held an autumn harvest festival.", "+40 food") { (wxStats["harvest festival"] ?: 0) >= 1 },
+            Deed("wed", "Wedding Bells", "Two villagers were married.", "+20 food") { weds >= 1 },
+            Deed("weds3", "Hearth and Home", "Three weddings held in the village.", "joy for all") { weds >= 3 },
+            Deed("bff", "Fast Friends", "Two villagers became best friends.", "+10 food, +10 wood") { bffs.isNotEmpty() },
             Deed("bow", "First Bond", "Befriended a critter.", "+10 food") { critters.critters.isNotEmpty() },
             Deed("zoo", "Critter Keepers", "Own 10 critters.", "+20 food") { critters.critters.size >= 10 },
             Deed("dex", "Field Naturalists", "Caught 15 species.", "+30 food") { critters.caught.size >= 15 },
@@ -3047,8 +3195,10 @@ class CivSim(
             val ps = villagers.filter { !isChild(it) && ageYears(it) in 6..45 && it.hunger < 70f }
             if (ps.size >= 2) {
                 lastBirth = time
-                val a = ps[rnd.nextInt(ps.size)]
-                val b = ps.filter { it !== a }.maxByOrNull { (a.affinity[it.id] ?: 0) * 2 + rnd.nextInt(4) }!!
+                val couple = ps.filter { p -> p.partner >= 0 && ps.any { it.id == p.partner } }
+                val a = if (couple.isNotEmpty() && rnd.nextInt(5) != 0) couple[rnd.nextInt(couple.size)] else ps[rnd.nextInt(ps.size)]
+                val b = ps.firstOrNull { it.id == a.partner }
+                    ?: ps.filter { it !== a && it.partner < 0 }.ifEmpty { ps.filter { it !== a } }.maxByOrNull { (a.affinity[it.id] ?: 0) * 2 + rnd.nextInt(4) }!!
                 val n = spawnVillager(a, b)
                 a.happiness = min(100f, a.happiness + 12f)
                 b.happiness = min(100f, b.happiness + 12f)
@@ -3066,6 +3216,7 @@ class CivSim(
         threatTick()
         goldenTick()
         deedTick()
+        relationTick()
         critters.tick(dt)
         capStores()
         eventTick()
@@ -3083,6 +3234,7 @@ class CivSim(
         v.happiness = v.happiness.coerceIn(0f, 100f)
         if (v.hp <= 0f) {
             villagers.remove(v)
+            loseBonds(v)
             if (v.harmedBy.isNotEmpty()) {
                 event("${v.name} the ${v.job.lowercase()} was killed by a ${v.harmedBy}. The village mourns.")
                 mark("${v.name} the ${v.job.lowercase()} was killed by a ${v.harmedBy}.")
@@ -3094,6 +3246,7 @@ class CivSim(
         if (isChild(v) && ageYears(v) >= 3) growUp(v)
         if (ageYears(v) >= v.lifespan) {
             villagers.remove(v)
+            loseBonds(v)
             for (o in villagers) o.happiness = max(0f, o.happiness - 8f)
             event("${v.name} the ${v.job.lowercase()} passed away peacefully at ${ageYears(v)}.")
             mark("${v.name} the ${v.job.lowercase()} passed away at ${ageYears(v)}.")
@@ -3183,7 +3336,7 @@ class CivSim(
             o.put("nextId", nextId)
             o.put("hides", hides)
             o.put("goods", goods)
-            o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("golems", golemsSlain).put("shamans", shamansSlain).put("golden", goldenAt).put("deeds", deeds.joinToString(",")).put("babies", babiesBorn)
+            o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("golems", golemsSlain).put("shamans", shamansSlain).put("golden", goldenAt).put("deeds", deeds.joinToString(",")).put("babies", babiesBorn).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" })
             o.put("traffic", String(CharArray(traffic.size) { i -> '0' + min(9, (traffic[i] / 4f).toInt()) }))
             val ks = JSONArray()
             kingdoms.forEach {
@@ -3208,7 +3361,8 @@ class CivSim(
                         .put("happy", it.happiness.toDouble()).put("x", it.x.toDouble()).put("y", it.y.toDouble())
                         .put("hunger", it.hunger.toDouble()).put("energy", it.energy.toDouble())
                         .put("hp", it.hp.toDouble())
-                        .put("born", it.born).put("life", it.lifespan).put("par", it.parents)
+                        .put("born", it.born).put("life", it.lifespan).put("par", it.parents).put("partner", it.partner)
+                        .put("aff", it.affinity.entries.filter { e -> e.value != 0 }.joinToString(",") { e -> "${e.key}:${e.value.coerceIn(-20, 40)}" })
                 )
             }
             o.put("villagers", vs)
@@ -3287,6 +3441,11 @@ class CivSim(
                 v.lifespan = j.optInt("life", 55 + rnd.nextInt(15))
                 v.born = j.optDouble("born", time - (16 + rnd.nextInt(15) + rnd.nextFloat()) * YEAR)
                 v.parents = j.optString("par", "")
+                v.partner = j.optInt("partner", -1)
+                j.optString("aff", "").split(",").forEach { pr ->
+                    val kv = pr.split(":")
+                    if (kv.size == 2) { val k = kv[0].toIntOrNull(); val a = kv[1].toIntOrNull(); if (k != null && a != null) v.affinity[k] = a }
+                }
                 villagers.add(v)
             }
             val lg = o.optJSONArray("log")
@@ -3297,6 +3456,11 @@ class CivSim(
             goldenAt = o.optDouble("golden", -1.0)
             deeds.clear(); o.optString("deeds", "").split(",").filter { it.isNotBlank() }.forEach { deeds.add(it) }
             babiesBorn = o.optInt("babies", 0)
+            weds = o.optInt("weds", 0); feudsStarted = o.optInt("feudsS", 0); feudsEnded = o.optInt("feudsE", 0)
+            bffs.clear(); o.optString("bffs", "").split(",").filter { it.contains("-") }.forEach { bffs.add(it) }
+            courting.clear(); o.optString("courting", "").split(",").forEach { c -> val kv = c.split("@"); if (kv.size == 2) kv[1].toDoubleOrNull()?.let { courting[kv[0]] = it } }
+            feudEnds.clear()
+            for (a in villagers) for (b in villagers) if (a.id < b.id && (a.affinity[b.id] ?: 0) <= -3 && (b.affinity[a.id] ?: 0) <= -3) feudEnds[pairKey(a, b)] = time + DAY_LEN * 1.5
             traffic.fill(0f)
             val tr = o.optString("traffic", "")
             if (tr.length == traffic.size) for (i in traffic.indices) traffic[i] = (tr[i] - '0') * 4f

@@ -26,3 +26,6 @@ From the Hut Age, raiders come for the stores; later ogres, rift wraiths and rif
 
 ## Speaking to the village
 Type an order in the "Speak to the village" box (attack, defend, hide, gather, build, hunt, fish, trade, craft, feast, dance, study, train, explore, rest and many more words). Villagers follow it for a few minutes, with or without a local model.
+
+## Romance and rivalry
+Adults who talk a lot grow close, court and are married at the hall or campfire (flower arch, petals, banner). Couples have the babies, mourn when one dies, can become best friends with others, and sometimes fall out in feuds that end in a handshake. Friendships now survive saves.

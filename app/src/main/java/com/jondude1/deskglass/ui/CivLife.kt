@@ -718,3 +718,99 @@ fun DrawScope.deedBanner(sim: CivSim, g: Geo, namePaint: android.graphics.Paint)
         namePaint.color = android.graphics.Color.argb(230, 255, 255, 255)
     }
 }
+
+// ---- love, friendship and feuds ----
+
+private val ICON_BOLT = listOf("...bb", "..bb.", ".bbbb", "..bb.", "..b..")
+private val ICON_TWIN = listOf(".h.h.", "hhhhh", "hhhhh", ".hhh.", "..h..")
+private val WED_ARCH = listOf(
+    "..gpgggpg..",
+    ".gyg...gyg.",
+    "gpg.....gpg",
+    "gg.......gg",
+    "wg.......gw",
+    "w.........w",
+    "w.........w",
+    "w.........w",
+    "w.........w",
+)
+private val WED_PAL = mapOf('g' to 0xFF4E9E4AL, 'p' to 0xFFF28CB1L, 'y' to 0xFFFFE08AL, 'w' to 0xFF8A5A33L)
+
+/** Hearts over couples who are close together, bolts over feuding pairs, and the flower arch and petals of a wedding. */
+fun DrawScope.loveLife(sim: CivSim, g: Geo) {
+    val ts = g.ts
+    val ps = g.ps
+    val t = g.t
+    for (v in sim.villagers) {
+        val o = sim.partnerOf(v)
+        if (o != null && v.id < o.id && v.phase != "sleeping") {
+            val d = kotlin.math.hypot(v.x - o.x, v.y - o.y)
+            if (d < 3.2f) {
+                val mx = g.ox + (v.x + o.x) / 2f * ts
+                val my = g.oy + (maxOf(v.y, o.y) + 0.45f) * ts - ts * 2.1f
+                val cyc = (t * 0.5f + v.id * 0.21f) % 1f
+                if (cyc < 0.75f) {
+                    val bob = sin(t * 3f + v.id) * ps * 0.6f
+                    icon(ICON_TWIN, mapOf('h' to 0xFFF0587FL), mx - ps * 1.5f, my + bob - cyc * ps * 3f, ps * 0.6f)
+                }
+            }
+        }
+        val f = sim.feudWith(v)
+        if (f != null && v.id < f.id && v.phase != "sleeping") {
+            val d = kotlin.math.hypot(v.x - f.x, v.y - f.y)
+            if (d < 4.5f) {
+                val mx = g.ox + (v.x + f.x) / 2f * ts
+                val my = g.oy + (maxOf(v.y, f.y) + 0.45f) * ts - ts * 2.2f
+                if (((t * 2.2f + v.id) % 2f) < 1.3f) icon(ICON_BOLT, mapOf('b' to 0xFFFF5A4AL), mx - ps * 1.5f, my, ps * 0.6f)
+            }
+        }
+    }
+    val age = (sim.time - sim.weddingAt).toFloat()
+    if (age < 0f || age > 60f) return
+    val cx = g.ox + sim.weddingX * ts
+    val base = g.oy + sim.weddingY * ts
+    val u = ps * 1.3f
+    icon(WED_ARCH, WED_PAL, cx - 5.5f * u, base - 9f * u, u)
+    if (age < 22f) {
+        val fade = if (age > 17f) (22f - age) / 5f else 1f
+        for (i in 0 until 22) {
+            val p = (age * 0.12f + i * 0.0455f) % 1f
+            val px = cx + (PixelFx.vnoise(i * 1.7f, 3.1f, 9) - 0.5f) * ts * 7f + sin(t * 1.4f + i) * ps * 2f
+            val py = base - u * 11f + p * ts * 5.5f
+            val pc = when (i % 3) { 0 -> 0xFFF9B4CE; 1 -> 0xFFFFFFFF; else -> 0xFFFFE08A }
+            drawRect(Color(pc).copy(alpha = 0.85f * fade), Offset(px, py), Size(ps * 1.1f, ps * 0.8f))
+        }
+        for (i in 0 until 4) {
+            val p = (age * 0.25f + i * 0.25f) % 1f
+            icon(ICON_TWIN, mapOf('h' to 0xFFF0587FL), cx + (i - 1.5f) * ts * 0.9f, base - u * 9f - p * ts * 3f, ps * 0.5f)
+        }
+    }
+}
+
+fun DrawScope.weddingBanner(sim: CivSim, g: Geo, namePaint: android.graphics.Paint) {
+    val age = (sim.time - sim.weddingAt).toFloat()
+    if (age < 0f || age > 7f || sim.weddingNames.isEmpty()) return
+    val a = when {
+        age < 0.5f -> age / 0.5f
+        age > 5.5f -> ((7f - age) / 1.5f).coerceIn(0f, 1f)
+        else -> 1f
+    }
+    val w = min(size.width * 0.86f, g.ts * 20f)
+    val h = g.ts * 2f
+    val left = (size.width - w) / 2f
+    val top = size.height * 0.30f + (1f - a) * g.ts * 2f
+    drawRect(Color(0xFF2A1420).copy(alpha = 0.78f * a), Offset(left, top), Size(w, h))
+    drawRect(Color(0xFFF28CB1).copy(alpha = a), Offset(left, top), Size(g.ps * 1.2f, h))
+    drawRect(Color(0xFFF28CB1).copy(alpha = a), Offset(left + w - g.ps * 1.2f, top), Size(g.ps * 1.2f, h))
+    drawIntoCanvas { c ->
+        val nc = c.nativeCanvas
+        namePaint.textAlign = android.graphics.Paint.Align.CENTER
+        namePaint.color = android.graphics.Color.argb((a * 255).toInt(), 250, 170, 200)
+        namePaint.textSize = g.ts * 0.5f
+        nc.drawText("WEDDING", size.width / 2f, top + h * 0.3f, namePaint)
+        namePaint.color = android.graphics.Color.argb((a * 255).toInt(), 255, 245, 215)
+        namePaint.textSize = g.ts * 0.9f
+        nc.drawText(sim.weddingNames, size.width / 2f, top + h * 0.78f, namePaint)
+        namePaint.color = android.graphics.Color.argb(230, 255, 255, 255)
+    }
+}

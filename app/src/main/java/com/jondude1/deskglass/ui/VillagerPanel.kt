@@ -45,6 +45,9 @@ fun VillagerPanel(sim: CivSim, id: Int, tick: Long, modifier: Modifier = Modifie
             color = Glass.InkDim, fontSize = 12.sp,
         )
         if (v.parents.isNotBlank()) Text("child of ${v.parents}", color = Glass.InkFaint, fontSize = 11.sp)
+        sim.partnerOf(v)?.let { Text("Married to ${it.name}", color = Color(0xFFF28CB1), fontSize = 12.sp) }
+        sim.bestFriendOf(v)?.let { Text("Best friend: ${it.name}", color = Color(0xFF9FD8B0), fontSize = 12.sp) }
+        sim.feudWith(v)?.let { Text("Feuding with ${it.name}", color = Color(0xFFFF8A7A), fontSize = 12.sp) }
         Text(
             "Doing: " + (if (v.action.isEmpty()) "thinking" else v.action.replace('_', ' ')),
             color = Glass.InkDim, fontSize = 12.sp,

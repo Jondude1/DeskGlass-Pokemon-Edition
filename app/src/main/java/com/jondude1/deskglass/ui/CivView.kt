@@ -659,6 +659,7 @@ private fun DrawScope.drawWorld(
     drawCritters(sim, art, cart, geo, sun)
     val sorted = sim.villagers.sortedBy { it.y }
     drawVillagers(sim, art, geo, sun)
+    loveLife(sim, geo)
     if (cam.followId >= 0) {
         sim.villagers.firstOrNull { it.id == cam.followId }?.let { fv ->
             // a gold ring under the hero of the moment
@@ -1144,6 +1145,7 @@ private fun DrawScope.drawWorld(
 
     ageBanner(sim, geo, namePaint, bubblePaint)
     deedBanner(sim, geo, namePaint)
+    weddingBanner(sim, geo, namePaint)
     seasonChip(sim, geo, namePaint)
     critterTexts(sim, geo, labels, textPaint, bubblePaint, namePaint)
 
