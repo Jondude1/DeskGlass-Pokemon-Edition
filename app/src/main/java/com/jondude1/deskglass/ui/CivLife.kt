@@ -280,6 +280,19 @@ fun DrawScope.drawVillagers(sim: CivSim, art: CivArt, g: Geo, sun: Sun) {
                 drawCircle(Color(0xFF7FD36B).copy(alpha = 0.85f * (1f - p)), radius = ps * 0.8f, center = Offset(cx + sin(t * 2f + k) * ps * 3f, feetY - ps * (6f + p * 10f)))
             }
         }
+        if (working && v.action == "carve") {
+            for (k in 0 until 3) {
+                val p = (t * 1.6f + k * 0.33f + v.id * 0.13f) % 1f
+                drawCircle(Color(0xFFC89A5B).copy(alpha = 0.9f * (1f - p)), radius = ps * 0.6f, center = Offset(cx + fx * ps * (2f + p * 4f), feetY - ps * (5f + 5f * sin(p * PI.toFloat()))))
+            }
+        }
+        if (working && v.action == "pick_flowers") {
+            val cols = listOf(Color(0xFFFF8FB1), Color(0xFFFFE066), Color(0xFFFFFFFF))
+            for (k in 0 until 3) {
+                val p = (t * 0.8f + k * 0.34f + v.id * 0.11f) % 1f
+                drawCircle(cols[k % 3].copy(alpha = 0.9f * (1f - p)), radius = ps * 0.7f, center = Offset(cx + sin(t * 2f + k) * ps * 3f, feetY - ps * (5f + p * 9f)))
+            }
+        }
         if (working && v.action == "stargaze") {
             for (k in 0 until 4) {
                 val tw = 0.5f + 0.5f * sin(t * 3f + k * 1.7f + v.id)

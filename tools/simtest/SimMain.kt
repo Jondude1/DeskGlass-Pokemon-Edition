@@ -11,6 +11,7 @@ fun main(args: Array<String>) {
     val legSeen = HashMap<String,Int>(); val legEnc = LinkedHashSet<String>()
     val errors = ArrayList<String>()
     sim.onError = { errors.add(it) }
+    if (System.getenv("SURPLUS") == "0") sim.smartSurplus = false
     val cw = sim.critters
     val seenEnc = LinkedHashSet<Enc>()
     val logSeen = LinkedHashSet<String>()
@@ -60,6 +61,7 @@ fun main(args: Array<String>) {
     logSeen.take(8).forEach { println("   $it") }
     println("actions: " + actHist.entries.sortedByDescending { it.value }.take(14).joinToString { "${it.key}=${it.value}" })
     println("far from village samples: $farSamples/$samples")
+    println("SURPLUS wastedGathers=${sim.wastedGathers} carved=${sim.carved} posies=${sim.posies}")
     println("MEASURE idle>2s=${"%.2f".format(100.0*stuckIdle/samples)}% IDLEtotal=${"%.2f".format(100.0*(actHist["IDLE"]?:0)/samples)}% distinctActions=${actHist.keys.size} avgHappiness=${"%.1f".format(happySum[0]/samples)} actions=${actHist.keys.sorted()}")
     println("scrolls common/fine/rare: ${cw.scrolls.toList()}")
     println("mentors: " + sim.villagers.filter { cw.mageOf(it).mentor >= 0 }.joinToString { "${it.name}<-${sim.villagers.firstOrNull { x -> x.id == cw.mageOf(it).mentor }?.name}" })
