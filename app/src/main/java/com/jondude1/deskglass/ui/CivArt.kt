@@ -216,6 +216,19 @@ class CivArt {
         'v' to 0xFF6A4AA8.toInt(), 'V' to 0xFF3E2A70.toInt(), 'p' to 0xFFB48AFF.toInt(), 'e' to 0xFFFFF06A.toInt(),
         'k' to 0xFF1A1030.toInt(),
     ))
+    val merchant = sprite(MERCHANT, mapOf(
+        'h' to 0xFF8A4B2A.toInt(), 's' to 0xFFD9A878.toInt(), 'k' to 0xFF1E1A16.toInt(), 'c' to 0xFF2F7F86.toInt(),
+        'C' to 0xFF1E5A60.toInt(), 'p' to 0xFFC8923F.toInt(), 'P' to 0xFF8E6420.toInt(), 'y' to 0xFFE8C547.toInt(), 'b' to 0xFF3A2A1E.toInt(),
+    ))
+    val bard = sprite(BARD, mapOf(
+        'h' to 0xFF6A3A8C.toInt(), 'f' to 0xFF3AB86A.toInt(), 's' to 0xFFD9A878.toInt(), 'k' to 0xFF1E1A16.toInt(),
+        'r' to 0xFFC8452F.toInt(), 'R' to 0xFF8A2A1A.toInt(), 'l' to 0xFFB5733A.toInt(), 'L' to 0xFF6B4020.toInt(),
+        'w' to 0xFFE8D8A8.toInt(), 'b' to 0xFF3A2A1E.toInt(),
+    ))
+    val pilgrim = sprite(PILGRIM, mapOf(
+        'w' to 0xFFEDEBE0.toInt(), 'W' to 0xFFB9B5A0.toInt(), 's' to 0xFFD9A878.toInt(), 'k' to 0xFF1E1A16.toInt(),
+        't' to 0xFF6B4A2B.toInt(), 'g' to 0xFFFFF2A0.toInt(), 'G' to 0xFFFFD86A.toInt(), 'b' to 0xFF3A2A1E.toInt(),
+    ))
     val shaman = sprite(SHAMAN, mapOf(
         's' to 0xFFD9A878.toInt(), 'm' to 0xFF6E3A8C.toInt(), 'M' to 0xFF4A2462.toInt(), 'b' to 0xFFEDE3C8.toInt(),
         'g' to 0xFF7FFFB0.toInt(), 'c' to 0xFF6B4A2B.toInt(), 'k' to 0xFF1E1A16.toInt(), 'r' to 0xFFB02A2A.toInt(),
@@ -739,6 +752,48 @@ class CivArt {
             "v...vvvv...v",
             "....v..v....",
             "...v....v...",
+        )
+        val MERCHANT = listOf(
+            "...hhhhhh...",
+            "..hhhhhhhh..",
+            "...ssssss...",
+            "...skssks...",
+            "....ssss....",
+            "..pcccccc...",
+            ".ppcccyccc..",
+            ".pPccccccs..",
+            ".pPccCCcc.s.",
+            ".ppcccccc...",
+            "...cc..cc...",
+            "...bb..bb...",
+        )
+        val BARD = listOf(
+            "....hhh.f...",
+            "...hhhhhf...",
+            "...ssssss...",
+            "...skssks...",
+            "....ssss....",
+            "..rrrrrrr..w",
+            ".rrrRrrrrl.w",
+            ".s.rrrrrlLw.",
+            "..srrrrllL..",
+            "...rrrrlL...",
+            "...rr..rr...",
+            "...bb..bb...",
+        )
+        val PILGRIM = listOf(
+            "....wwww..g.",
+            "...wwwwww.gG",
+            "...wsssw..t.",
+            "...wskskw.t.",
+            "...wsssw..t.",
+            "..wwwwwww.t.",
+            ".wwwWwwwwst.",
+            ".wwwWwwww.t.",
+            ".wwwWWwww.t.",
+            "..wwwwwww.t.",
+            "..wWwwwWw.t.",
+            "...bb.bb..t.",
         )
         val SHAMAN = listOf(
             "...bb.bb....",

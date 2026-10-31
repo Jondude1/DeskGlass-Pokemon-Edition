@@ -203,6 +203,57 @@ fun DrawScope.crops(b: Building, g: Geo, left: Float, top: Float) {
 // Villagers: they face where they go, lean into their steps, breathe, hop when they are small,
 // carry what they gathered, show how they feel, kick up dust and throw chips when they work.
 // ---------------------------------------------------------------------------------------------
+/** A travelling merchant, bard or pilgrim walking in to the fire, staying a while and walking on. */
+fun DrawScope.drawVisitor(sim: CivSim, art: CivArt, g: Geo, sun: Sun) {
+    val vis = sim.visitor ?: return
+    val ts = g.ts
+    val ps = g.ps
+    val t = g.t
+    val sp = when (vis.kind) { "merchant" -> art.merchant; "bard" -> art.bard; else -> art.pilgrim }
+    val w = sp.lw * ps * 1.1f
+    val h = sp.lh * ps * 1.1f
+    val cx = g.ox + vis.x * ts
+    val feet = g.oy + (vis.y + 0.45f) * ts
+    val here = vis.arrivedAt >= 0.0 && !vis.leaving
+    val bob = when {
+        !here -> abs(sin(t * 9f)) * ps * 0.9f
+        vis.kind == "bard" -> abs(sin(t * 5f)) * ps * 0.9f
+        else -> 0f
+    }
+    val dir = if (here) 1f else if (vis.leaving && vis.exitX < vis.x) -1f else if (!vis.leaving && vis.x > GW / 2f) -1f else 1f
+    castShadow(art, sp, cx, feet, w, h, sun)
+    drawOval(Color.Black.copy(alpha = 0.22f), Offset(cx - w * 0.45f, feet - ps * 1.3f), Size(w * 0.9f, ps * 2.6f))
+    withTransform({ scale(dir, 1f, Offset(cx, feet)) }) { img(sp, cx - w / 2f, feet - h - bob, w, h) }
+    if (!here) return
+    when (vis.kind) {
+        "bard" -> for (k in 0 until 4) {
+            // music notes drift up from the lute
+            val p = (t * 0.5f + k * 0.25f) % 1f
+            val nx = cx + sin(t * 2f + k * 1.9f) * ps * 5f + (k - 1.5f) * ps * 3f
+            val ny = feet - h - ps * 2f - p * ps * 22f
+            val c = Color(0xFFFFE08A).copy(alpha = 1f - p)
+            drawCircle(c, radius = ps * 1.6f, center = Offset(nx, ny))
+            drawRect(c, Offset(nx + ps * 1.2f, ny - ps * 5f), Size(ps * 0.9f, ps * 5f))
+        }
+        "pilgrim" -> {
+            val pulse = 0.5f + 0.5f * sin(t * 3f)
+            drawCircle(Color(0xFFFFF2A0).copy(alpha = 0.12f + 0.08f * pulse), radius = w * 1.1f, center = Offset(cx, feet - h * 0.55f))
+            for (k in 0 until 5) {
+                val p = (t * 0.4f + k * 0.2f) % 1f
+                val sx = cx + sin(k * 2.4f + t) * w * 0.7f
+                drawCircle(Color(0xFFFFF2A0).copy(alpha = 1f - p), radius = ps * 0.9f, center = Offset(sx, feet - ps * 3f - p * h * 1.2f))
+            }
+        }
+        else -> {
+            // a lantern swings on the cart pole and coins glint
+            val gl = (sin(t * 4f) * 0.5f + 0.5f)
+            drawCircle(Color(0xFFFFC857).copy(alpha = 0.18f + 0.10f * gl), radius = ps * 6f, center = Offset(cx + w * 0.55f, feet - h * 0.5f))
+            drawRect(Color(0xFFFFE08A).copy(alpha = 0.9f), Offset(cx + w * 0.55f - ps, feet - h * 0.5f - ps), Size(ps * 2f, ps * 2.4f))
+            if (gl > 0.8f) drawCircle(Color(0xFFFFF2A0), radius = ps * 1.1f, center = Offset(cx - w * 0.2f, feet - h * 0.55f))
+        }
+    }
+}
+
 fun DrawScope.drawVillagers(sim: CivSim, art: CivArt, g: Geo, sun: Sun) {
     val ts = g.ts
     val ps = g.ps

@@ -294,6 +294,16 @@ class CivSim(
     val critters = CritterWorld(this)
     /** Ordinary animals that make the land feel alive. Not saved. */
     val fauna = Fauna(this)
+    /** A travelling guest (merchant, bard or pilgrim) who walks in, visits the fire and walks on. */
+    class Visitor(val kind: String, var x: Float, var y: Float, val born: Double, val exitX: Float, val exitY: Float) {
+        var arrivedAt = -1.0
+        var leaving = false
+        var stuck = 0f
+    }
+    var visitor: Visitor? = null
+    private var nextVisitAt = 0.0
+    val visitStats = HashMap<String, Int>()
+    fun visitTotal(): Int = visitStats.values.sum()
     /** Worn footpaths: how often each tile has been walked. */
     val traffic = FloatArray(GW * GH)
     /** Things made at the workshop, sold at the market. */
@@ -390,7 +400,7 @@ class CivSim(
         lastBirth = time
         hides = 0
         goods = 0
-        raidsRepelled = 0; ogresSlain = 0; bossesSlain = 0; warlordsSlain = 0; golemsSlain = 0; shamansSlain = 0; foeStats.clear(); lastWarlordAt = -999.0; goldenAt = -1.0; deeds.clear(); babiesBorn = 0; weds = 0; feudsStarted = 0; feudsEnded = 0; bffs.clear(); feudEnds.clear(); courting.clear(); weddingAt = -999.0; nextRelAt = 0.0; deedBannerAt = -999.0; nextDeedAt = 0.0; titlesEarned = 0
+        visitor = null; nextVisitAt = time + DAY_LEN * 1.2; visitStats.clear(); raidsRepelled = 0; ogresSlain = 0; bossesSlain = 0; warlordsSlain = 0; golemsSlain = 0; shamansSlain = 0; foeStats.clear(); lastWarlordAt = -999.0; goldenAt = -1.0; deeds.clear(); babiesBorn = 0; weds = 0; feudsStarted = 0; feudsEnded = 0; bffs.clear(); feudEnds.clear(); courting.clear(); weddingAt = -999.0; nextRelAt = 0.0; deedBannerAt = -999.0; nextDeedAt = 0.0; titlesEarned = 0
         riftState = 0; party.clear(); expeditions = 0; expWins = 0; expRetreats = 0; roomsCleared = 0; relics = 0; deepestRoom = 0; wardensSlain = 0; nextRiftAt = time + DAY_LEN
         nextThreatAt = DAY_LEN * 1.4; lastBossAt = -999.0
         traffic.fill(0f)
@@ -2411,6 +2421,7 @@ class CivSim(
         val sb = StringBuilder()
         sb.append("FACTS. Mention only things listed here. Never invent buildings, people, resources or events.\n")
         sb.append("Time: day ${day()}, ${partOfDay()}, ${seasonName()}. Weather: ${weatherNow()}.\n")
+        visitor?.let { if (it.arrivedAt >= 0.0 && !it.leaving) sb.append("A ${visitorLabel(it.kind)} is visiting the fire right now.\n") }
         val ev = ArrayList<String>()
         if (alert()) ev.add(foeText() + " near the village")
         if (festival()) ev.add("a feast is being held by the fire")
@@ -3121,6 +3132,9 @@ class CivSim(
             Deed("bow", "First Bond", "Befriended a critter.", "+10 food") { critters.critters.isNotEmpty() },
             Deed("naturalist", "Friend of the Wild", "Seen twelve kinds of wild creature.", "+20 food") { fauna.kindsSeen.size >= 12 },
             Deed("foxhunt", "Red Hunter", "Watched a fox catch its supper.", "+10 food") { (fauna.seen["fox catch"] ?: 0) >= 1 },
+            Deed("road", "Open Road", "Welcomed a travelling visitor to the fire.", "+15 food") { visitTotal() >= 1 },
+            Deed("inn", "Hospitable Hearth", "Welcomed five visitors.", "+20 wood, +10 stone") { visitTotal() >= 5 },
+            Deed("guests", "Every Kind of Guest", "Met a merchant, a bard and a pilgrim.", "joy for all") { listOf("merchant", "bard", "pilgrim").all { (visitStats[it] ?: 0) >= 1 } },
             Deed("zoo", "Critter Keepers", "Own 10 critters.", "+20 food") { critters.critters.size >= 10 },
             Deed("dex", "Field Naturalists", "Caught 15 species.", "+30 food") { critters.caught.size >= 15 },
             Deed("level", "Trainer's Pride", "A critter reached level 25.", "joy for all") { critters.critters.any { it.level >= 25 } },
@@ -3181,6 +3195,116 @@ class CivSim(
     }
 
     // ---- rift expeditions ----
+
+
+    // ---- travelling visitors ----
+
+    fun visitorLabel(k: String): String = when (k) { "merchant" -> "travelling merchant"; "bard" -> "wandering bard"; else -> "pilgrim healer" }
+
+    private fun visitorTick(dt: Float) {
+        val vis = visitor
+        if (vis == null) {
+            if (time < nextVisitAt || villagers.size < 4) return
+            if (predators.isNotEmpty() || isNight() || stormUntil > time) {
+                nextVisitAt = time + 12.0
+                return
+            }
+            val hurt = villagers.count { it.hp < 85f } + (if (time < plagueUntil) 3 else 0)
+            val kind = pick("merchant" to 4, "bard" to 3, "pilgrim" to (if (hurt > 0) 4 else 1))
+            val west = rnd.nextBoolean()
+            val sx = if (west) 1.5f else GW - 2.5f
+            var sy = GH / 2f
+            for (k in 0 until 30) {
+                val cy = 4 + rnd.nextInt(GH - 8)
+                if (walkableTile(sx.toInt(), cy)) { sy = cy + 0.5f; break }
+            }
+            val ex = if (west) GW - 2.5f else 1.5f
+            visitor = Visitor(kind, sx, sy, time, ex, GH / 2f + (rnd.nextFloat() - 0.5f) * 10f)
+            return
+        }
+        val fire = buildings.firstOrNull { it.type == "hall" } ?: buildings.firstOrNull { it.type == "campfire" }
+        val tx = if (vis.leaving) vis.exitX else (fire?.x ?: GW / 2) + 1.6f
+        val ty = if (vis.leaving) vis.exitY else (fire?.y ?: GH / 2) + 1.2f
+        val dx = tx - vis.x
+        val dy = ty - vis.y
+        val d = kotlin.math.sqrt(dx * dx + dy * dy)
+        if (d > 0.9f) {
+            val step = 1.7f * dt
+            val nx = vis.x + dx / d * step
+            val ny = vis.y + dy / d * step
+            if (vis.stuck > 3f || walkableTile(nx.toInt(), ny.toInt())) { vis.x = nx; vis.y = ny }
+            else if (walkableTile(nx.toInt(), vis.y.toInt())) vis.x = nx
+            else if (walkableTile(vis.x.toInt(), ny.toInt())) vis.y = ny
+            else vis.stuck += dt
+        } else if (vis.leaving) {
+            visitor = null
+            nextVisitAt = time + DAY_LEN * (1.5 + rnd.nextDouble() * 1.5)
+            return
+        } else if (vis.arrivedAt < 0.0) {
+            vis.arrivedAt = time
+            visitorArrive(vis)
+        } else if (time - vis.arrivedAt > 50.0) {
+            vis.leaving = true
+        }
+        if (!vis.leaving && vis.arrivedAt < 0.0 && time - vis.born > 150.0) vis.leaving = true
+        if (time - vis.born > 400.0) { visitor = null; nextVisitAt = time + DAY_LEN }
+    }
+
+    private fun gatherAround(vis: Visitor, action: String, n: Int) {
+        var k = 0
+        for (v in villagers.sortedBy { (it.x - vis.x) * (it.x - vis.x) + (it.y - vis.y) * (it.y - vis.y) }) {
+            if (k >= n) break
+            if (v.phase != "idle" || v.hunger > 80f) continue
+            if (startAction(v, action, "")) k++
+        }
+    }
+
+    private fun visitorArrive(vis: Visitor) {
+        visitStats[vis.kind] = (visitStats[vis.kind] ?: 0) + 1
+        fx.add(Fx("spawn", vis.x, vis.y, time, 1.4f))
+        val name = visitorLabel(vis.kind)
+        when (vis.kind) {
+            "merchant" -> {
+                val ratios = listOf(
+                    Triple("wood", wood, wood.toFloat() / capWood()), Triple("stone", stone, stone.toFloat() / capStone()),
+                    Triple("food", food, food.toFloat() / capFood()),
+                )
+                val sell = ratios.maxByOrNull { it.third }!!
+                val amount = if (sell.third >= 0.4f) (sell.second * 0.25f).toInt().coerceIn(10, 60) else 0
+                val gotGoods = min(6, 30 - goods).coerceAtLeast(0)
+                goods += gotGoods
+                var extra: String
+                if (age >= 2) { metal += 4; extra = "4 metal" } else { hides += 6; extra = "6 hides" }
+                if (amount > 0) {
+                    when (sell.first) { "wood" -> wood -= amount; "stone" -> stone -= amount; else -> food -= amount }
+                    event("A $name reaches the fire and swaps $amount ${sell.first} for $gotGoods goods and $extra.")
+                } else {
+                    event("A $name reaches the fire with curios: $gotGoods goods and $extra in trade for a few stories.")
+                }
+                for (v in villagers) if (!isChild(v)) v.happiness = min(100f, v.happiness + 4f)
+                gatherAround(vis, if (count("market") > 0 && goods >= 2) "trade" else "huddle", 5)
+            }
+            "bard" -> {
+                for (v in villagers) v.happiness = min(100f, v.happiness + 10f)
+                festivalUntil = max(festivalUntil, time + 50.0)
+                event("A $name strikes up a tune at the fire and the whole village gathers to listen.")
+                gatherAround(vis, "dance", 6)
+            }
+            else -> {
+                var healed = 0
+                for (v in villagers) if (v.hp < 95f) { v.hp = min(100f, v.hp + 45f); healed++ }
+                val cured = time < plagueUntil
+                if (cured) plagueUntil = time
+                for (v in villagers) v.happiness = min(100f, v.happiness + 5f)
+                event(
+                    if (healed > 0 || cured) "A $name arrives, mends $healed villagers${if (cured) " and drives out the plague" else ""}, and blesses the camp."
+                    else "A $name arrives, finds everyone well, and blesses the camp."
+                )
+                gatherAround(vis, "huddle", 4)
+            }
+        }
+        mark("A $name visited.")
+    }
 
     private fun partyMembers(): List<Villager> = party.mapNotNull { id -> villagers.firstOrNull { it.id == id } }
 
@@ -3557,6 +3681,7 @@ class CivSim(
         planTick()
         threatTick()
         expeditionTick(dt)
+        visitorTick(dt)
         goldenTick()
         deedTick()
         relationTick()
@@ -3679,7 +3804,7 @@ class CivSim(
             o.put("nextId", nextId)
             o.put("hides", hides)
             o.put("goods", goods)
-            o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("expN", expeditions).put("expW", expWins).put("expR", expRetreats).put("expRooms", roomsCleared).put("relics", relics).put("expDeep", deepestRoom).put("wardens", wardensSlain).put("golems", golemsSlain).put("shamans", shamansSlain).put("golden", goldenAt).put("deeds", deeds.joinToString(",")).put("babies", babiesBorn).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" })
+            o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("expN", expeditions).put("expW", expWins).put("expR", expRetreats).put("expRooms", roomsCleared).put("relics", relics).put("expDeep", deepestRoom).put("wardens", wardensSlain).put("golems", golemsSlain).put("shamans", shamansSlain).put("golden", goldenAt).put("visits", visitStats.entries.joinToString(",") { "${it.key}:${it.value}" }).put("deeds", deeds.joinToString(",")).put("babies", babiesBorn).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" })
             o.put("traffic", String(CharArray(traffic.size) { i -> '0' + min(9, (traffic[i] / 4f).toInt()) }))
             val ks = JSONArray()
             kingdoms.forEach {
@@ -3804,6 +3929,8 @@ class CivSim(
             hides = o.optInt("hides", 0)
             goods = o.optInt("goods", 0)
             raidsRepelled = o.optInt("raids", 0); ogresSlain = o.optInt("ogres", 0); bossesSlain = o.optInt("bosses", 0); warlordsSlain = o.optInt("warlords", 0); golemsSlain = o.optInt("golems", 0); shamansSlain = o.optInt("shamans", 0)
+            visitStats.clear()
+            for (e in o.optString("visits", "").split(",")) { val kv = e.split(":"); if (kv.size == 2) visitStats[kv[0]] = kv[1].toIntOrNull() ?: 0 }
             goldenAt = o.optDouble("golden", -1.0)
             expeditions = o.optInt("expN", 0); expWins = o.optInt("expW", 0); expRetreats = o.optInt("expR", 0); roomsCleared = o.optInt("expRooms", 0); relics = o.optInt("relics", 0); deepestRoom = o.optInt("expDeep", 0); wardensSlain = o.optInt("wardens", 0)
             deeds.clear(); o.optString("deeds", "").split(",").filter { it.isNotBlank() }.forEach { deeds.add(it) }

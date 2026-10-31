@@ -661,6 +661,7 @@ private fun DrawScope.drawWorld(
     drawCritters(sim, art, cart, geo, sun)
     val sorted = sim.villagers.sortedBy { it.y }
     drawVillagers(sim, art, geo, sun)
+    drawVisitor(sim, art, geo, sun)
     loveLife(sim, geo)
     if (cam.followId >= 0) {
         sim.villagers.firstOrNull { it.id == cam.followId }?.let { fv ->
