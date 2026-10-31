@@ -654,6 +654,7 @@ private fun DrawScope.drawWorld(
     }
 
     // wildlife, then villagers
+    villageStock(sim, art, geo)
     lifeCritters(sim, art, geo)
     drawDrops(sim, geo)
     drawCritters(sim, art, cart, geo, sun)

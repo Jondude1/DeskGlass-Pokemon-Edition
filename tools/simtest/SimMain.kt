@@ -73,6 +73,7 @@ fun main(args: Array<String>) {
         println("  ${c.species.name.padEnd(12)} Lv${c.level.toString().padEnd(3)} ${c.species.typeText.padEnd(12)} owner=${cw.ownerName(c).ifEmpty { "village" }.padEnd(8)} companion=${c.companion} wins=${c.wins} hp=${c.hp}/${c.maxHp}")
     }
     println("evolution scenes active: ${cw.evolutions.size}")
+    println("STOCK levels wood=${Stock.woodLevel(sim)}/10 stone=${Stock.stoneLevel(sim)}/8 food=${Stock.foodLevel(sim)}/6 hides=${Stock.hideLevel(sim)}/4 metal=${Stock.metalLevel(sim)}/6 propKinds=${Stock.propKinds(sim).size} ${Stock.propKinds(sim)}")
     println("stores: food=${sim.food} wood=${sim.wood} stone=${sim.stone} ore=${sim.ore} metal=${sim.metal} hides=${sim.hides}")
     println("chronicle (last 12):"); sim.chronicle.takeLast(12).forEach { println("  $it") }
     println("news (last 14):"); sim.log.takeLast(14).forEach { println("  $it") }
