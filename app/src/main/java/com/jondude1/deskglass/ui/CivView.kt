@@ -910,9 +910,9 @@ private fun DrawScope.drawWorld(
     for (p in sim.predators) {
         val sp = when (p.kind) {
             "bear" -> art.bear; "boar" -> art.boar; "raider" -> art.raider; "ogre" -> art.ogre
-            "wraith" -> art.wraith; "drake" -> art.drake; "shaman" -> art.shaman; "warlord" -> art.warlord; "golem" -> art.golem; else -> art.wolf
+            "wraith" -> art.wraith; "drake" -> art.drake; "shaman" -> art.shaman; "warlord" -> art.warlord; "golem" -> art.golem; "frostwolf" -> art.frostwolf; "lich" -> art.lich; "skeleton" -> art.skeleton; else -> art.wolf
         }
-        val sc = when (p.kind) { "bear" -> 1.15f; "boar" -> 0.95f; "ogre" -> 1.5f; "drake" -> 1.7f; "raider" -> 1.1f; "warlord" -> 1.45f; "golem" -> 1.55f; "shaman" -> 1.1f; else -> 1f }
+        val sc = when (p.kind) { "bear" -> 1.15f; "boar" -> 0.95f; "ogre" -> 1.5f; "drake" -> 1.7f; "raider" -> 1.1f; "warlord" -> 1.45f; "golem" -> 1.55f; "shaman" -> 1.1f; "lich" -> 1.35f; "skeleton" -> 1.05f; "frostwolf" -> 1.05f; else -> 1f }
         val w = sp.lw * ps * sc
         val h = sp.lh * ps * sc
         val feet = oy + (p.y + 0.45f) * ts
@@ -927,6 +927,13 @@ private fun DrawScope.drawWorld(
             drawCircle(Color(0xFF7FFFB0).copy(alpha = 0.14f + 0.07f * kotlin.math.sin(t * 4f + p.y)), radius = w * 0.7f, center = Offset(ox + p.x * ts, feet - h * 0.5f))
         } else if (p.kind == "warlord") {
             drawCircle(Color(0xFFFF4A3A).copy(alpha = 0.12f + 0.05f * kotlin.math.sin(t * 6f)), radius = w * 0.85f, center = Offset(ox + p.x * ts, feet - h * 0.5f))
+        } else if (p.kind == "lich" || p.kind == "skeleton") {
+            val gl = if (p.kind == "lich") 0.16f else 0.08f
+            drawCircle(Color(0xFF6AFFC8).copy(alpha = gl + 0.05f * kotlin.math.sin(t * 4f + p.x)), radius = w * 0.75f, center = Offset(ox + p.x * ts, feet - h * 0.5f))
+        } else if (p.kind == "frostwolf") {
+            // icy breath puffs
+            val ph = (t * 1.4f + p.x) % 1f
+            drawCircle(Color(0xFFE8F6FF).copy(alpha = 0.5f * (1f - ph)), radius = ps * (1.2f + 1.6f * ph), center = Offset(ox + p.x * ts + w * 0.45f, feet - h * 0.7f - ph * ps * 3f))
         } else if (p.kind == "golem") {
             drawCircle(Color(0xFF7FE0FF).copy(alpha = 0.10f + 0.05f * kotlin.math.sin(t * 3f + p.x)), radius = w * 0.75f, center = Offset(ox + p.x * ts, feet - h * 0.45f))
         }
@@ -1312,7 +1319,7 @@ private fun ThreatChip(sim: CivSim, tick: Long, modifier: Modifier = Modifier) {
 private fun newsTint(line: String): Color {
     val l = line.lowercase()
     return when {
-        listOf("killed", "war", "wolves", "wolf", "bear", "boar", "raider", "ogre", "wraith", "drake", "shaman", "warlord", "golem", "rift", "falls", "plague", "attack", "slain", "mourns").any { l.contains(it) } -> Color(0xFFFF9C8A)
+        listOf("killed", "war", "wolves", "wolf", "bear", "boar", "raider", "ogre", "wraith", "drake", "shaman", "warlord", "golem", "frost", "lich", "skeleton", "rift", "falls", "plague", "attack", "slain", "mourns").any { l.contains(it) } -> Color(0xFFFF9C8A)
         listOf("built", "palisade", "raise", "born", "feast", "berries", "welcome", "alliance", "trade").any { l.contains(it) } -> Color(0xFFA6E3A1)
         else -> Glass.InkDim
     }

@@ -259,6 +259,18 @@ class CivArt {
         'a' to 0xFF8A8A92.toInt(), 'A' to 0xFF5E5E68.toInt(), 'l' to 0xFFB4B4BC.toInt(), 'c' to 0xFF7FE0FF.toInt(),
         'C' to 0xFF3AA0D0.toInt(), 'k' to 0xFF22222A.toInt(), 'm' to 0xFF5A7A4A.toInt(),
     ))
+    val frostwolf = sprite(FROSTWOLF, mapOf(
+        'w' to 0xFFC8E4F4.toInt(), 'W' to 0xFFF0F8FF.toInt(), 'i' to 0xFF7FA8C8.toInt(),
+        'e' to 0xFF6AE0FF.toInt(), 'n' to 0xFF1E2A3A.toInt(),
+    ))
+    val skeleton = sprite(SKELETON, mapOf(
+        'b' to 0xFFE8E4D0.toInt(), 'B' to 0xFFB5AE92.toInt(), 'k' to 0xFF1E1A16.toInt(), 'g' to 0xFF6AFFC8.toInt(),
+        's' to 0xFF8D909C.toInt(),
+    ))
+    val lich = sprite(LICH, mapOf(
+        'm' to 0xFF3E3A5A.toInt(), 'M' to 0xFF24203A.toInt(), 'b' to 0xFFE8E4D0.toInt(), 'g' to 0xFF6AFFC8.toInt(),
+        'c' to 0xFF7A5A3A.toInt(),
+    ))
     val drake = sprite(DRAKE, mapOf(
         'd' to 0xFF3A2A5A.toInt(), 'D' to 0xFF241838.toInt(), 'p' to 0xFF8A5AD0.toInt(), 'e' to 0xFFFF5A5A.toInt(),
         'w' to 0xFFE8E0F0.toInt(), 'f' to 0xFFB45AFF.toInt(),
@@ -905,6 +917,43 @@ class CivArt {
             "...ll..ll.....",
             "...ll..ll.....",
             "..kkk..kkk....",
+        )
+        val FROSTWOLF = listOf(
+            "....W.W...W.",
+            "...iwwwwwwww",
+            "ww.iwwwWWwen",
+            "wwwwwwwwwwww",
+            "WWwwwwwwwww.",
+            ".i.i...i.i..",
+            ".i.i...i.i..",
+        )
+        val SKELETON = listOf(
+            "..bbbb..",
+            ".bbbbbb.",
+            ".bgbbgb.",
+            ".bbbbbb.",
+            "..bkkb..",
+            "..sbbs..",
+            ".bbBBbb.",
+            "b.sBBs.b",
+            "b..BB..b",
+            "...bb...",
+            "..b..b..",
+            ".bb..bb.",
+        )
+        val LICH = listOf(
+            "..mmmmmm..gg",
+            ".mMMMMMMm.gg",
+            ".mMbbbbMm.c.",
+            ".mMbgbgMm.c.",
+            "..mMbbbMm.c.",
+            "..mmMMmmm.c.",
+            ".bmmMMmmmbc.",
+            ".b.mMMMm.b..",
+            "...mMMMMm.c.",
+            "..mmMMMMmmc.",
+            "..mMMMMMMmc.",
+            ".mmmmmmmmmm.",
         )
         val GOLEM = listOf(
             "....aaaaaa....",
