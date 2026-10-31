@@ -92,7 +92,7 @@ fun main(args: Array<String>) {
     println("WILD kindsSeen=${sim.fauna.kindsSeen.size} ${sim.fauna.kindsSeen.sorted()} events=${sim.fauna.seen.toSortedMap()}")
     println("RIFTS expeditions=${sim.expeditions} wins=${sim.expWins} retreats=${sim.expRetreats} rooms=${sim.roomsCleared} deepest=${sim.deepestRoom} relics=${sim.relics} wardens=${sim.wardensSlain} state=${sim.riftState}")
     println("THREATS raids=${sim.raidsRepelled} ogres=${sim.ogresSlain} bosses=${sim.bossesSlain} golden=${sim.goldenAt} pop=${sim.villagers.size} legacy=${sim.legacy().count{it.second}}/${sim.legacy().size} legends=${sim.critters.legendsOwned()}")
-    println("FOES kinds=${sim.foeStats.size} ${sim.foeStats.toSortedMap()} warlords=${sim.warlordsSlain} golems=${sim.golemsSlain} shamans=${sim.shamansSlain} frostPacks=${sim.frostPacksBroken} liches=${sim.lichesSlain} bones=${sim.bonesRaised}")
+    println("FOES kinds=${sim.foeStats.size} ${sim.foeStats.toSortedMap()} warlords=${sim.warlordsSlain} golems=${sim.golemsSlain} shamans=${sim.shamansSlain} frostPacks=${sim.frostPacksBroken} pilfersFoiled=${sim.pilfersFoiled} pilfersLost=${sim.pilfersLost} swarms=${sim.swarmsBroken} hornets=${sim.hornetsSwatted} liches=${sim.lichesSlain} bones=${sim.bonesRaised}")
     println("WEATHER day=${sim.day()} season=${sim.seasonName()} events=${sim.wxStats.toSortedMap()} distinct=${sim.wxStats.size}")
     println("RELATIONS weddings=${sim.weds} couples=${sim.villagers.count { it.partner >= 0 } / 2} bffs=${sim.bffs.size} feudsStarted=${sim.feudsStarted} feudsEnded=${sim.feudsEnded} activeFeuds=${sim.villagers.count { sim.feudWith(it) != null } / 2} babiesBorn=${sim.babiesBorn}")
     println("VISITORS total=${sim.visitTotal()} ${sim.visitStats.toSortedMap()}")

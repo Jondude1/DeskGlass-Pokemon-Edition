@@ -218,6 +218,10 @@ class CivSim(
     var golemsSlain = 0
     var shamansSlain = 0
     var frostPacksBroken = 0
+    var pilfersFoiled = 0
+    var pilfersLost = 0
+    var swarmsBroken = 0
+    var hornetsSwatted = 0
     var lichesSlain = 0
     var bonesRaised = 0
     private var lastLichAt = -999.0
@@ -416,7 +420,7 @@ class CivSim(
         lastBirth = time
         hides = 0
         goods = 0
-        visitor = null; nextVisitAt = time + DAY_LEN * 1.2; visitStats.clear(); raidsRepelled = 0; ogresSlain = 0; bossesSlain = 0; warlordsSlain = 0; golemsSlain = 0; shamansSlain = 0; frostPacksBroken = 0; lichesSlain = 0; bonesRaised = 0; lastLichAt = -999.0; foeStats.clear(); lastWarlordAt = -999.0; goldenAt = -1.0; deeds.clear(); babiesBorn = 0; weds = 0; feudsStarted = 0; feudsEnded = 0; bffs.clear(); feudEnds.clear(); courting.clear(); weddingAt = -999.0; nextRelAt = 0.0; deedBannerAt = -999.0; nextDeedAt = 0.0; titlesEarned = 0
+        visitor = null; nextVisitAt = time + DAY_LEN * 1.2; visitStats.clear(); raidsRepelled = 0; ogresSlain = 0; bossesSlain = 0; warlordsSlain = 0; golemsSlain = 0; shamansSlain = 0; frostPacksBroken = 0; pilfersFoiled = 0; pilfersLost = 0; swarmsBroken = 0; hornetsSwatted = 0; lichesSlain = 0; bonesRaised = 0; lastLichAt = -999.0; foeStats.clear(); lastWarlordAt = -999.0; goldenAt = -1.0; deeds.clear(); babiesBorn = 0; weds = 0; feudsStarted = 0; feudsEnded = 0; bffs.clear(); feudEnds.clear(); courting.clear(); weddingAt = -999.0; nextRelAt = 0.0; deedBannerAt = -999.0; nextDeedAt = 0.0; titlesEarned = 0
         riftState = 0; party.clear(); expeditions = 0; expWins = 0; expRetreats = 0; roomsCleared = 0; relics = 0; deepestRoom = 0; wardensSlain = 0; nextRiftAt = time + DAY_LEN
         nextThreatAt = DAY_LEN * 1.4; lastBossAt = -999.0
         traffic.fill(0f)
@@ -2523,6 +2527,8 @@ class CivSim(
             "frostwolf" -> "a pack of frost wolves is on the prowl"
             "lich" -> "a rift lich and its skeletons are attacking"
             "skeleton" -> "skeletons are rattling out of the ground"
+            "pilferer" -> "a pilferer is sneaking after the stores"
+            "hornet" -> "an angry hornet swarm is buzzing about"
             else -> "wolves are howling"
         }
     }
@@ -3065,8 +3071,46 @@ class CivSim(
                     prey = v
                 }
             }
-            val speed = (when (p.kind) { "bear" -> 1.5f; "boar" -> 2.4f; "raider" -> 2.0f; "ogre" -> 1.3f; "wraith" -> 2.7f; "drake" -> 1.8f; "shaman" -> 1.7f; "warlord" -> 1.7f; "golem" -> 0.9f; "frostwolf" -> 2.9f; "lich" -> 1.3f; "skeleton" -> 1.7f; else -> 2.1f }) * dt * (if (p.buffUntil > p.life) 1.5f else 1f)
+            val speed = (when (p.kind) { "bear" -> 1.5f; "boar" -> 2.4f; "raider" -> 2.0f; "ogre" -> 1.3f; "wraith" -> 2.7f; "drake" -> 1.8f; "shaman" -> 1.7f; "warlord" -> 1.7f; "golem" -> 0.9f; "frostwolf" -> 2.9f; "lich" -> 1.3f; "skeleton" -> 1.7f; "pilferer" -> 3.1f; "hornet" -> 3.0f; else -> 2.1f }) * dt * (if (p.buffUntil > p.life) 1.5f else 1f)
+            var gone = false
             when (p.kind) {
+                "pilferer" -> {
+                    // a thief: dash to the campfire, grab food and wood, then bolt for the map edge
+                    val hub = buildings.firstOrNull { it.type == "campfire" } ?: buildings.firstOrNull { it.type == "hall" } ?: buildings.firstOrNull { it.type == "hut" }
+                    if (!p.looted && hub != null) {
+                        val hx = hub.x + 0.5f
+                        val hy = hub.y + 0.5f
+                        val hd = max(0.05f, hypot(hx - p.x, hy - p.y))
+                        if (hd > 1.2f) stepPredator(p, (hx - p.x) / hd * speed, (hy - p.y) / hd * speed)
+                        else {
+                            p.looted = true
+                            p.lootF = min(food, 14)
+                            p.lootW = min(wood, 8)
+                            food -= p.lootF
+                            wood -= p.lootW
+                            fx.add(Fx("arrow", p.x, p.y, time, 0.5f))
+                            addLog("The pilferer snatches ${p.lootF} food and ${p.lootW} wood and bolts for the hills!")
+                            val victim = villagers.minByOrNull { hypot(it.x - p.x, it.y - p.y) }
+                            if (victim != null && hypot(victim.x - p.x, victim.y - p.y) < 6f) { victim.say = "Thief!"; victim.sayLeft = 2.5f }
+                        }
+                    } else {
+                        val tx = if (p.x < GW / 2f) GW / 2f - OLD_GW / 2f - 1f else GW / 2f + OLD_GW / 2f + 1f
+                        val td = max(0.1f, abs(tx - p.x))
+                        stepPredator(p, (tx - p.x) / td * speed * (if (p.looted) 1.2f else 1f), (GH / 2f - p.y) * 0.02f * dt)
+                        if (abs(p.x - tx) < 1.2f) {
+                            predators.remove(p)
+                            gone = true
+                            if (p.looted && p.lootF + p.lootW > 0) {
+                                pilfersLost++
+                                event("The pilferer escapes into the woods with ${p.lootF} food and ${p.lootW} wood.")
+                            }
+                        }
+                    }
+                }
+                "hornet" -> {
+                    // erratic buzzing; the swarm stings whoever it reaches
+                    stepPredator(p, kotlin.math.sin(p.life * 9f + p.angle * 3f) * speed * 0.7f, kotlin.math.cos(p.life * 11f + p.angle) * speed * 0.7f)
+                }
                 "lich" -> {
                     // the lich raises skeletons from the ground and curses from afar
                     p.aux -= dt
@@ -3129,6 +3173,8 @@ class CivSim(
                     }
                 }
             }
+            if (gone) continue
+            if (p.kind == "pilferer") prey = null
             if (p.life > (if (p.kind == "ogre" || p.kind == "drake" || p.kind == "golem" || p.kind == "warlord" || p.kind == "lich") 320f else 150f) && prey == null) {
                 // the hunt is over: slip away toward the nearest map edge
                 val tx = if (p.x < GW / 2f) GW / 2f - OLD_GW / 2f - 1f else GW / 2f + OLD_GW / 2f + 1f
@@ -3147,7 +3193,7 @@ class CivSim(
                 if ((p.kind == "shaman" || p.kind == "lich") && d < 4.2f) stepPredator(p, -dx / d * speed * 0.6f, -dy / d * speed * 0.6f)
                 else if (d > 0.8f && !((p.kind == "shaman" || p.kind == "lich") && d < 5f)) stepPredator(p, dx / d * speed, dy / d * speed)
                 else if (p.kind != "shaman" && p.kind != "lich" && p.cool <= 0f) {
-                    val dmg = (when (p.kind) { "bear" -> 22f; "boar" -> 16f; "raider" -> 9f; "ogre" -> 24f; "wraith" -> 11f; "drake" -> 28f; "warlord" -> 18f; "golem" -> 30f; "frostwolf" -> 8f; "skeleton" -> 10f; else -> 12f }) * (if (isChild(prey)) 1.5f else 1f)
+                    val dmg = (when (p.kind) { "bear" -> 22f; "boar" -> 16f; "raider" -> 9f; "ogre" -> 24f; "wraith" -> 11f; "drake" -> 28f; "warlord" -> 18f; "golem" -> 30f; "frostwolf" -> 8f; "skeleton" -> 10f; "hornet" -> 4f; else -> 12f }) * (if (isChild(prey)) 1.5f else 1f)
                     if (p.kind == "raider") {
                         // raiders grab whatever they can carry as they strike
                         val f = min(food, 3)
@@ -3161,7 +3207,8 @@ class CivSim(
                     prey.happiness = max(0f, prey.happiness - 12f)
                     prey.say = "Aaah!"
                     prey.sayLeft = 2.5f
-                    p.cool = if (p.kind == "frostwolf") 0.9f else 1.4f
+                    p.cool = if (p.kind == "frostwolf") 0.9f else if (p.kind == "hornet") 0.8f else 1.4f
+                    if (p.kind == "hornet") { prey.say = "Ow, stings!"; prey.sayLeft = 2f }
                     if (p.kind == "frostwolf") prey.happiness = max(0f, prey.happiness - 3f)
                     fx.add(Fx("clash", prey.x, prey.y, time, 1.2f))
                     if (p.kind == "golem") {
@@ -3174,7 +3221,7 @@ class CivSim(
                         }
                     }
                 }
-            } else {
+            } else if (p.kind != "pilferer") {
                 if (rnd.nextInt(60) == 0) p.angle += (rnd.nextFloat() - 0.5f) * 2.4f
                 stepPredator(p, kotlin.math.cos(p.angle) * speed * 0.5f, kotlin.math.sin(p.angle) * speed * 0.5f)
             }
@@ -3196,8 +3243,8 @@ class CivSim(
             }
             if (p.hp <= 0f) {
                 predators.remove(p)
-                val meat = when (p.kind) { "bear" -> 8; "boar" -> 6; "ogre" -> 12; "drake" -> 14; "frostwolf" -> 3; "lich", "skeleton", "raider", "wraith", "shaman", "warlord", "golem" -> 0; else -> 4 }
-                val hide = when (p.kind) { "bear" -> 3; "boar" -> 2; "ogre" -> 5; "drake" -> 8; "frostwolf" -> 3; "lich", "skeleton", "raider", "wraith", "shaman", "warlord", "golem" -> 0; else -> 1 }
+                val meat = when (p.kind) { "bear" -> 8; "boar" -> 6; "ogre" -> 12; "drake" -> 14; "frostwolf" -> 3; "lich", "skeleton", "raider", "wraith", "shaman", "warlord", "golem", "pilferer", "hornet" -> 0; else -> 4 }
+                val hide = when (p.kind) { "bear" -> 3; "boar" -> 2; "ogre" -> 5; "drake" -> 8; "frostwolf" -> 3; "lich", "skeleton", "raider", "wraith", "shaman", "warlord", "golem", "pilferer", "hornet" -> 0; else -> 1 }
                 if (meat + hide > 0) drops.add(Drop(p.kind, p.x, p.y, time, meat, hide))
                 onThreatDown(p)
                 val hero = fighters.maxByOrNull { it.hp }
@@ -3277,6 +3324,27 @@ class CivSim(
             "skeleton" -> {
                 if (rnd.nextInt(3) == 0) stone += 1
             }
+            "pilferer" -> {
+                if (p.looted && p.lootF + p.lootW > 0) {
+                    food += p.lootF
+                    wood += p.lootW
+                    event("The pilferer is caught! The stolen ${p.lootF} food and ${p.lootW} wood are carried home. (+1 goods)")
+                } else event("The pilferer is caught before it could take a thing!")
+                goods += 1
+                pilfersFoiled++
+                mark("A pilferer was caught.")
+                for (v in villagers) v.happiness = min(100f, v.happiness + 5f)
+            }
+            "hornet" -> {
+                hornetsSwatted++
+                if (predators.none { it.kind == "hornet" }) {
+                    swarmsBroken++
+                    food += 8
+                    event("The last hornet drops. The swarm is broken, and the villagers cut out the honeycomb! (+8 food)")
+                    mark("A hornet swarm was broken.")
+                    for (v in villagers) v.happiness = min(100f, v.happiness + 6f)
+                }
+            }
             "lich" -> {
                 lichesSlain++
                 goods += 5
@@ -3309,13 +3377,15 @@ class CivSim(
 
     /** Real enemies arrive on a schedule that quickens with the age of the village. */
     private fun threatTick() {
-        if (age < 1 || villagers.size < 6 || time < nextThreatAt) return
-        nextThreatAt = time + DAY_LEN * (2.5 - 0.25 * age) * (0.8 + rnd.nextFloat() * 0.5)
+        if (villagers.size < 5 || time < nextThreatAt) return
+        nextThreatAt = time + DAY_LEN * (if (age == 0) 1.7 else 2.5 - 0.25 * age) * (0.8 + rnd.nextFloat() * 0.5)
         if (predators.count { isThreat(it.kind) } > 0) return
         val n = villagers.size
         val boss = age >= 4 && time - lastBossAt > DAY_LEN * 6
         val what = pick(
-            "raiders" to 4,
+            "raiders" to (if (age >= 1 && villagers.size >= 6) 4 else 0),
+            "pilferer" to (if (age == 0) 8 else 3),
+            "hornets" to (if (age >= 1 && (seasonName() == "summer" || seasonName() == "autumn")) 3 else 0),
             "ogre" to (if (age >= 2 && time - lastOgreAt > DAY_LEN * 4) 2 else 0),
             "breach" to (if (age >= 3) 3 else 0),
             "drake" to (if (boss) 3 else 0),
@@ -3324,9 +3394,20 @@ class CivSim(
             "frostpack" to (if (age >= 2 && seasonName() == "winter") 6 else 0),
             "lich" to (if (age >= 4 && n >= 14 && time - lastLichAt > DAY_LEN * 5) 3 else 0),
         )
-        alertUntil = time + 100.0
-        for (v in villagers) v.happiness = max(0f, v.happiness - 4f)
+        val minor = what == "pilferer" || what == "hornets"
+        alertUntil = time + (if (minor) 45.0 else 100.0)
+        if (!minor) for (v in villagers) v.happiness = max(0f, v.happiness - 4f)
         when (what) {
+            "pilferer" -> {
+                val k = if (n >= 12 && rnd.nextInt(3) == 0) 2 else 1
+                spawnPredators("pilferer", k)
+                event(if (k == 1) "A masked pilferer slinks out of the bushes, eyeing the stores. Catch it before it runs off with the loot!" else "Two masked pilferers slink toward the stores. Catch them before they run off with the loot!")
+            }
+            "hornets" -> {
+                val k = min(7, 4 + n / 10)
+                spawnPredators("hornet", k)
+                event("A hornet nest was kicked over somewhere! A swarm of $k angry hornets is buzzing toward the village.")
+            }
             "ogre" -> {
                 lastOgreAt = time
                 spawnPredators("ogre", 1 + (if (age >= 4 && n >= 18) 1 else 0))
@@ -3404,6 +3485,9 @@ class CivSim(
             Deed("ogre", "Ogre Slayer", "Slew an ogre.", "joy for all") { ogresSlain >= 1 },
             Deed("warlord", "Warlord Felled", "Slew a raider warlord.", "+40 food, +40 wood") { warlordsSlain >= 1 },
             Deed("golem", "Stone Breaker", "Shattered a rift golem.", "+40 stone") { golemsSlain >= 1 },
+            Deed("pilfer1", "Thief-Taker", "Caught a pilferer.", "+20 food, +10 wood") { pilfersFoiled >= 1 },
+            Deed("pilfer5", "Hard to Rob", "Caught 5 pilferers.", "+30 wood, +30 food") { pilfersFoiled >= 5 },
+            Deed("hornets", "Honey Hunters", "Broke a hornet swarm.", "+25 food") { swarmsBroken >= 1 },
             Deed("frost", "Winter Wardens", "Broke a frost wolf pack.", "+30 wood, +10 food") { frostPacksBroken >= 1 },
             Deed("lich", "Bone Breaker", "Destroyed a rift lich.", "+40 stone, +20 wood") { lichesSlain >= 1 },
             Deed("drake", "Drake Bane", "Slew a rift drake.", "joy for all") { bossesSlain >= 1 },
@@ -4144,7 +4228,7 @@ class CivSim(
             o.put("nextId", nextId)
             o.put("hides", hides)
             o.put("goods", goods)
-            o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("expN", expeditions).put("expW", expWins).put("expR", expRetreats).put("expRooms", roomsCleared).put("relics", relics).put("expDeep", deepestRoom).put("wardens", wardensSlain).put("golems", golemsSlain).put("frostPacks", frostPacksBroken).put("liches", lichesSlain).put("bones", bonesRaised).put("shamans", shamansSlain).put("golden", goldenAt).put("visits", visitStats.entries.joinToString(",") { "${it.key}:${it.value}" }).put("deeds", deeds.joinToString(",")).put("tavern", tavernVisits).put("snowmen", snowmenBuilt).put("leafR", leafPilesRaked).put("kites", kitesFlown).put("sprops", seasonProps.joinToString(",") { "${it.kind}:${it.x.toInt()}:${it.y.toInt()}" }).put("totemV", totemVisits).put("omens", omens).put("recov", recoveries).put("babies", babiesBorn).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" })
+            o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("expN", expeditions).put("expW", expWins).put("expR", expRetreats).put("expRooms", roomsCleared).put("relics", relics).put("expDeep", deepestRoom).put("wardens", wardensSlain).put("golems", golemsSlain).put("frostPacks", frostPacksBroken).put("pilfF", pilfersFoiled).put("pilfL", pilfersLost).put("swarms", swarmsBroken).put("hornets", hornetsSwatted).put("liches", lichesSlain).put("bones", bonesRaised).put("shamans", shamansSlain).put("golden", goldenAt).put("visits", visitStats.entries.joinToString(",") { "${it.key}:${it.value}" }).put("deeds", deeds.joinToString(",")).put("tavern", tavernVisits).put("snowmen", snowmenBuilt).put("leafR", leafPilesRaked).put("kites", kitesFlown).put("sprops", seasonProps.joinToString(",") { "${it.kind}:${it.x.toInt()}:${it.y.toInt()}" }).put("totemV", totemVisits).put("omens", omens).put("recov", recoveries).put("babies", babiesBorn).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" })
             o.put("traffic", String(CharArray(traffic.size) { i -> '0' + min(9, (traffic[i] / 4f).toInt()) }))
             val ks = JSONArray()
             kingdoms.forEach {
@@ -4268,7 +4352,7 @@ class CivSim(
             if (lg != null) for (i in 0 until lg.length()) log.add(lg.getString(i))
             hides = o.optInt("hides", 0)
             goods = o.optInt("goods", 0)
-            raidsRepelled = o.optInt("raids", 0); ogresSlain = o.optInt("ogres", 0); bossesSlain = o.optInt("bosses", 0); warlordsSlain = o.optInt("warlords", 0); golemsSlain = o.optInt("golems", 0); shamansSlain = o.optInt("shamans", 0); frostPacksBroken = o.optInt("frostPacks", 0); lichesSlain = o.optInt("liches", 0); bonesRaised = o.optInt("bones", 0)
+            raidsRepelled = o.optInt("raids", 0); ogresSlain = o.optInt("ogres", 0); bossesSlain = o.optInt("bosses", 0); warlordsSlain = o.optInt("warlords", 0); golemsSlain = o.optInt("golems", 0); shamansSlain = o.optInt("shamans", 0); frostPacksBroken = o.optInt("frostPacks", 0); pilfersFoiled = o.optInt("pilfF", 0); pilfersLost = o.optInt("pilfL", 0); swarmsBroken = o.optInt("swarms", 0); hornetsSwatted = o.optInt("hornets", 0); lichesSlain = o.optInt("liches", 0); bonesRaised = o.optInt("bones", 0)
             visitStats.clear()
             for (e in o.optString("visits", "").split(",")) { val kv = e.split(":"); if (kv.size == 2) visitStats[kv[0]] = kv[1].toIntOrNull() ?: 0 }
             goldenAt = o.optDouble("golden", -1.0)

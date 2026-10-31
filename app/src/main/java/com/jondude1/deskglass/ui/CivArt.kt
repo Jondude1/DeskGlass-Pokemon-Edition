@@ -273,6 +273,14 @@ class CivArt {
         'w' to 0xFFC8E4F4.toInt(), 'W' to 0xFFF0F8FF.toInt(), 'i' to 0xFF7FA8C8.toInt(),
         'e' to 0xFF6AE0FF.toInt(), 'n' to 0xFF1E2A3A.toInt(),
     ))
+    val pilferer = sprite(PILFERER, mapOf(
+        'h' to 0xFF5A4630.toInt(), 'H' to 0xFF3A2C1E.toInt(), 's' to 0xFFE0B48A.toInt(), 'e' to 0xFFFFE04A.toInt(),
+        'b' to 0xFFC8A060.toInt(), 'B' to 0xFF8C6C3A.toInt(), 'g' to 0xFF6A7A3A.toInt(), 'k' to 0xFF1E1A16.toInt(),
+        'r' to 0xFFB02A2A.toInt(),
+    ))
+    val hornet = sprite(HORNET, mapOf(
+        'y' to 0xFFF2C830.toInt(), 'k' to 0xFF1E1A16.toInt(), 'w' to 0xFFD8F0FF.toInt(), 'r' to 0xFFD04A2A.toInt(),
+    ))
     val skeleton = sprite(SKELETON, mapOf(
         'b' to 0xFFE8E4D0.toInt(), 'B' to 0xFFB5AE92.toInt(), 'k' to 0xFF1E1A16.toInt(), 'g' to 0xFF6AFFC8.toInt(),
         's' to 0xFF8D909C.toInt(),
@@ -966,6 +974,28 @@ class CivArt {
             "WWwwwwwwwww.",
             ".i.i...i.i..",
             ".i.i...i.i..",
+        )
+        val PILFERER = listOf(
+            "..hhhh....",
+            ".hhHHhh...",
+            ".hHeHeHh..",
+            ".hHssssH..",
+            "..hrrrrh..",
+            ".hhhhhhhbb",
+            "shhgggghbB",
+            "s.hhhhhhBB",
+            "..hhhhhh..",
+            "..hh..hh..",
+            ".kkk..kkk.",
+        )
+        val HORNET = listOf(
+            "ww....ww",
+            ".wwwwww.",
+            "..kyyk..",
+            ".kyykyyk",
+            "ryykyyk.",
+            ".rykkyk.",
+            "..rk.kr.",
         )
         val SKELETON = listOf(
             "..bbbb..",
