@@ -79,7 +79,8 @@ fun main(args: Array<String>) {
     println("stores: food=${sim.food} wood=${sim.wood} stone=${sim.stone} ore=${sim.ore} metal=${sim.metal} hides=${sim.hides}")
     println("chronicle (last 12):"); sim.chronicle.takeLast(12).forEach { println("  $it") }
     println("news (last 14):"); sim.log.takeLast(14).forEach { println("  $it") }
-    // save round trip of the critter layer
+    val atRanch = sim.critters.critters.count { c -> c.owner < 0 && sim.buildings.any { b -> b.type == "ranch" && Math.hypot((b.x + 0.5 - (sim.critters.bodies[c.uid]?.x ?: 0f)), (b.y + 0.5 - (sim.critters.bodies[c.uid]?.y ?: 0f))) < 4.0 } }
+// save round trip of the critter layer
     val j = cw.toJson()
     val before = cw.critters.map { Triple(it.uid, it.sp, it.level) }
     cw.fromJson(j)
@@ -99,6 +100,7 @@ fun main(args: Array<String>) {
     println("WONDERS count=${sim.buildings.count { it.type == "wonder" }} kinds=${sim.buildings.filter { it.type == "wonder" }.map { sim.wonderName(it.era) }} wood=${sim.wood} stone=${sim.stone} metal=${sim.metal}")
     println("EGGS laid=${sim.critters.eggsLaid} hatched=${sim.critters.eggsHatched} golden=${sim.critters.goldenHatched} pending=${sim.critters.eggs.count { it.hatchedAt < 0.0 }} critters=${sim.critters.critters.size}")
     println("TOURNEY held=${sim.critters.tourneys} matches=${sim.critters.tourMatches} forfeits=${sim.critters.tourForfeits} champ=${sim.critters.champName} on=${sim.critters.tourOn}")
+    println("RANCH built=${sim.buildings.count { it.type == "ranch" }} visits=${sim.ranchVisits} tended=${sim.critters.ranchTended} residents=${sim.ranchResidents()} atRanch=$atRanch")
     println("HEALTH hurtShare=%.2f%% infirmaries=${sim.buildings.count { it.type == "infirmary" }} recoveries=${sim.recoveries}".format(100.0 * hurtSamples / samples.coerceAtLeast(1)))
     println("RAISED buildings=${sim.raised} sitesNow=${sim.buildings.count { sim.time - it.built < 9.0 }}")
     println("TOTEM built=${sim.buildings.count { it.type == "totem" }} visits=${sim.totemVisits} omens=${sim.omens} kinds=${sim.buildings.map { it.type }.toSet().size}")

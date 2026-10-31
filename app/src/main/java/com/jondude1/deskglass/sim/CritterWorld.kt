@@ -768,6 +768,33 @@ class CritterWorld(private val sim: CivSim) {
         return out
     }
 
+    /** The ranch a village-owned critter lives at, if the village has one. */
+    private fun ranchOf(c: Critter): Building? {
+        if (c.owner >= 0) return null
+        val rs = sim.buildings.filter { it.type == "ranch" }
+        return if (rs.isEmpty()) null else rs[c.uid % rs.size]
+    }
+
+    var ranchTended = 0
+
+    /** A villager feeds and grooms one of the ranch critters: heals, a little XP and a closer bond. */
+    fun tendRanch(v: Villager): Critter? {
+        val res = critters.filter { it.owner < 0 && !inEncounter(it) && evolving(it) == null }
+        if (res.isEmpty()) return null
+        val c = res.minByOrNull { (if (it.faintedUntil > 0.0) -1f else it.hpFrac) + rnd.nextFloat() * 0.4f } ?: return null
+        if (c.faintedUntil > 0.0) {
+            c.faintedUntil = 0.0
+            c.hp = max(c.hp, (c.maxHp * 0.4f).toInt())
+        }
+        c.hp = min(c.maxHp, c.hp + max(2, c.maxHp / 3))
+        c.bond++
+        ranchTended++
+        val lv = c.gainXp(5 + c.level / 3)
+        val bx = bodies[c.uid]
+        pop(bx?.x ?: v.x, (bx?.y ?: v.y) - 0.7f, if (lv > 0) "Lv ${c.level}!" else "\u2665", if (lv > 0) 0xFFFFE066 else 0xFFFF7A9A)
+        return c
+    }
+
     private fun bodyFor(c: Critter): Body {
         val b = bodies[c.uid]
         if (b != null) return b
@@ -798,7 +825,7 @@ class CritterWorld(private val sim: CivSim) {
                     c.hp = max(c.hp, (c.maxHp * 0.4f).toInt())
                 }
             } else if (c.hp < c.maxHp && !inEncounter(c)) {
-                c.regen += c.maxHp * (if (packed(c)) 0.03f else 0.012f) * dt
+                c.regen += c.maxHp * (if (packed(c)) 0.03f else if (ranchOf(c) != null) 0.025f else 0.012f) * dt
                 if (c.regen >= 1f) {
                     val n = c.regen.toInt()
                     c.regen -= n
@@ -830,7 +857,8 @@ class CritterWorld(private val sim: CivSim) {
                     body.moving = false
                 }
             } else {
-                val a = anchorFor(c.species.t1)
+                val rb = ranchOf(c)
+                val a = if (rb != null) floatArrayOf(rb.x + 0.5f, rb.y + 1.6f) else anchorFor(c.species.t1)
                 if (body.pause > 0f) {
                     body.pause -= dt
                     body.moving = false

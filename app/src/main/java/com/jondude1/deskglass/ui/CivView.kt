@@ -588,6 +588,7 @@ private fun DrawScope.drawWorld(
                 "tavern" -> art.tavern
                 "totem" -> art.totem
                 "infirmary" -> art.infirmary
+                "ranch" -> art.ranch
                 "wonder" -> when (b.era) { 0 -> art.wonderSpire; 1 -> art.wonderFountain; else -> art.wonderBeacon }
                 else -> art.fire[fireFrame]
             }
@@ -729,6 +730,26 @@ private fun DrawScope.drawWorld(
                         drawRect(nc.copy(alpha = 1f - ph), Offset(nx + ps * 0.6f, ny - ps * 3f), Size(ps * 0.5f, ps * 3f))
                     }
                     if (kotlin.math.sin(t * 5f + b.y) > 0.8f) drawCircle(Color.White.copy(alpha = 0.7f), radius = ps * 1.2f, center = Offset(cx + w * 0.05f, baseY - hh * 0.2f))
+                }
+            }
+            if (b.type == "ranch") {
+                // a lantern by the barn door at night; hearts and hay motes rise while someone grooms the herd
+                if (dark > 0.1f) drawCircle(Color(0xFFFFC870).copy(alpha = min(0.3f, dark * 0.55f)), radius = ts * 1.2f, center = Offset(cx - w * 0.1f, baseY - hh * 0.3f))
+                val tenders = sim.villagers.count { it.action == "tend_critters" && it.phase == "working" && kotlin.math.hypot(it.x - (b.x + 0.5f), it.y - (b.y + 0.5f)) < 2.5f }
+                if (tenders > 0) {
+                    for (k in 0 until 4) {
+                        val ph = (t * 0.5f + k * 0.25f + b.x * 0.1f) % 1f
+                        val nx = cx + w * 0.05f + k * ps * 3f + kotlin.math.sin(t * 2f + k) * ps
+                        val ny = baseY - hh * 0.5f - ph * ts * 1.4f
+                        val a = 1f - ph
+                        if (k % 2 == 0) {
+                            val hc = Color(0xFFFF5A7A).copy(alpha = a)
+                            drawRect(hc, Offset(nx - ps * 1.5f, ny - ps), Size(ps, ps))
+                            drawRect(hc, Offset(nx + ps * 0.5f, ny - ps), Size(ps, ps))
+                            drawRect(hc, Offset(nx - ps * 1.5f, ny), Size(ps * 3f, ps))
+                            drawRect(hc, Offset(nx - ps * 0.5f, ny + ps), Size(ps, ps))
+                        } else drawRect(Color(0xFFE8C547).copy(alpha = a), Offset(nx, ny), Size(ps * 1.2f, ps * 1.2f))
+                    }
                 }
             }
             if (b.type == "totem") {
