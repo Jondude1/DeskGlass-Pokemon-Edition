@@ -16,7 +16,7 @@ fun main(args: Array<String>) {
     val seenEnc = LinkedHashSet<Enc>()
     val logSeen = LinkedHashSet<String>()
     val actHist = HashMap<String, Int>()
-    var farSamples = 0; var samples = 0; var stuckIdle = 0; val happySum = DoubleArray(1)
+    var hurtSamples = 0; var farSamples = 0; var samples = 0; var stuckIdle = 0; val happySum = DoubleArray(1)
     val dt = 0.05f
     var maxOut = 0
     val spellsSeen = HashMap<String, Int>()
@@ -30,7 +30,7 @@ fun main(args: Array<String>) {
         sim.tick(dt)
         if (i % 12000 == 0) { val cmds = listOf("gather wood","attack the enemy","defend the village","hold a feast","build more homes","go hunting","everyone hide","study hard","trade at the market","rest now"); sim.whisper(cmds[(i/12000) % cmds.size]) }
         if (i % 40 == 0) { for (w in cw.wilds) if (w.c.species.rarity >= 5) legSeen.merge(w.c.species.name, 1, Int::plus); for (e in cw.encounters) if (e.foe?.species?.rarity ?: 0 >= 5) legEnc.add(e.state + ":" + e.result) }
-        if (i % 20 == 0) { for (v in sim.villagers) { actHist.merge(if (v.phase == "idle") "IDLE" else v.action, 1, Int::plus); samples++; if (v.phase == "idle" && v.idleFor > 2f) stuckIdle++; happySum[0] += v.happiness; val cd = Math.hypot((v.x - 48.0), (v.y - 27.0)); if (cd > 26) farSamples++ } }
+        if (i % 20 == 0) { for (v in sim.villagers) { actHist.merge(if (v.phase == "idle") "IDLE" else v.action, 1, Int::plus); samples++; if (v.hp < 60f) hurtSamples++; if (v.phase == "idle" && v.idleFor > 2f) stuckIdle++; happySum[0] += v.happiness; val cd = Math.hypot((v.x - 48.0), (v.y - 27.0)); if (cd > 26) farSamples++ } }
         if (i % 40 == 0) for (l in sim.log.toList()) if (l.contains("circle") || l.contains("teaches") || l.contains("scroll") || l.contains("channels")) logSeen.add(l)
         for (e in cw.encounters) { seenEnc.add(e); if (e.state == "cast" && e.spellT < 0.06f) spellsSeen.merge(e.spell, 1, Int::plus) }
         if (i % 20 == 0) {
@@ -98,6 +98,7 @@ fun main(args: Array<String>) {
     println("VISITORS total=${sim.visitTotal()} ${sim.visitStats.toSortedMap()}")
     println("WONDERS count=${sim.buildings.count { it.type == "wonder" }} kinds=${sim.buildings.filter { it.type == "wonder" }.map { sim.wonderName(it.era) }} wood=${sim.wood} stone=${sim.stone} metal=${sim.metal}")
     println("TOURNEY held=${sim.critters.tourneys} matches=${sim.critters.tourMatches} forfeits=${sim.critters.tourForfeits} champ=${sim.critters.champName} on=${sim.critters.tourOn}")
+    println("HEALTH hurtShare=%.2f%% infirmaries=${sim.buildings.count { it.type == "infirmary" }} recoveries=${sim.recoveries}".format(100.0 * hurtSamples / samples.coerceAtLeast(1)))
     run { val tv = sim.buildings.count { it.type == "tavern" }; println("TAVERN built=$tv visits=${sim.tavernVisits}") }
     println("DEEDS ${sim.deeds.size}/${sim.allDeeds.size} renown=${sim.renownTitle()} ${sim.deeds}")
     println("TITLES earned=${sim.titlesEarned} villagersTitled=${sim.villagers.count { it.titles.isNotEmpty() }} list=${sim.villagers.filter { it.titles.isNotEmpty() }.joinToString { it.name + ":" + it.titles.joinToString("/") }} bonds=${sim.villagers.count { sim.bondsOf(it).isNotEmpty() }} career=${sim.villagers.count { sim.careerLines(it).isNotEmpty() }}")

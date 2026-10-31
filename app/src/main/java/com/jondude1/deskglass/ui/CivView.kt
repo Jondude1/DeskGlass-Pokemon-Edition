@@ -585,6 +585,7 @@ private fun DrawScope.drawWorld(
                 "barracks" -> art.barracks
                 "library" -> art.library
                 "tavern" -> art.tavern
+                "infirmary" -> art.infirmary
                 "wonder" -> when (b.era) { 0 -> art.wonderSpire; 1 -> art.wonderFountain; else -> art.wonderBeacon }
                 else -> art.fire[fireFrame]
             }
@@ -622,6 +623,12 @@ private fun DrawScope.drawWorld(
                         drawCircle(Color(0xFFFFC85A).copy(alpha = a * 0.28f), radius = ts * 2.1f, center = Offset(cx, baseY - hh * 0.75f))
                         drawCircle(Color(0xFFFFD27A).copy(alpha = a * 0.45f), radius = ts * (1.0f + 0.04f * kotlin.math.sin(t * 6f + b.x)), center = Offset(cx, baseY - hh * 0.75f))
                     }
+                    "infirmary" -> {
+                        val glow = Color(0xFFBDF5C0).copy(alpha = min(1f, dark * 1.5f))
+                        drawRect(glow, Offset(cx - w * 0.3f, baseY - hh * 0.55f), Size(ps * 2.4f, ps * 2.4f))
+                        drawRect(glow, Offset(cx + w * 0.17f, baseY - hh * 0.55f), Size(ps * 2.4f, ps * 2.4f))
+                        drawCircle(Color(0xFF9FF0B0).copy(alpha = min(0.25f, dark * 0.5f)), radius = ts * 1.2f, center = Offset(cx, baseY - hh * 0.4f))
+                    }
                     "tavern" -> {
                         val glow = Color(0xFFFFC870).copy(alpha = min(1f, dark * 1.7f))
                         drawRect(glow, Offset(cx - w * 0.32f, baseY - hh * 0.5f), Size(ps * 2.4f, ps * 2.4f))
@@ -636,6 +643,20 @@ private fun DrawScope.drawWorld(
                     "workshop" -> drawCircle(Color(0xFFFF9A3A).copy(alpha = min(0.4f, dark * 0.7f)), radius = ts * 0.9f, center = Offset(cx + w * 0.3f, baseY - hh * 0.3f))
                     "market" -> drawCircle(Color(0xFFFFD27A).copy(alpha = min(0.3f, dark * 0.55f)), radius = ts * 1.5f, center = Offset(cx, baseY - hh * 0.4f))
                     "campfire" -> drawCircle(Color(0xFFFF9A3A).copy(alpha = min(0.32f, dark * 0.6f)), radius = ts * 2.2f, center = Offset(cx, baseY - hh * 0.4f))
+                }
+            }
+            if (b.type == "infirmary") {
+                // healing sparkles rise while a patient rests inside
+                val patients = sim.villagers.count { it.action == "recover" && it.phase == "working" && kotlin.math.hypot(it.x - (b.x + 0.5f), it.y - (b.y + 0.5f)) < 2.5f }
+                if (patients > 0) {
+                    for (k in 0 until 4) {
+                        val ph = (t * 0.6f + k * 0.25f + b.x * 0.1f) % 1f
+                        val nx = cx - w * 0.25f + k * ps * 4f + kotlin.math.sin(t * 2.5f + k) * ps
+                        val ny = baseY - hh * 0.6f - ph * ts * 1.3f
+                        val c = Color(0xFF8CF5A0).copy(alpha = 1f - ph)
+                        drawRect(c, Offset(nx - ps * 0.5f, ny - ps * 1.5f), Size(ps, ps * 3f))
+                        drawRect(c, Offset(nx - ps * 1.5f, ny - ps * 0.5f), Size(ps * 3f, ps))
+                    }
                 }
             }
             if (b.type == "tavern") {

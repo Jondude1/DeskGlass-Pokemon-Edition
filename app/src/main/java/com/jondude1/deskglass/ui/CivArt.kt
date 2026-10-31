@@ -209,6 +209,11 @@ class CivArt {
         'W' to 0xFFCDBB92.toInt(), 't' to 0xFF5A3A20.toInt(), 'y' to 0xFFF2D88A.toInt(), 'd' to 0xFF3B2412.toInt(),
         'g' to 0xFFC8923F.toInt(), 'm' to 0xFFE8C547.toInt(), 'b' to 0xFF8D909C.toInt(),
     ))
+    val infirmary = sprite(INFIRMARY, mapOf(
+        'r' to 0xFF5F8A5C.toInt(), 'R' to 0xFF45693F.toInt(), 'w' to 0xFFF1EBDD.toInt(), 'W' to 0xFFD2C8AE.toInt(),
+        'x' to 0xFFD94A4A.toInt(), 'd' to 0xFF4A2E1B.toInt(), 'k' to 0xFF9FD3F0.toInt(), 'b' to 0xFF8D909C.toInt(),
+        'h' to 0xFF7BB86B.toInt(),
+    ))
     val wonderSpire = sprite(WONDER_SPIRE, mapOf(
         'c' to 0xFF9FE8F8.toInt(), 'C' to 0xFFD8F8FF.toInt(), 'p' to 0xFF7A5FC0.toInt(), 'w' to 0xFFE7DCC2.toInt(),
         'W' to 0xFFC9B99A.toInt(), 'k' to 0xFF2B3A67.toInt(), 'd' to 0xFF4A2E1B.toInt(), 'b' to 0xFF8D909C.toInt(),
@@ -739,6 +744,18 @@ class CivArt {
             "gwwwwwddwwwww.",
             "gmwWwwddwwWww.",
             ".bbbbbddbbbbb.",
+        )
+        val INFIRMARY = listOf(
+            "..............",
+            "...rrrrrrrr...",
+            "..rrRRRRRRrr..",
+            ".rrrrrrxxrrrr.",
+            "..wwwwxxxxww..",
+            "..wkkwwxxwkkw.",
+            "..wkkwwwwwkkw.",
+            "..wwwwwwwwwww.",
+            "..wWwwddwwWwh.",
+            ".bbbbbddbbbbbh",
         )
         val LIBRARY = listOf(
             ".....rrrr.....",
