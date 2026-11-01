@@ -356,6 +356,16 @@ fun DrawScope.drawVillagers(sim: CivSim, art: CivArt, g: Geo, sun: Sun) {
                 drawCircle(Color(0xFFFFE066).copy(alpha = 0.9f * (1f - p)), radius = ps * 0.6f, center = Offset(cx + (k - 1f) * ps * 2.2f, feetY - ps * (9f + p * 8f)))
             }
         }
+        if (working && v.action == "revel") {
+            val rc = listOf(Color(0xFFE85D75), Color(0xFFFFD166), Color(0xFF4ECDC4), Color(0xFFB69CFF))
+            for (k in 0 until 4) {
+                val p = (t * 0.8f + k * 0.25f + v.id * 0.11f) % 1f
+                drawCircle(rc[(k + v.id) % 4].copy(alpha = 0.9f * (1f - p)), radius = ps * 0.7f, center = Offset(cx + sin(t * 2f + k * 1.7f) * ps * 4f, feetY - ps * (6f + p * 12f)))
+            }
+            val np = (t * 0.6f + v.id * 0.17f) % 1f
+            drawRect(Color(0xFFFFF3C4).copy(alpha = 0.9f * (1f - np)), Offset(cx + ps * 3f, feetY - ps * (10f + np * 8f)), Size(ps * 0.9f, ps * 1.8f))
+            drawRect(Color(0xFFFFF3C4).copy(alpha = 0.9f * (1f - np)), Offset(cx + ps * 3.9f, feetY - ps * (10f + np * 8f)), Size(ps * 1.3f, ps * 0.8f))
+        }
         if (working && v.action == "rake_leaves") {
             val lc = listOf(Color(0xFFB5502A), Color(0xFFD98A2B), Color(0xFFE8B63A))
             for (k in 0 until 5) {
