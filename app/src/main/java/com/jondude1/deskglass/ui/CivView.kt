@@ -591,6 +591,7 @@ private fun DrawScope.drawWorld(
                 "infirmary" -> art.infirmary
                 "ranch" -> art.ranch
                 "pasture" -> art.pasture
+                "dock" -> art.dock
                 "wonder" -> when (b.era) { 0 -> art.wonderSpire; 1 -> art.wonderFountain; else -> art.wonderBeacon }
                 else -> art.fire[fireFrame]
             }
@@ -819,6 +820,36 @@ private fun DrawScope.drawWorld(
                         } else drawRect(Color(0xFFE8C547).copy(alpha = a), Offset(nx, ny), Size(ps * 1.2f, ps * 1.2f))
                     }
                 }
+            }
+            if (b.type == "dock") {
+                // ripples round the pier; a rowing boat bobs out on the lake while someone sails, a lantern glows at night
+                val gw = com.jondude1.deskglass.sim.GW
+                val ti = b.y * gw + b.x
+                var wdx = 0
+                var wdy = 0
+                if (b.x > 0 && sim.tiles[ti - 1] == com.jondude1.deskglass.sim.T.WATER) wdx = -1
+                else if (b.x < gw - 1 && sim.tiles[ti + 1] == com.jondude1.deskglass.sim.T.WATER) wdx = 1
+                else if (b.y > 0 && sim.tiles[ti - gw] == com.jondude1.deskglass.sim.T.WATER) wdy = -1
+                else wdy = 1
+                val rowers = sim.villagers.count { (it.action == "sail" || it.action == "fish") && it.phase == "working" && kotlin.math.hypot(it.x - (b.x + 0.5f), it.y - (b.y + 0.5f)) < 2.5f }
+                for (k in 0 until 2) {
+                    val ph = (t * 0.35f + k * 0.5f + b.x * 0.1f) % 1f
+                    drawCircle(Color.White.copy(alpha = 0.35f * (1f - ph)), radius = ps * (2f + 5f * ph), center = Offset(cx + wdx * ts * 0.9f, baseY - ts * 0.3f + wdy * ts * 0.9f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = ps * 0.5f))
+                }
+                if (rowers > 0) {
+                    val out = 1.6f + 0.5f * kotlin.math.sin(t * 0.5f)
+                    val bx = cx + wdx * ts * out - ps * 3f
+                    val by = baseY - ts * 0.2f + wdy * ts * out + kotlin.math.sin(t * 2f) * ps * 0.8f
+                    drawRect(Color(0xFF7A2C1E), Offset(bx, by - ps * 1.2f), Size(ps * 6f, ps * 1.6f))
+                    drawRect(Color(0xFFB8452F), Offset(bx + ps * 0.5f, by - ps * 2f), Size(ps * 5f, ps * 1f))
+                    drawRect(Color(0xFF5A3A20), Offset(bx + ps * 2.7f, by - ps * 6f), Size(ps * 0.6f, ps * 4.2f))
+                    drawRect(Color(0xFFF4F0E4), Offset(bx + ps * 3.3f, by - ps * 6f), Size(ps * 2.4f, ps * 3.2f))
+                    for (k in 0 until 3) {
+                        val ph = (t * 0.9f + k * 0.33f) % 1f
+                        drawRect(Color.White.copy(alpha = 0.6f * (1f - ph)), Offset(bx + ps * (k * 2f), by + ps * 0.6f + ph * ps * 2f), Size(ps * 1.2f, ps * 0.5f))
+                    }
+                }
+                if (dark > 0.1f) drawCircle(Color(0xFFFFD27A).copy(alpha = min(0.3f, dark * 0.5f)), radius = ts * 0.8f, center = Offset(cx + w * 0.12f, baseY - hh * 0.8f))
             }
             if (b.type == "totem") {
                 // worshippers make the carved faces glow; a blessing leaves golden motes drifting up

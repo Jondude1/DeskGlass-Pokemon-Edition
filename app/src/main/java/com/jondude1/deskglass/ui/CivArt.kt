@@ -222,6 +222,11 @@ class CivArt {
         'y' to 0xFFD9B35A.toInt(), 'Y' to 0xFFB58A3C.toInt(), 'w' to 0xFFC9975A.toInt(), 'W' to 0xFF9A6C3A.toInt(),
         'd' to 0xFF3B2412.toInt(), 'h' to 0xFFE8C547.toInt(), 'f' to 0xFFA9784A.toInt(), 'b' to 0xFF8D909C.toInt(),
     ))
+    val dock = sprite(DOCK, mapOf(
+        'w' to 0xFFC49A5E.toInt(), 'W' to 0xFF8E6A3A.toInt(), 'p' to 0xFF5A3A20.toInt(), 'y' to 0xFFF5D76E.toInt(),
+        'b' to 0xFFB8452F.toInt(), 'B' to 0xFF7A2C1E.toInt(), 's' to 0xFFF4F0E4.toInt(), 'r' to 0xFFD9CBA0.toInt(),
+        'n' to 0xFF8D909C.toInt(),
+    ))
     val infirmary = sprite(INFIRMARY, mapOf(
         'r' to 0xFF5F8A5C.toInt(), 'R' to 0xFF45693F.toInt(), 'w' to 0xFFF1EBDD.toInt(), 'W' to 0xFFD2C8AE.toInt(),
         'x' to 0xFFD94A4A.toInt(), 'd' to 0xFF4A2E1B.toInt(), 'k' to 0xFF9FD3F0.toInt(), 'b' to 0xFF8D909C.toInt(),
@@ -824,6 +829,18 @@ class CivArt {
             ".wWhhWw.ffffffffffff",
             ".wwwwww.f....f.....f",
             "bbbbbbb.f....f.....f",
+        )
+        val DOCK = listOf(
+            ".........y....",
+            ".........p....",
+            "....s....p....",
+            "...ss....p....",
+            "..sss.........",
+            "...p.....wwwww",
+            "wwwwwwwwwwWWWw",
+            "wWwWwWwWwWwWwW",
+            "p..bbbbbb.p..p",
+            "...BBBBBB.....",
         )
         val INFIRMARY = listOf(
             "..............",
