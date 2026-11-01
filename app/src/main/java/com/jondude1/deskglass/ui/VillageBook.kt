@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.sp
 import com.jondude1.deskglass.sim.CivSim
 import kotlinx.coroutines.delay
 
-private val BOOK_TABS = listOf("Deeds", "Heroes", "Records", "Annals")
+private val BOOK_TABS = listOf("Deeds", "Lore", "Heroes", "Records", "Annals")
 
 /** The Village Book: every deed (done and still to do), the heroes, lifetime records and the long chronicle. */
 @Composable
@@ -52,8 +52,9 @@ fun VillageBookScreen(sim: CivSim, onBack: () -> Unit) {
         ) {
             when (tab) {
                 0 -> deedsPage(sim)
-                1 -> heroesPage(sim)
-                2 -> recordsPage(sim)
+                1 -> lorePage(sim)
+                2 -> heroesPage(sim)
+                3 -> recordsPage(sim)
                 else -> annalsPage(sim)
             }
             Spacer(Modifier.height(24.dp))
@@ -86,6 +87,28 @@ private fun deedsPage(sim: CivSim) {
         Column {
             Text("✔ ${d.title}", color = Color(0xFF9BE3BC), fontSize = 15.sp, fontWeight = FontWeight.Medium)
             Text(d.text, color = Glass.InkDim, fontSize = 12.sp)
+        }
+    }
+}
+
+@Composable
+private fun lorePage(sim: CivSim) {
+    val libs = sim.buildings.count { it.type == "library" }
+    Text("${sim.techs.size} of ${sim.allTechs.size} discoveries · ${sim.research} lore gathered · ${sim.studyCount} study sessions", color = Color(0xFF9BE3BC), fontSize = 15.sp, fontWeight = FontWeight.Medium)
+    if (libs == 0) Text("Build a library (Town Age) and villagers will study there to make discoveries.", color = Glass.InkFaint, fontSize = 13.sp)
+    val next = sim.nextTech()
+    if (next != null) {
+        val pct = (sim.research * 100 / next.need).coerceIn(0, 100)
+        SectionLabel("RESEARCHING")
+        Text("${next.name} · $pct% · costs ${next.cost}", color = Glass.Ink, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+        Text("${sim.research}/${next.need} lore. ${next.text}", color = Glass.InkDim, fontSize = 12.sp)
+    }
+    SectionLabel("DISCOVERIES")
+    for (t in sim.allTechs) {
+        val done = sim.hasTech(t.id)
+        Column {
+            Text((if (done) "✔ " else "○ ") + t.name, color = if (done) Color(0xFF9BE3BC) else Glass.Ink, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+            Text(t.text + (if (done) "" else "  (${t.need} lore, ${t.cost})"), color = if (done) Glass.InkDim else Glass.InkFaint, fontSize = 12.sp)
         }
     }
 }

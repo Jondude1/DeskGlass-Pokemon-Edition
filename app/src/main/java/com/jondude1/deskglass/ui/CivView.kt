@@ -713,6 +713,22 @@ private fun DrawScope.drawWorld(
                     }
                 }
             }
+            if (b.type == "library") {
+                // scholars at work: golden rune motes drift up from the roof; a new discovery flares the windows
+                val readers = sim.villagers.count { it.action == "study" && it.phase == "working" && kotlin.math.hypot(it.x - (b.x + 0.5f), it.y - (b.y + 0.5f)) < 2.5f }
+                val flare = (1f - (sim.time - sim.discoveryFx).toFloat() / 6f).coerceIn(0f, 1f)
+                if (flare > 0f) drawCircle(Color(0xFFFFE9A0).copy(alpha = 0.35f * flare), radius = ts * (1.2f + 1.6f * (1f - flare)), center = Offset(cx, baseY - hh * 0.5f))
+                if (readers > 0 || flare > 0f) {
+                    for (k in 0 until 4) {
+                        val ph = (t * 0.45f + k * 0.25f + b.x * 0.1f) % 1f
+                        val nx = cx - w * 0.2f + k * ps * 4f + kotlin.math.sin(t * 1.8f + k) * ps * 1.5f
+                        val ny = baseY - hh - ph * ts * 1.3f
+                        val c = if (k % 2 == 0) Color(0xFFFFE066) else Color(0xFF9FD8FF)
+                        drawRect(c.copy(alpha = 1f - ph), Offset(nx - ps, ny - ps * 0.5f), Size(ps * 2f, ps))
+                        drawRect(c.copy(alpha = 1f - ph), Offset(nx - ps * 0.5f, ny - ps), Size(ps, ps * 2f))
+                    }
+                }
+            }
             if (b.type == "tavern") {
                 // patrons inside: warm windows by day too, music notes and clinking sparks over the door
                 val patrons = sim.villagers.count { it.action == "tavern" && it.phase == "working" && kotlin.math.hypot(it.x - (b.x + 0.5f), it.y - (b.y + 0.5f)) < 2.5f }
