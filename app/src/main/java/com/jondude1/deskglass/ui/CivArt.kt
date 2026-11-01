@@ -218,6 +218,10 @@ class CivArt {
         'r' to 0xFFB5483A.toInt(), 'R' to 0xFF8C3328.toInt(), 'w' to 0xFFC9975A.toInt(), 'W' to 0xFF9A6C3A.toInt(),
         'd' to 0xFF3B2412.toInt(), 'y' to 0xFFE8C547.toInt(), 'f' to 0xFFA9784A.toInt(), 'b' to 0xFF8D909C.toInt(),
     ))
+    val pasture = sprite(PASTURE, mapOf(
+        'y' to 0xFFD9B35A.toInt(), 'Y' to 0xFFB58A3C.toInt(), 'w' to 0xFFC9975A.toInt(), 'W' to 0xFF9A6C3A.toInt(),
+        'd' to 0xFF3B2412.toInt(), 'h' to 0xFFE8C547.toInt(), 'f' to 0xFFA9784A.toInt(), 'b' to 0xFF8D909C.toInt(),
+    ))
     val infirmary = sprite(INFIRMARY, mapOf(
         'r' to 0xFF5F8A5C.toInt(), 'R' to 0xFF45693F.toInt(), 'w' to 0xFFF1EBDD.toInt(), 'W' to 0xFFD2C8AE.toInt(),
         'x' to 0xFFD94A4A.toInt(), 'd' to 0xFF4A2E1B.toInt(), 'k' to 0xFF9FD3F0.toInt(), 'b' to 0xFF8D909C.toInt(),
@@ -808,6 +812,18 @@ class CivArt {
             "..oooo..oooo..",
             ".oOOOOooOOOOo.",
             "..oooo..oooo..",
+        )
+        val PASTURE = listOf(
+            "..yyyy..............",
+            ".yyYYyy.............",
+            "yyyyyyyy............",
+            ".wwwwww.f....f.....f",
+            ".wddddw.ffffffffffff",
+            ".wddddw.f....f.....f",
+            ".wwwwww.f....f.....f",
+            ".wWhhWw.ffffffffffff",
+            ".wwwwww.f....f.....f",
+            "bbbbbbb.f....f.....f",
         )
         val INFIRMARY = listOf(
             "..............",

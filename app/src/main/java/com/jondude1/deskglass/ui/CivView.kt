@@ -590,6 +590,7 @@ private fun DrawScope.drawWorld(
                 "totem" -> art.totem
                 "infirmary" -> art.infirmary
                 "ranch" -> art.ranch
+                "pasture" -> art.pasture
                 "wonder" -> when (b.era) { 0 -> art.wonderSpire; 1 -> art.wonderFountain; else -> art.wonderBeacon }
                 else -> art.fire[fireFrame]
             }
@@ -747,6 +748,56 @@ private fun DrawScope.drawWorld(
                         drawRect(nc.copy(alpha = 1f - ph), Offset(nx + ps * 0.6f, ny - ps * 3f), Size(ps * 0.5f, ps * 3f))
                     }
                     if (kotlin.math.sin(t * 5f + b.y) > 0.8f) drawCircle(Color.White.copy(alpha = 0.7f), radius = ps * 1.2f, center = Offset(cx + w * 0.05f, baseY - hh * 0.2f))
+                }
+            }
+            if (b.type == "pasture") {
+                // sheep graze and hens peck inside the fence; wool puffs and feathers drift up while someone tends them
+                val pens = sim.buildings.count { it.type == "pasture" }.coerceAtLeast(1)
+                val pi = sim.buildings.filter { it.type == "pasture" }.indexOf(b).coerceAtLeast(0)
+                val nS = (sim.sheepNow() + pens - 1 - pi) / pens
+                val nH = (sim.hensNow() + pens - 1 - pi) / pens
+                val penL = cx - w / 2f + ps * 9f
+                val penW = ps * 9f
+                val wool = Color(0xFFF2EEE0)
+                val woolShade = Color(0xFFD2CBB6)
+                val darkC = Color(0xFF3B3430)
+                for (k in 0 until nS) {
+                    val sd = k * 2.3f + b.x * 0.7f
+                    val graze = kotlin.math.sin(t * 0.9f + sd) > 0.55f
+                    val sx = penL + ps * 0.5f + (kotlin.math.sin(t * 0.25f + sd) * 0.5f + 0.5f) * (penW - ps * 5f)
+                    val sy = baseY - ps * (1.2f + (k % 3) * 1.3f)
+                    val face = if (kotlin.math.cos(t * 0.25f + sd) >= 0f) 1f else -1f
+                    drawRect(wool, Offset(sx, sy - ps * 2f), Size(ps * 3.2f, ps * 2f))
+                    drawRect(woolShade, Offset(sx, sy - ps * 0.7f), Size(ps * 3.2f, ps * 0.7f))
+                    val hx = if (face > 0f) sx + ps * 3.2f else sx - ps * 1.2f
+                    val hy = sy - ps * (if (graze) 0.9f else 1.9f)
+                    drawRect(darkC, Offset(hx, hy), Size(ps * 1.2f, ps * 1.1f))
+                    drawRect(darkC, Offset(sx + ps * 0.5f, sy), Size(ps * 0.6f, ps * 0.8f))
+                    drawRect(darkC, Offset(sx + ps * 2.2f, sy), Size(ps * 0.6f, ps * 0.8f))
+                }
+                for (k in 0 until nH) {
+                    val hd = k * 1.7f + b.y * 0.5f + 3f
+                    val hx = penL + ps + (kotlin.math.sin(t * 0.5f + hd) * 0.5f + 0.5f) * (penW - ps * 3f)
+                    val peck = kotlin.math.sin(t * 4f + hd) > 0.7f
+                    val hy = baseY - ps * (0.9f + (k % 4) * 0.9f)
+                    drawRect(Color.White, Offset(hx, hy - ps * 1.3f), Size(ps * 1.8f, ps * 1.3f))
+                    drawRect(Color(0xFFC9C2AE), Offset(hx + ps * 0.3f, hy - ps * 0.4f), Size(ps * 1.2f, ps * 0.4f))
+                    val hdY = if (peck) hy - ps * 0.6f else hy - ps * 2.1f
+                    drawRect(Color.White, Offset(hx + ps * 1.4f, hdY), Size(ps * 0.9f, ps * 0.9f))
+                    drawRect(Color(0xFFD94A3A), Offset(hx + ps * 1.6f, hdY - ps * 0.4f), Size(ps * 0.5f, ps * 0.5f))
+                    drawRect(Color(0xFFE8A22E), Offset(hx + ps * 2.3f, hdY + ps * 0.3f), Size(ps * 0.5f, ps * 0.4f))
+                }
+                if (dark > 0.1f) drawCircle(Color(0xFFFFC870).copy(alpha = min(0.28f, dark * 0.5f)), radius = ts * 0.9f, center = Offset(cx - w * 0.33f, baseY - hh * 0.4f))
+                val shepherds = sim.villagers.count { it.action == "tend_flock" && it.phase == "working" && kotlin.math.hypot(it.x - (b.x + 0.5f), it.y - (b.y + 0.5f)) < 2.5f }
+                if (shepherds > 0) {
+                    for (k in 0 until 5) {
+                        val ph = (t * 0.5f + k * 0.2f + b.x * 0.1f) % 1f
+                        val nx = penL + k * ps * 1.8f + kotlin.math.sin(t * 2f + k) * ps
+                        val ny = baseY - ps * 3f - ph * ts * 1.1f
+                        val a = 1f - ph
+                        if (k % 2 == 0) drawRect(Color.White.copy(alpha = a), Offset(nx, ny), Size(ps * 1.4f, ps * 1.1f))
+                        else drawRect(Color(0xFFFFE9A8).copy(alpha = a), Offset(nx, ny), Size(ps * 0.9f, ps * 1.2f))
+                    }
                 }
             }
             if (b.type == "ranch") {

@@ -102,6 +102,7 @@ fun main(args: Array<String>) {
     println("EGGS laid=${sim.critters.eggsLaid} hatched=${sim.critters.eggsHatched} golden=${sim.critters.goldenHatched} pending=${sim.critters.eggs.count { it.hatchedAt < 0.0 }} critters=${sim.critters.critters.size}")
     println("TOURNEY held=${sim.critters.tourneys} matches=${sim.critters.tourMatches} forfeits=${sim.critters.tourForfeits} champ=${sim.critters.champName} on=${sim.critters.tourOn}")
     println("SHINY seen=${sim.critters.shinySeen} hatched=${sim.critters.shinyHatched} kept=${sim.critters.shinyKept()} lvs=${sim.critters.critters.filter { it.shiny }.map { it.species.name + it.level }}")
+    println("PASTURE built=${sim.buildings.count { it.type == "pasture" }} visits=${sim.pastureVisits} eggs=${sim.eggsGathered} fleeces=${sim.fleeces} sheep=${sim.sheepNow()} hens=${sim.hensNow()}")
     println("RANCH built=${sim.buildings.count { it.type == "ranch" }} visits=${sim.ranchVisits} tended=${sim.critters.ranchTended} residents=${sim.ranchResidents()} atRanch=$atRanch")
     println("BALLISTA built=${sim.buildings.count { it.type == "ballista" }} shots=${sim.ballistaShots} kills=${sim.ballistaKills} towers=${sim.buildings.count { it.type == "tower" }}")
     println("HEALTH hurtShare=%.2f%% infirmaries=${sim.buildings.count { it.type == "infirmary" }} recoveries=${sim.recoveries}".format(100.0 * hurtSamples / samples.coerceAtLeast(1)))
