@@ -91,6 +91,7 @@ fun main(args: Array<String>) {
     val after = cw.critters.map { Triple(it.uid, it.sp, it.level) }
     println("save round trip ok=${before == after} (${after.size} critters, dex ${cw.caught.size}/${Dex.COUNT})")
     println("AGES reached: $ageAt final=${sim.age} pop=${sim.villagers.size}")
+    println("AGENEED age=${sim.age} day=${sim.day()} ${sim.ageNeedText()} progress=${sim.progress()}")
     println("BUILD pop=${sim.villagers.size} age=${sim.age} ${sim.buildSummary()} total=${sim.buildings.size} goods=${sim.goods}")
     var viol = 0
     for (t in listOf("hut","farm","campfire","smelter","well","workshop","market","lamp")) if (sim.buildings.count{it.type==t} > sim.capFor(t) + 1) viol++
@@ -108,6 +109,8 @@ fun main(args: Array<String>) {
     println("SHINY seen=${sim.critters.shinySeen} hatched=${sim.critters.shinyHatched} kept=${sim.critters.shinyKept()} lvs=${sim.critters.critters.filter { it.shiny }.map { it.species.name + it.level }}")
     println("PASTURE built=${sim.buildings.count { it.type == "pasture" }} visits=${sim.pastureVisits} eggs=${sim.eggsGathered} fleeces=${sim.fleeces} sheep=${sim.sheepNow()} hens=${sim.hensNow()}")
     println("DOCK built=${sim.buildings.count { it.type == "dock" }} sails=${sim.sailTrips} dockCatch=${sim.dockCatch} bottles=${sim.bottlesFound}")
+    println("QUARRYAT ${sim.buildings.filter { it.type == "quarry" }.map { (it.built / 3600.0) }} now=${sim.time / 3600.0}")
+    println("QUARRY built=${sim.buildings.count { it.type == "quarry" }} hauls=${sim.quarryHauls} stone=${sim.quarryStone} veins=${sim.quarryVeins} storeStone=${sim.stone}")
     println("CAMP up=${sim.campUp} razed=${sim.campsRazed} hits=${sim.campHits} sorties=${sim.campSorties} hp=${sim.campHp.toInt()}/${sim.campMax.toInt()}")
     println("RANCH built=${sim.buildings.count { it.type == "ranch" }} visits=${sim.ranchVisits} tended=${sim.critters.ranchTended} residents=${sim.ranchResidents()} atRanch=$atRanch")
     println("BALLISTA built=${sim.buildings.count { it.type == "ballista" }} shots=${sim.ballistaShots} kills=${sim.ballistaKills} towers=${sim.buildings.count { it.type == "tower" }}")

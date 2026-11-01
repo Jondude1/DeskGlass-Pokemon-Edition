@@ -592,6 +592,7 @@ private fun DrawScope.drawWorld(
                 "ranch" -> art.ranch
                 "pasture" -> art.pasture
                 "dock" -> art.dock
+                "quarry" -> art.quarry
                 "wonder" -> when (b.era) { 0 -> art.wonderSpire; 1 -> art.wonderFountain; else -> art.wonderBeacon }
                 else -> art.fire[fireFrame]
             }
@@ -850,6 +851,24 @@ private fun DrawScope.drawWorld(
                     }
                 }
                 if (dark > 0.1f) drawCircle(Color(0xFFFFD27A).copy(alpha = min(0.3f, dark * 0.5f)), radius = ts * 0.8f, center = Offset(cx + w * 0.12f, baseY - hh * 0.8f))
+            }
+            if (b.type == "quarry") {
+                // hammer sparks and a drifting stone-dust cloud while masons cut blocks; a lantern glows at night
+                val cutters = sim.villagers.count { it.action == "quarry" && it.phase == "working" && kotlin.math.hypot(it.x - (b.x + 0.5f), it.y - (b.y + 0.5f)) < 2.5f }
+                if (cutters > 0) {
+                    for (k in 0 until 4) {
+                        val ph = (t * 0.8f + k * 0.25f + b.x * 0.1f) % 1f
+                        val dx = cx + kotlin.math.sin(t * 1.3f + k * 2.1f) * ts * 0.5f
+                        val dy = baseY - hh * 0.3f - ph * ts * 1.1f
+                        drawCircle(Color(0xFFCFCBC2).copy(alpha = 0.45f * (1f - ph)), radius = ps * (1.2f + 2.2f * ph), center = Offset(dx, dy))
+                    }
+                    val blink = (t * 7f).toInt() % 3
+                    if (blink != 0) {
+                        drawRect(Color(0xFFFFE9A0), Offset(cx - ps * 1.4f + blink * ps, baseY - hh * 0.35f), Size(ps * 1.1f, ps * 1.1f))
+                        drawRect(Color(0xFFFFB84A), Offset(cx + ps * 1.2f - blink * ps, baseY - hh * 0.28f), Size(ps * 0.8f, ps * 0.8f))
+                    }
+                }
+                if (dark > 0.1f) drawCircle(Color(0xFFFFD27A).copy(alpha = min(0.22f, dark * 0.35f)), radius = ts * 0.9f, center = Offset(cx - w * 0.1f, baseY - hh * 0.75f))
             }
             if (b.type == "totem") {
                 // worshippers make the carved faces glow; a blessing leaves golden motes drifting up

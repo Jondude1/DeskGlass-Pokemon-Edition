@@ -227,6 +227,10 @@ class CivArt {
         'b' to 0xFFB8452F.toInt(), 'B' to 0xFF7A2C1E.toInt(), 's' to 0xFFF4F0E4.toInt(), 'r' to 0xFFD9CBA0.toInt(),
         'n' to 0xFF8D909C.toInt(),
     ))
+    val quarry = sprite(QUARRY, mapOf(
+        'w' to 0xFF9A6B38.toInt(), 'r' to 0xFFD9CBA0.toInt(), 'c' to 0xFFB8452F.toInt(), 's' to 0xFFB9BCC6.toInt(),
+        'S' to 0xFF8A8D99.toInt(), 'k' to 0xFF3A3A46.toInt(), 'g' to 0xFF6E6A62.toInt(),
+    ))
     val infirmary = sprite(INFIRMARY, mapOf(
         'r' to 0xFF5F8A5C.toInt(), 'R' to 0xFF45693F.toInt(), 'w' to 0xFFF1EBDD.toInt(), 'W' to 0xFFD2C8AE.toInt(),
         'x' to 0xFFD94A4A.toInt(), 'd' to 0xFF4A2E1B.toInt(), 'k' to 0xFF9FD3F0.toInt(), 'b' to 0xFF8D909C.toInt(),
@@ -841,6 +845,18 @@ class CivArt {
             "wWwWwWwWwWwWwW",
             "p..bbbbbb.p..p",
             "...BBBBBB.....",
+        )
+        val QUARRY = listOf(
+            "......ww......",
+            ".....wrrw.....",
+            "....w.r..w.ss.",
+            "...w..r...wsSs",
+            "..wwwwcwwwwSSs",
+            "ssSssSSsssSSss",
+            "SSsSSkkkSSsSSs",
+            "sSSkkkkkkkSSsS",
+            "kSSSkkkkkSSSSk",
+            "gggggggggggggg",
         )
         val INFIRMARY = listOf(
             "..............",
