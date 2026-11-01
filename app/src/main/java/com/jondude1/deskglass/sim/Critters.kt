@@ -416,6 +416,47 @@ class Critter(val uid: Int, var sp: Int, var level: Int) {
     }
 }
 
+/** Passive battle talents. A critter learns the signature talent of its main type at level 10. */
+object Abil {
+    const val LEVEL = 10
+    fun name(t: CType): String = when (t) {
+        CType.EMBER -> "Blaze"
+        CType.TIDE -> "Soothing Tide"
+        CType.LEAF -> "Regrowth"
+        CType.SPARK -> "Static Skin"
+        CType.STONE -> "Sturdy"
+        CType.GALE -> "Tailwind"
+        CType.FROST -> "Rime Coat"
+        CType.SHADE -> "Evasive"
+        CType.GLOW -> "Dazzle"
+        CType.VENOM -> "Toxic Barbs"
+        CType.IRON -> "Plating"
+        CType.SPIRIT -> "Soul Siphon"
+        CType.PLAIN -> "Adaptable"
+    }
+
+    fun text(t: CType): String = when (t) {
+        CType.EMBER -> "hits 35% harder when below a third health"
+        CType.TIDE -> "heals a little each turn"
+        CType.LEAF -> "heals a fifth once when it drops below half health"
+        CType.SPARK -> "may stun whoever strikes it"
+        CType.STONE -> "survives one knockout blow at 1 health"
+        CType.GALE -> "usually moves first"
+        CType.FROST -> "may chill whoever strikes it"
+        CType.SHADE -> "slips away from 15% of attacks"
+        CType.GLOW -> "dazzles foes so they miss more"
+        CType.VENOM -> "barbs hurt whoever strikes it"
+        CType.IRON -> "takes 12% less damage"
+        CType.SPIRIT -> "heals from a share of the damage it deals"
+        CType.PLAIN -> "hits 8% harder"
+    }
+
+    /** The talent name, or null while the critter is too young. */
+    fun of(c: Critter): String? = if (c.level >= LEVEL) name(c.species.t1) else null
+
+    fun has(c: Critter, t: CType): Boolean = c.level >= LEVEL && c.species.t1 == t
+}
+
 /** One attack inside a battle. */
 class Turn(
     val side: Int,
@@ -433,6 +474,9 @@ class Turn(
     val tickStatus: Int = 0,
     /** True when the attacker lost its action (stunned, or collapsed from a burn or poison). */
     val skip: Boolean = false,
+    /** A talent that fired this turn, e.g. "Blaze!", and the side that owns it (-1 for none). */
+    val abil: String = "",
+    val abilSide: Int = -1,
 )
 
 /** Turn-by-turn fight between two critters. The caller plays each turn out on screen. */
@@ -445,6 +489,7 @@ class Battle(val a: Critter, val b: Critter, private val rnd: Random) {
     /** Status of each side: 0 none, else one of the constants below. */
     val status = IntArray(2)
     private val statusLeft = IntArray(2)
+    private val used = BooleanArray(2)
 
     var over = false
         private set
@@ -456,8 +501,8 @@ class Battle(val a: Critter, val b: Critter, private val rnd: Random) {
     fun side(i: Int): Critter = if (i == 0) a else b
 
     private fun order(): List<Int> {
-        val fa = (a.spd * (if (status[0] == CHILL) 0.7f else 1f)).toInt() + rnd.nextInt(6)
-        val fb = (b.spd * (if (status[1] == CHILL) 0.7f else 1f)).toInt() + rnd.nextInt(6)
+        val fa = (a.spd * (if (status[0] == CHILL) 0.7f else 1f)).toInt() + rnd.nextInt(6) + (if (Abil.has(a, CType.GALE)) 12 else 0)
+        val fb = (b.spd * (if (status[1] == CHILL) 0.7f else 1f)).toInt() + rnd.nextInt(6) + (if (Abil.has(b, CType.GALE)) 12 else 0)
         return if (fa >= fb) listOf(0, 1) else listOf(1, 0)
     }
 
@@ -519,8 +564,34 @@ class Battle(val a: Critter, val b: Critter, private val rnd: Random) {
             statusLeft[s]--
             if (statusLeft[s] <= 0) status[s] = 0
         }
+        var abil = ""
+        var abilSide = -1
+        fun fire(text: String, side: Int, kind: String) {
+            abil = text
+            abilSide = side
+            abilCount[kind] = (abilCount[kind] ?: 0) + 1
+        }
+        if (Abil.has(att, CType.TIDE) && att.hp < att.maxHp) {
+            val h = max(1, att.maxHp / 16)
+            att.hp = min(att.maxHp, att.hp + h)
+            fire("+$h Soothing Tide", s, "Soothing Tide")
+        }
+        if (Abil.has(att, CType.LEAF) && !used[s] && att.hpFrac < 0.5f) {
+            used[s] = true
+            val h = max(2, att.maxHp / 5)
+            att.hp = min(att.maxHp, att.hp + h)
+            fire("+$h Regrowth", s, "Regrowth")
+        }
         val move = pickMove(att, def)
         var hit = rnd.nextInt(100) < move.acc
+        if (hit && Abil.has(def, CType.GLOW) && rnd.nextInt(100) < 10) {
+            hit = false
+            fire("Dazzled!", 1 - s, "Dazzle")
+        }
+        if (hit && Abil.has(def, CType.SHADE) && rnd.nextInt(100) < 15) {
+            hit = false
+            fire("Evasive!", 1 - s, "Evasive")
+        }
         if (hit && st == FRIGHT && rnd.nextInt(100) < 35) hit = false
         var dmg = 0
         var eff = 1f
@@ -536,13 +607,45 @@ class Battle(val a: Critter, val b: Critter, private val rnd: Random) {
             if (crit) d *= 1.5f
             if (st == BURN) d *= 0.8f
             if (st == CHILL) d *= 0.85f
+            if (Abil.has(att, CType.EMBER) && att.hpFrac < 0.34f) {
+                d *= 1.35f
+                fire("Blaze!", s, "Blaze")
+            }
+            if (Abil.has(att, CType.PLAIN)) d *= 1.08f
+            if (Abil.has(def, CType.IRON)) d *= 0.88f
             d *= 0.88f + rnd.nextFloat() * 0.12f
             if (s == 1 && shield > 0) {
                 d *= 0.5f
                 shield--
             }
             dmg = max(1, d.toInt())
+            if (def.hp - dmg <= 0 && Abil.has(def, CType.STONE) && !used[1 - s]) {
+                used[1 - s] = true
+                dmg = max(0, def.hp - 1)
+                fire("Sturdy!", 1 - s, "Sturdy")
+            }
             def.hp = max(0, def.hp - dmg)
+            if (def.hp > 0 && att.hp > 0) {
+                if (Abil.has(att, CType.SPIRIT) && dmg > 0) {
+                    val h = max(1, dmg * 15 / 100)
+                    att.hp = min(att.maxHp, att.hp + h)
+                    fire("+$h Soul Siphon", s, "Soul Siphon")
+                }
+                if (Abil.has(def, CType.VENOM)) {
+                    val r = max(1, att.maxHp / 16)
+                    att.hp = max(1, att.hp - r)
+                    fire("-$r Barbs", 1 - s, "Toxic Barbs")
+                }
+                if (status[s] == 0 && Abil.has(def, CType.SPARK) && rnd.nextInt(100) < 20) {
+                    status[s] = STUN
+                    statusLeft[s] = 1
+                    fire("Static!", 1 - s, "Static Skin")
+                } else if (status[s] == 0 && Abil.has(def, CType.FROST) && rnd.nextInt(100) < 20) {
+                    status[s] = CHILL
+                    statusLeft[s] = 3
+                    fire("Rime!", 1 - s, "Rime Coat")
+                }
+            }
             val kind = statusOf(move.type)
             if (kind != 0 && def.hp > 0 && status[1 - s] == 0) {
                 val chance = when (move.tier) { 1 -> 14; 2 -> 22; else -> 32 }
@@ -559,7 +662,7 @@ class Battle(val a: Critter, val b: Critter, private val rnd: Random) {
             over = true
             winner = s
         }
-        return Turn(s, move, hit, dmg, eff, crit, fainted, inflicted, tick, st, false)
+        return Turn(s, move, hit, dmg, eff, crit, fainted, inflicted, tick, st, false, abil, abilSide)
     }
 
     companion object {
@@ -573,6 +676,9 @@ class Battle(val a: Critter, val b: Critter, private val rnd: Random) {
         val count = IntArray(6)
         val inflictedCount = IntArray(6)
         var tickTotal = 0
+
+        /** Headless-test counter: how often each talent fired. */
+        val abilCount = HashMap<String, Int>()
 
         fun statusOf(t: CType): Int = when (t) {
             CType.EMBER -> BURN

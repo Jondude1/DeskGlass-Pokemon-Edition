@@ -24,6 +24,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.jondude1.deskglass.sim.Abil
 import com.jondude1.deskglass.sim.CType
 import com.jondude1.deskglass.sim.CivSim
 import com.jondude1.deskglass.sim.Dex
@@ -84,6 +85,10 @@ fun CritterDexScreen(sim: CivSim, onBack: () -> Unit) {
                         Text(
                             "HP ${c.hp}/${c.maxHp} · XP ${c.xp}/${Dex.xpNeed(c.level)} · ${c.wins} wins" +
                                 (if (c.species.evolveTo > 0 && c.owner >= 0) " · trust ${c.bond}/${c.trustNeeded()}" else " · trust ${c.bond}") + " · " + c.species.t1.job,
+                            color = Glass.InkFaint, fontSize = 12.sp,
+                        )
+                        Text(
+                            if (c.level >= Abil.LEVEL) "Talent: ${Abil.name(c.species.t1)}, ${Abil.text(c.species.t1)}" else "Learns its ${c.species.t1.label} talent at level ${Abil.LEVEL}",
                             color = Glass.InkFaint, fontSize = 12.sp,
                         )
                     }

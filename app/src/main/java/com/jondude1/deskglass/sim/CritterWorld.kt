@@ -1677,6 +1677,10 @@ class CritterWorld(private val sim: CivSim) {
         val ty = if (t.side == 0) e.by else e.ay
         val ax = if (t.side == 0) e.ax else e.bx
         val ay = if (t.side == 0) e.ay else e.by
+        if (t.abil.isNotEmpty()) {
+            val mine = t.abilSide == t.side
+            e.pops.add(Pop(if (mine) ax else tx, (if (mine) ay else ty) - 1.9f, t.abil, 0xFFFFD23C, sim.time))
+        }
         if (t.tick > 0) {
             e.pops.add(Pop(ax, ay - 1.1f, "-${t.tick} ${Battle.statusName(t.tickStatus)}", Battle.statusColor(t.tickStatus), sim.time))
         }
