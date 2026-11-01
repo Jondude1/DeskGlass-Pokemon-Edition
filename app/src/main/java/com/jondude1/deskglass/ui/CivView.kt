@@ -995,6 +995,7 @@ private fun DrawScope.drawWorld(
     reaverShip(sim, geo)
     riftSite(sim, geo)
     starCrater(sim, geo)
+    lessonScenes(sim, geo)
     campSite(sim, geo)
     lifeCritters(sim, art, geo)
     drawDrops(sim, geo)
