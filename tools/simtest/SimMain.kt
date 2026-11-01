@@ -27,13 +27,15 @@ fun main(args: Array<String>) {
     val steps = (hours * 3600 / dt).toInt()
     var lastAge = sim.age; val ageAt = ArrayList<String>()
     var nextReport = 0
+    val huddleWhy = HashMap<String, Int>(); var foeSamples = 0; var foeTotal = 0
     val t0 = System.currentTimeMillis()
     for (i in 0 until steps) {
         sim.tick(dt)
         if (sim.age != lastAge) { lastAge = sim.age; ageAt.add("age${sim.age}@%.2fh".format(sim.time / 3600.0)) }
         if (i % 12000 == 0) { val cmds = listOf("gather wood","attack the enemy","defend the village","hold a feast","build more homes","go hunting","everyone hide","study hard","trade at the market","rest now"); sim.whisper(cmds[(i/12000) % cmds.size]) }
         if (i % 40 == 0) { for (w in cw.wilds) if (w.c.species.rarity >= 5) legSeen.merge(w.c.species.name, 1, Int::plus); for (e in cw.encounters) if (e.foe?.species?.rarity ?: 0 >= 5) legEnc.add(e.state + ":" + e.result) }
-        if (i % 20 == 0) { for (v in sim.villagers) { actHist.merge(if (v.phase == "idle") "IDLE" else v.action, 1, Int::plus); if (v.job != "Child") perP.getOrPut(v.personaIdx) { HashMap() }.merge(if (v.phase == "idle") "IDLE" else v.action, 1, Int::plus); samples++; if (v.hp < 60f) hurtSamples++; if (v.phase == "idle" && v.idleFor > 2f) stuckIdle++; happySum[0] += v.happiness; val cd = Math.hypot((v.x - 48.0), (v.y - 27.0)); if (cd > 26) farSamples++ } }
+        if (i % 20 == 0) { foeTotal++; if (sim.predators.isNotEmpty()) foeSamples++ }
+        if (i % 20 == 0) { for (v in sim.villagers) { if (v.action == "huddle" && v.phase != "idle") { val kid = v.job == "Child"; val near = sim.predators.any { Math.hypot((it.x - v.x).toDouble(), (it.y - v.y).toDouble()) < 13.0 }; val k = (if (kid) "kid" else "adult") + (if (near) "-near" else if (sim.predators.isNotEmpty()) "-farfoe:" + sim.predators.map { it.kind }.distinct().sorted().joinToString("+") + "@" + sim.predators.minOf { Math.hypot((it.x - v.x).toDouble(), (it.y - v.y).toDouble()) }.toInt() / 10 * 10 else "-nofoe"); huddleWhy.merge(k, 1, Int::plus) } }; for (v in sim.villagers) { actHist.merge(if (v.phase == "idle") "IDLE" else v.action, 1, Int::plus); if (v.job != "Child") perP.getOrPut(v.personaIdx) { HashMap() }.merge(if (v.phase == "idle") "IDLE" else v.action, 1, Int::plus); samples++; if (v.hp < 60f) hurtSamples++; if (v.phase == "idle" && v.idleFor > 2f) stuckIdle++; happySum[0] += v.happiness; val cd = Math.hypot((v.x - 48.0), (v.y - 27.0)); if (cd > 26) farSamples++ } }
         if (i % 40 == 0) for (l in sim.log.toList()) if (l.contains("circle") || l.contains("teaches") || l.contains("scroll") || l.contains("channels")) logSeen.add(l)
         for (e in cw.encounters) { seenEnc.add(e); if (e.state == "cast" && e.spellT < 0.06f) spellsSeen.merge(e.spell, 1, Int::plus) }
         if (i % 20 == 0) {
@@ -66,6 +68,8 @@ fun main(args: Array<String>) {
     println("far from village samples: $farSamples/$samples")
     println("STARS fallen=${sim.starsFallen} shardsGathered=${sim.starShardsGot} metal=${sim.metal}")
     println("SURPLUS wastedGathers=${sim.wastedGathers} carved=${sim.carved} posies=${sim.posies}")
+    println("FOEUPTIME ${"%.1f".format(100.0 * foeSamples / foeTotal)}% huddleShare=${"%.1f".format(100.0 * (actHist["huddle"] ?: 0) / samples)}% attackShare=${"%.2f".format(100.0 * (actHist["attack"] ?: 0) / samples)}%")
+    println("HUDDLE " + huddleWhy.entries.sortedByDescending { it.value }.joinToString { "${it.key}=${it.value}" })
     println("MEASURE idle>2s=${"%.2f".format(100.0*stuckIdle/samples)}% IDLEtotal=${"%.2f".format(100.0*(actHist["IDLE"]?:0)/samples)}% distinctActions=${actHist.keys.size} avgHappiness=${"%.1f".format(happySum[0]/samples)} actions=${actHist.keys.sorted()}")
     println("scrolls common/fine/rare: ${cw.scrolls.toList()}")
     println("mentors: " + sim.villagers.filter { cw.mageOf(it).mentor >= 0 }.joinToString { "${it.name}<-${sim.villagers.firstOrNull { x -> x.id == cw.mageOf(it).mentor }?.name}" })

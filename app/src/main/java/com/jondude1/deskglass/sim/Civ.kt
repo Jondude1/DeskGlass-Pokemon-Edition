@@ -188,6 +188,9 @@ private val ACTIONS = setOf(
     "forage_herbs", "swim", "stargaze", "carve", "pick_flowers", "delve", "build_tavern", "tavern", "build_infirmary", "recover", "build_totem", "honor", "build_ranch", "tend_critters", "build_pasture", "tend_flock", "build_dock", "sail", "snowman", "rake_leaves", "fly_kite", "walk_dog", "assault_camp", "gather_star", "build_quarry", "quarry",
 )
 
+/** Foes a few healthy fighters will chase down on their own. */
+private val HUNTABLE_FOES = setOf("boar", "wolf", "bear", "pilferer", "frostwolf", "raider", "skeleton", "shaman")
+
 private val DX = intArrayOf(1, -1, 0, 0)
 private val DY = intArrayOf(0, 0, 1, -1)
 
@@ -2775,7 +2778,7 @@ class CivSim(
         if (v.energy < 25f || (isNight() && v.energy < 92f)) return "sleep" to ""
         if (isChild(v)) {
             orderAction(v)?.let { return it }
-            if (alert() || storm()) return "huddle" to ""
+            if (storm() || predators.any { hypot(it.x - v.x, it.y - v.y) < 18f }) return "huddle" to ""
             val sfun = listOf("snowman", "rake_leaves", "fly_kite").firstOrNull { seasonFunOk(it) }
             if (sfun != null && (sfun != "fly_kite" || rnd.nextInt(3) == 0) && rnd.nextInt(3) == 0) return sfun to ""
             if (hasDog(v) && dogOk() && rnd.nextInt(3) == 0) return "walk_dog" to ""
@@ -2798,8 +2801,11 @@ class CivSim(
             // only trouble that is actually close stops the work: fighters stand guard, the rest take cover
             val danger = predators.any { hypot(it.x - v.x, it.y - v.y) < 13f }
             val fighter = isFighter(v) || v.job == "Scout"
+            // healthy fighters hunt the lone beasts and thieves down instead of waiting; heavy foes are met at the fire
+            val huntable = predators.filter { it.kind in HUNTABLE_FOES }
+            if (fighter && v.hp > 70f && huntable.isNotEmpty() && villagers.count { it !== v && it.action == "attack" } < 3 && !isNight()) return "attack" to ""
             if (danger) return (if (fighter) "patrol" else "huddle") to ""
-            if (!fighter && time < alertUntil && rnd.nextInt(4) == 0) return "huddle" to ""
+            if (!fighter && time < alertUntil && predators.any { hypot(it.x - v.x, it.y - v.y) < 22f } && rnd.nextInt(4) == 0) return "huddle" to ""
         }
         if (storm() && !starving && !isFighter(v) && rnd.nextInt(10) == 0) return "huddle" to ""
         if (festival()) {
