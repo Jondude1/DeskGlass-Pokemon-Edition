@@ -114,6 +114,7 @@ class Villager(val id: Int, val name: String, var job: String, val personaIdx: I
     var lifespan = 60
     var parents = ""
     var harmedBy = ""
+    var harmedAt = -999.0
     var x = 0f
     var y = 0f
     var hunger = 20f
@@ -245,6 +246,9 @@ class CivSim(
     private var lastLichAt = -999.0
     private var lastWarlordAt = -999.0
     val chronicle = ArrayList<String>()
+    var selfDefence = 0
+    val deathCauses = mutableMapOf<String, Int>()
+    val deathNotes = mutableListOf<String>()
     var time = DAY_LEN * 0.08
     /** Time multiplier for the watcher: 1, 2 or 5. Not saved. */
     @Volatile var speed = 1
@@ -1428,7 +1432,9 @@ class CivSim(
                 return false
             }
             "tell_story", "huddle" -> {
-                val b = nearestBuilding(v, "campfire") ?: return false
+                // cover is the nearest campfire, hut or tower: running for the far hub gets people caught
+                val b = (if (action == "huddle") buildings.filter { it.type == "campfire" || it.type == "hut" || it.type == "tower" }
+                    .minByOrNull { hypot(it.x + 0.5f - v.x, it.y + 0.5f - v.y) } else null) ?: nearestBuilding(v, "campfire") ?: return false
                 return go(v, action, b.y * GW + b.x)
             }
         }
@@ -3985,7 +3991,7 @@ class CivSim(
                     }
                     if (prey != null && p.cool <= 0f && best < 5.5f && best > 1.5f) {
                         prey.hp -= 9f
-                        prey.harmedBy = "lich"
+                        prey.harmedBy = "lich"; prey.harmedAt = time
                         prey.happiness = max(0f, prey.happiness - 7f)
                         prey.say = "Cold bones!"
                         prey.sayLeft = 2.2f
@@ -4009,7 +4015,7 @@ class CivSim(
                     }
                     if (prey != null && p.cool <= 0f && best < 5.5f && best > 1.5f) {
                         prey.hp -= 7f
-                        prey.harmedBy = "shaman"
+                        prey.harmedBy = "shaman"; prey.harmedAt = time
                         prey.happiness = max(0f, prey.happiness - 6f)
                         prey.say = "A curse!"
                         prey.sayLeft = 2.2f
@@ -4057,8 +4063,14 @@ class CivSim(
                         wood -= w
                         if (f + w > 0 && rnd.nextInt(3) == 0) addLog("A ${p.kind} snatches supplies from ${prey.name}!")
                     }
+                    // a cornered adult fights back (kids and the weak cannot)
+                    if (!isChild(prey) && prey.hp > 25f && p.kind in HUNTABLE_FOES && p.kind != "shaman" && p.kind != "reaver") {
+                        p.hp -= 9f + 3f * toolBonus()
+                        selfDefence++
+                        fx.add(Fx("clash", p.x, p.y, time, 0.8f))
+                    }
                     prey.hp -= dmg
-                    prey.harmedBy = p.kind
+                    prey.harmedBy = p.kind; prey.harmedAt = time
                     prey.happiness = max(0f, prey.happiness - 12f)
                     prey.say = "Aaah!"
                     prey.sayLeft = 2.5f
@@ -4072,7 +4084,7 @@ class CivSim(
                         fx.add(Fx("quake", p.x, p.y, time, 1.0f))
                         for (o in villagers) if (o !== prey && hypot(o.x - p.x, o.y - p.y) < 2.2f) {
                             o.hp -= dmg * 0.4f
-                            o.harmedBy = "golem"
+                            o.harmedBy = "golem"; o.harmedAt = time
                         }
                     }
                 }
@@ -5300,6 +5312,9 @@ class CivSim(
         if (v.hp <= 0f) {
             villagers.remove(v)
             loseBonds(v)
+            if (deathNotes.size < 30) deathNotes.add("${v.name}:${v.job}:${v.action}/${v.phase}:kid=${isChild(v)}:fireD=${buildings.filter { it.type == "campfire" || it.type == "tower" || it.type == "hut" }.minOfOrNull { hypot(it.x - v.x, it.y - v.y) }?.toInt()}:foes=${predators.map { it.kind }}")
+            if (v.harmedBy.isNotEmpty() && time - v.harmedAt > 45.0 && v.hunger >= 99f) v.harmedBy = ""
+            deathCauses[if (v.harmedBy.isNotEmpty()) v.harmedBy else "starved"] = (deathCauses[if (v.harmedBy.isNotEmpty()) v.harmedBy else "starved"] ?: 0) + 1
             buryVillager(v, if (v.harmedBy.isNotEmpty()) "killed by a ${v.harmedBy}" else "starved")
             if (v.harmedBy.isNotEmpty()) {
                 event("${v.name} the ${v.job.lowercase()} was killed by a ${v.harmedBy}. The village mourns.")
