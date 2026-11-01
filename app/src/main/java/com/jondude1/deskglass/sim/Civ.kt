@@ -458,7 +458,7 @@ class CivSim(
         lastBirth = time
         hides = 0
         goods = 0
-        visitor = null; nextVisitAt = time + DAY_LEN * 1.2; visitStats.clear(); raidsRepelled = 0; ogresSlain = 0; bossesSlain = 0; warlordsSlain = 0; golemsSlain = 0; shamansSlain = 0; frostPacksBroken = 0; pilfersFoiled = 0; pilfersLost = 0; swarmsBroken = 0; hornetsSwatted = 0; lichesSlain = 0; bonesRaised = 0; lastLichAt = -999.0; foeStats.clear(); lastWarlordAt = -999.0; goldenAt = -1.0; deeds.clear(); babiesBorn = 0; weds = 0; feudsStarted = 0; feudsEnded = 0; bffs.clear(); feudEnds.clear(); courting.clear(); weddingAt = -999.0; nextRelAt = 0.0; deedBannerAt = -999.0; nextDeedAt = 0.0; titlesEarned = 0
+        visitor = null; nextVisitAt = time + DAY_LEN * 1.2; visitStats.clear(); raidsRepelled = 0; ogresSlain = 0; bossesSlain = 0; warlordsSlain = 0; golemsSlain = 0; shamansSlain = 0; frostPacksBroken = 0; pilfersFoiled = 0; pilfersLost = 0; swarmsBroken = 0; hornetsSwatted = 0; lichesSlain = 0; bonesRaised = 0; lastLichAt = -999.0; foeStats.clear(); lastWarlordAt = -999.0; goldenAt = -1.0; deeds.clear(); babiesBorn = 0; weds = 0; feudsStarted = 0; feudsEnded = 0; bffs.clear(); feudEnds.clear(); courting.clear(); weddingAt = -999.0; nextRelAt = 0.0; deedBannerAt = -999.0; nextDeedAt = 0.0; titlesEarned = 0; dreamsDone = 0; lastThreatAt = 0.0
         riftState = 0; party.clear(); expeditions = 0; expWins = 0; expRetreats = 0; roomsCleared = 0; relics = 0; deepestRoom = 0; wardensSlain = 0; nextRiftAt = time + DAY_LEN
         nextThreatAt = DAY_LEN * 1.4; lastBossAt = -999.0
         traffic.fill(0f)
@@ -1253,6 +1253,7 @@ class CivSim(
         fun add(k: String, label: String) { if (v.stat(k) > 0) out.add("$label ${v.stat(k)}") }
         add("slain", "Foes beaten"); add("rooms", "Rift rooms"); add("gathered", "Loads gathered"); add("built", "Built")
         add("tourney", "Tournaments won"); add("fish", "Fish"); add("stories", "Tales told"); add("posies", "Posies given"); add("carved", "Toys carved")
+        if (!isChild(v)) out.add("Dream: " + v.persona.dream + (if (v.stat("dream") > 0) " (came true)" else " (not yet)"))
         return out
     }
 
@@ -1267,6 +1268,12 @@ class CivSim(
         villagers.filter { it !== v && (v.affinity[it.id] ?: 0) >= 2 }.map { it to (v.affinity[it.id] ?: 0) }.sortedByDescending { it.second }.take(3)
 
     var titlesEarned = 0
+    /** Personal dreams fulfilled (one per villager, tied to their personality). */
+    var dreamsDone = 0
+    private var dreamClock = 0f
+    private var lastThreatAt = 0.0
+    /** Pastimes picked because of personality, for the harness. */
+    val pastimeCount = HashMap<String, Int>()
 
     fun bumpStat(v: Villager, k: String) { v.bump(k); checkTitles(v) }
 
@@ -1418,6 +1425,7 @@ class CivSim(
             }
             v.action == "talk" -> {
                 val o = v.talkTo
+                v.bump("a_talk")
                 v.lastTalk = time
                 if (o != null) {
                     if (o.id == v.partner && rnd.nextInt(2) == 0) v.talkMsg = partnerLine(v, o)
@@ -1461,6 +1469,7 @@ class CivSim(
         }
         v.workLeft -= dt
         if (v.workLeft > 0f) return
+        v.bump("a_" + v.action)
         when (v.action) {
             "gather_wood", "gather_stone", "gather_food", "mine_ore" -> {
                 val i = v.targetTile
@@ -2261,6 +2270,65 @@ class CivSim(
     private fun hasDog(v: Villager) = pets.any { it.owner == v.id }
     private fun dogOk() = !raining() && !storm() && !foggy() && !alert() && !isNight()
 
+    private fun dreamMet(v: Villager): Boolean {
+        fun a(k: String) = v.stat("a_$k")
+        val builds = v.st.entries.filter { it.key.startsWith("a_build_") }.sumOf { it.value }
+        val defended = count("tower") + count("ballista") + count("barracks") > 0
+        return when (v.personaIdx % PERSONAS.size) {
+            0 -> food >= 100 && a("gather_food") + a("haul") + a("fish") >= 15
+            1 -> a("explore") >= 4
+            2 -> a("talk") >= 20
+            3 -> builds >= 4
+            4 -> a("stargaze") + a("pick_flowers") + a("tell_story") >= 10
+            5 -> a("gather_wood") + a("gather_stone") + a("gather_food") + a("mine_ore") >= 50
+            6 -> defended && time - lastThreatAt > DAY_LEN * 0.5
+            7 -> age >= 2 && adults() >= 12
+            8 -> a("forage_herbs") + a("tend_critters") + a("pick_flowers") + a("recover") >= 8
+            else -> time > DAY_LEN * 2 && time - lastThreatAt >= DAY_LEN
+        }
+    }
+
+    /** A villager whose personal dream (from their personality) comes true is celebrated. */
+    private fun dreamTick(dt: Float) {
+        if (alert()) lastThreatAt = time
+        dreamClock += dt
+        if (dreamClock < 4f) return
+        dreamClock = 0f
+        for (v in villagers) {
+            if (isChild(v) || v.stat("dream") > 0 || !dreamMet(v)) continue
+            v.st["dream"] = 1
+            dreamsDone++
+            v.happiness = min(100f, v.happiness + 30f)
+            for (o in villagers) if (o !== v && hypot(o.x - v.x, o.y - v.y) < 9f) o.happiness = min(100f, o.happiness + 6f)
+            deedBannerAt = time; deedBannerTag = "DREAM COME TRUE"; deedBannerName = v.name
+            deedBannerSub = "Dreamed of " + v.persona.dream
+            addLog("${v.name}'s dream comes true: ${v.persona.dream}.")
+            mark("${v.name}'s dream came true.")
+            v.remember("my dream came true: ${v.persona.dream}")
+            fx.add(Fx("spawn", v.x, v.y, time, 1.4f))
+            break
+        }
+    }
+
+    /** What a villager likes to do in spare moments, by personality. Null means no preference right now. */
+    private fun personaPastime(v: Villager, part: String, chat: Int, hasShore: Boolean): Pair<String, String>? {
+        val ad = adults()
+        val a: String = when (v.personaIdx % PERSONAS.size) {
+            0 -> if (food < 12 + ad * 4) "gather_food" else if (count("granary") > 0 && food >= 4) "haul" else if (hasShore) "fish" else return null
+            1 -> "explore"
+            2 -> if (chat == 1) "talk" else if (count("tavern") > 0 && part == "evening" && food >= 3) "tavern" else if (count("campfire") > 0) "dance" else return null
+            3 -> if (wood < 30 + ad * 4) "gather_wood" else if (wood >= 10) "carve" else return null
+            4 -> if (canStargaze() && count("campfire") > 0) "stargaze" else if (rnd.nextBoolean()) "pick_flowers" else "tell_story"
+            5 -> return null
+            6 -> if (count("tower") + count("ballista") > 0 && rnd.nextBoolean()) "patrol" else if (wood < 40 + ad * 4) "gather_wood" else "gather_stone"
+            7 -> if (count("barracks") > 0) "drill" else "patrol"
+            8 -> if (count("ranch") > 0 && ranchResidents() > 0) "tend_critters" else if (rnd.nextBoolean()) "pick_flowers" else "forage_herbs"
+            else -> if (hasShore) "fish" else "wander"
+        }
+        pastimeCount.merge(a, 1, Int::plus)
+        return a to (if (a == "talk") (friendFor(v)?.name ?: "") else "")
+    }
+
     /** A stray wanders in now and then and a villager without a dog takes it in. */
     private fun petTick() {
         if (time < nextPetAt || villagers.size < 5) return
@@ -2559,6 +2627,7 @@ class CivSim(
         if (rnd.nextInt(14) == 0) for (sa in listOf("snowman", "rake_leaves")) if (seasonFunOk(sa)) return sa to ""
         if (hasDog(v) && dogOk() && rnd.nextInt(6) == 0) return "walk_dog" to ""
         if (rnd.nextInt(40) == 0 && nearestTile(v, T.BUSH) >= 0) return "forage_herbs" to ""
+        if (!alert() && !starving && v.hunger < 55f && rnd.nextInt(4) == 0) personaPastime(v, part, chat, hasShore)?.let { return it }
         val ad = adults()
         val farms = age >= 1 && count("farm") > 0
         val well = count("well") > 0
@@ -2833,7 +2902,7 @@ class CivSim(
         sb.append("Happening now: " + (if (ev.isEmpty()) "nothing unusual" else ev.joinToString("; ")) + ". ${ageInfo().name}: ${ageInfo().blurb}\n")
         sb.append("You are ${v.name}, ${if (kid) "a small child" else "the ${v.job.lowercase()}"} of Hearthvale, ${ageYears(v)} years old. ${JOB_BLURB[v.job] ?: ""}\n")
         sb.append(techNote() + "\n")
-        sb.append("Personality: ${v.trait}. You ${v.persona.voice}. Your dream: ${v.persona.dream}.\n")
+        sb.append("Personality: ${v.trait}. You ${v.persona.voice}. Your dream: ${v.persona.dream}${if (v.stat("dream") > 0) " (it has come true!)" else ""}.\n")
         sb.append("Body and mood: hunger ${v.hunger.toInt()}/100 (eat above 60), energy ${v.energy.toInt()}/100, health ${v.hp.toInt()}/100, feeling ${mood(v)}.\n")
         v.recent.lastOrNull()?.let { sb.append("You just did: ${it.replace('_', ' ')}.\n") }
         val kids = childrenOf(v)
@@ -3736,6 +3805,8 @@ class CivSim(
             Deed("delver", "Into the Rift", "A party cleared a rift.", "+30 stone, +20 wood") { expWins >= 1 },
             Deed("delver3", "Rift Walkers", "Cleared three rift expeditions.", "joy for all") { expWins >= 3 },
             Deed("relic", "Relic Keepers", "Brought home 3 rift relics.", "+40 food, +20 stone") { relics >= 3 },
+            Deed("dream1", "A Dream Come True", "A villager lived out their personal dream.", "+15 food") { dreamsDone >= 1 },
+            Deed("dream5", "Village of Dreamers", "Five villagers saw their dreams come true.", "joy for all") { dreamsDone >= 5 },
             Deed("titled", "A Name Earned", "A villager earned an epithet.", "+20 food") { titlesEarned >= 1 },
             Deed("titled6", "Village of Legends", "Fifteen epithets earned in the village.", "joy for all") { titlesEarned >= 15 },
             Deed("statue1", "Carved in Memory", "The first hero's statue was raised.", "+10 stone, +10 wood") { statues.isNotEmpty() },
@@ -4368,6 +4439,7 @@ class CivSim(
         deedTick()
         relationTick()
         petTick()
+        dreamTick(dt)
         critters.tick(dt)
         capStores()
         eventTick()
@@ -4487,7 +4559,7 @@ class CivSim(
             o.put("nextId", nextId)
             o.put("hides", hides)
             o.put("goods", goods)
-            o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("expN", expeditions).put("expW", expWins).put("expR", expRetreats).put("expRooms", roomsCleared).put("relics", relics).put("expDeep", deepestRoom).put("wardens", wardensSlain).put("golems", golemsSlain).put("frostPacks", frostPacksBroken).put("pilfF", pilfersFoiled).put("pilfL", pilfersLost).put("swarms", swarmsBroken).put("hornets", hornetsSwatted).put("liches", lichesSlain).put("bones", bonesRaised).put("shamans", shamansSlain).put("golden", goldenAt).put("visits", visitStats.entries.joinToString(",") { "${it.key}:${it.value}" }).put("deeds", deeds.joinToString(",")).put("tavern", tavernVisits).put("pets", pets.joinToString(",") { "${it.name}:${it.owner}:${it.bond}" }).put("dogA", dogsAdopted).put("dogW", dogWalks).put("dogB", dogBarks).put("snowmen", snowmenBuilt).put("leafR", leafPilesRaked).put("kites", kitesFlown).put("sprops", seasonProps.joinToString(",") { "${it.kind}:${it.x.toInt()}:${it.y.toInt()}" }).put("statues", statues.joinToString(";") { "${it.name}|${it.title}|${it.kind}|${it.x.toInt()}|${it.y.toInt()}|${it.tier}" }).put("statueC", statueCheers).put("totemV", totemVisits).put("raised", raised).put("omens", omens).put("recov", recoveries).put("balS", ballistaShots).put("balK", ballistaKills).put("ranchV", ranchVisits).put("techs", techs.joinToString(",")).put("research", research).put("studyN", studyCount).put("babies", babiesBorn).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" })
+            o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("expN", expeditions).put("expW", expWins).put("expR", expRetreats).put("expRooms", roomsCleared).put("relics", relics).put("expDeep", deepestRoom).put("wardens", wardensSlain).put("golems", golemsSlain).put("frostPacks", frostPacksBroken).put("pilfF", pilfersFoiled).put("pilfL", pilfersLost).put("swarms", swarmsBroken).put("hornets", hornetsSwatted).put("liches", lichesSlain).put("bones", bonesRaised).put("shamans", shamansSlain).put("golden", goldenAt).put("visits", visitStats.entries.joinToString(",") { "${it.key}:${it.value}" }).put("deeds", deeds.joinToString(",")).put("tavern", tavernVisits).put("pets", pets.joinToString(",") { "${it.name}:${it.owner}:${it.bond}" }).put("dogA", dogsAdopted).put("dogW", dogWalks).put("dogB", dogBarks).put("snowmen", snowmenBuilt).put("leafR", leafPilesRaked).put("kites", kitesFlown).put("sprops", seasonProps.joinToString(",") { "${it.kind}:${it.x.toInt()}:${it.y.toInt()}" }).put("statues", statues.joinToString(";") { "${it.name}|${it.title}|${it.kind}|${it.x.toInt()}|${it.y.toInt()}|${it.tier}" }).put("statueC", statueCheers).put("totemV", totemVisits).put("raised", raised).put("omens", omens).put("recov", recoveries).put("balS", ballistaShots).put("balK", ballistaKills).put("ranchV", ranchVisits).put("techs", techs.joinToString(",")).put("research", research).put("studyN", studyCount).put("babies", babiesBorn).put("dreams", dreamsDone).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" })
             o.put("traffic", String(CharArray(traffic.size) { i -> '0' + min(9, (traffic[i] / 4f).toInt()) }))
             val ks = JSONArray()
             kingdoms.forEach {
@@ -4617,7 +4689,7 @@ class CivSim(
             goldenAt = o.optDouble("golden", -1.0)
             expeditions = o.optInt("expN", 0); expWins = o.optInt("expW", 0); expRetreats = o.optInt("expR", 0); roomsCleared = o.optInt("expRooms", 0); relics = o.optInt("relics", 0); deepestRoom = o.optInt("expDeep", 0); wardensSlain = o.optInt("wardens", 0)
             deeds.clear(); o.optString("deeds", "").split(",").filter { it.isNotBlank() }.forEach { deeds.add(it) }
-            babiesBorn = o.optInt("babies", 0)
+            babiesBorn = o.optInt("babies", 0); dreamsDone = o.optInt("dreams", 0)
             snowmenBuilt = o.optInt("snowmen", 0); leafPilesRaked = o.optInt("leafR", 0); kitesFlown = o.optInt("kites", 0)
             seasonProps.clear()
             for (e in o.optString("sprops", "").split(",")) { val kv = e.split(":"); if (kv.size == 3) seasonProps.add(SeasonProp(kv[0], (kv[1].toIntOrNull() ?: 0) + 0.5f, (kv[2].toIntOrNull() ?: 0) + 0.5f, time)) }

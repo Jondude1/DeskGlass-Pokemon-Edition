@@ -16,6 +16,7 @@ fun main(args: Array<String>) {
     val seenEnc = LinkedHashSet<Enc>()
     val logSeen = LinkedHashSet<String>()
     val actHist = HashMap<String, Int>()
+    val perP = HashMap<Int, HashMap<String, Int>>()
     var hurtSamples = 0; var farSamples = 0; var samples = 0; var stuckIdle = 0; val happySum = DoubleArray(1)
     val dt = 0.05f
     var maxOut = 0
@@ -30,7 +31,7 @@ fun main(args: Array<String>) {
         sim.tick(dt)
         if (i % 12000 == 0) { val cmds = listOf("gather wood","attack the enemy","defend the village","hold a feast","build more homes","go hunting","everyone hide","study hard","trade at the market","rest now"); sim.whisper(cmds[(i/12000) % cmds.size]) }
         if (i % 40 == 0) { for (w in cw.wilds) if (w.c.species.rarity >= 5) legSeen.merge(w.c.species.name, 1, Int::plus); for (e in cw.encounters) if (e.foe?.species?.rarity ?: 0 >= 5) legEnc.add(e.state + ":" + e.result) }
-        if (i % 20 == 0) { for (v in sim.villagers) { actHist.merge(if (v.phase == "idle") "IDLE" else v.action, 1, Int::plus); samples++; if (v.hp < 60f) hurtSamples++; if (v.phase == "idle" && v.idleFor > 2f) stuckIdle++; happySum[0] += v.happiness; val cd = Math.hypot((v.x - 48.0), (v.y - 27.0)); if (cd > 26) farSamples++ } }
+        if (i % 20 == 0) { for (v in sim.villagers) { actHist.merge(if (v.phase == "idle") "IDLE" else v.action, 1, Int::plus); if (v.job != "Child") perP.getOrPut(v.personaIdx) { HashMap() }.merge(if (v.phase == "idle") "IDLE" else v.action, 1, Int::plus); samples++; if (v.hp < 60f) hurtSamples++; if (v.phase == "idle" && v.idleFor > 2f) stuckIdle++; happySum[0] += v.happiness; val cd = Math.hypot((v.x - 48.0), (v.y - 27.0)); if (cd > 26) farSamples++ } }
         if (i % 40 == 0) for (l in sim.log.toList()) if (l.contains("circle") || l.contains("teaches") || l.contains("scroll") || l.contains("channels")) logSeen.add(l)
         for (e in cw.encounters) { seenEnc.add(e); if (e.state == "cast" && e.spellT < 0.06f) spellsSeen.merge(e.spell, 1, Int::plus) }
         if (i % 20 == 0) {
@@ -112,6 +113,13 @@ fun main(args: Array<String>) {
     run { val tv = sim.buildings.count { it.type == "tavern" }; println("TAVERN built=$tv visits=${sim.tavernVisits}") }
     run { println("RESEARCH studies=${sim.studyCount} points=${sim.research} libs=${sim.buildings.count { it.type == "library" }} techs=${sim.techs.size}/${sim.allTechs.size} list=${sim.techs.joinToString(",")}") }
     println("DEEDS ${sim.deeds.size}/${sim.allDeeds.size} renown=${sim.renownTitle()} ${sim.deeds}")
+    run {
+        val keys = perP.keys.sorted()
+        fun cos(a: Map<String, Int>, b: Map<String, Int>): Double { val d = a.entries.sumOf { (it.value * (b[it.key] ?: 0)).toDouble() }; val na = Math.sqrt(a.values.sumOf { it.toDouble() * it }); val nb = Math.sqrt(b.values.sumOf { it.toDouble() * it }); return if (na == 0.0 || nb == 0.0) 1.0 else d / (na * nb) }
+        var tot = 0.0; var n = 0
+        for (i in keys.indices) for (j in i + 1 until keys.size) { tot += 1 - cos(perP[keys[i]]!!, perP[keys[j]]!!); n++ }
+        println("PERSONA divergence=%.4f personas=${keys.size} dreams=${sim.dreamsDone} dreamers=${sim.villagers.filter { it.stat("dream") > 0 }.joinToString { it.name + ":" + it.persona.dream.take(20) }} pastimes=${sim.pastimeCount}".format(if (n == 0) 0.0 else tot / n))
+    }
     println("TITLES earned=${sim.titlesEarned} villagersTitled=${sim.villagers.count { it.titles.isNotEmpty() }} list=${sim.villagers.filter { it.titles.isNotEmpty() }.joinToString { it.name + ":" + it.titles.joinToString("/") }} bonds=${sim.villagers.count { sim.bondsOf(it).isNotEmpty() }} career=${sim.villagers.count { sim.careerLines(it).isNotEmpty() }}")
     println("STATUS inflicted(burn,poison,stun,chill,fright)=${Battle.inflictedCount.drop(1)} ticks=${Battle.count.drop(1)} tickDamage=${Battle.tickTotal}")
     sim.log.filter { it.contains("aider") || it.contains("ogre") || it.contains("wraith") || it.contains("drake") || it.contains("warlord") || it.contains("golem") || it.contains("shaman") || it.contains("Golden") }.takeLast(8).forEach { println("  LOG $it") }
