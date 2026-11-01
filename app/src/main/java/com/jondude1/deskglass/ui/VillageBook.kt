@@ -143,6 +143,7 @@ private fun recordsPage(sim: CivSim) {
         "Bandit camps" to "${sim.campsRazed} razed · ${sim.campHits} blows struck · ${sim.campSorties} raids sent" + (if (sim.campUp) " · a camp stands, ${(sim.campHp / sim.campMax * 100).toInt()}% strength" else ""),
         "Rifts" to "${sim.expWins} of ${sim.expeditions} expeditions cleared · ${sim.roomsCleared} rooms · ${sim.relics} relics",
         "Critters" to "${cw.critters.size} kept · ${cw.caught.size} species summoned · ${cw.seen.size} seen · ${cw.tourneys} tournaments",
+        "Graveyard" to (if (sim.buried == 0) "no one has been laid to rest yet" else "${sim.buried} laid to rest · ${sim.mournVisits} visits with flowers" + (sim.graves.lastOrNull()?.let { " · latest: ${it.name} the ${it.job.lowercase()}, ${it.ageYears}, ${it.cause}" } ?: "")),
         "Builders" to "${sim.buildings.size} buildings · ${sim.titlesEarned} titles earned",
         "Stores" to "food ${sim.food} · wood ${sim.wood} · stone ${sim.stone} · hides ${sim.hides} · metal ${sim.metal}",
     )

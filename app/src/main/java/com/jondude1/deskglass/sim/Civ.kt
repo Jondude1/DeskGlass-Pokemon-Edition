@@ -185,7 +185,7 @@ private val ACTIONS = setOf(
     "build_well", "build_workshop", "build_market", "build_lamp",
     "fetch_water", "craft", "trade", "dance", "patrol", "play",
     "build_granary", "build_barracks", "build_library", "build_wonder", "haul", "drill", "study", "attack",
-    "forage_herbs", "swim", "stargaze", "carve", "pick_flowers", "delve", "build_tavern", "tavern", "build_infirmary", "recover", "build_totem", "honor", "build_ranch", "tend_critters", "build_pasture", "tend_flock", "build_dock", "sail", "snowman", "rake_leaves", "fly_kite", "walk_dog", "assault_camp", "gather_star", "build_quarry", "quarry", "build_mill", "grind", "build_shrine", "vigil", "revel", "teach",
+    "forage_herbs", "swim", "stargaze", "carve", "pick_flowers", "delve", "build_tavern", "tavern", "build_infirmary", "recover", "build_totem", "honor", "mourn", "build_ranch", "tend_critters", "build_pasture", "tend_flock", "build_dock", "sail", "snowman", "rake_leaves", "fly_kite", "walk_dog", "assault_camp", "gather_star", "build_quarry", "quarry", "build_mill", "grind", "build_shrine", "vigil", "revel", "teach",
 )
 
 /** Foes a few healthy fighters will chase down on their own. */
@@ -290,6 +290,15 @@ class CivSim(
     val statues = ArrayList<Statue>()
     var statueCheers = 0
     private var nextStatueAt = 0.0
+    /** The village graveyard: every villager who dies is laid to rest here and mourners bring flowers. */
+    class Grave(val name: String, val job: String, val x: Float, val y: Float, val ageYears: Int, val cause: String, val day: Int, var tribute: Double = -9999.0)
+    val graves = ArrayList<Grave>()
+    var graveX = -1
+    var graveY = -1
+    var buried = 0
+    var mournVisits = 0
+    var lastBuryAt = -9999.0
+    val graveSlots = 24
     var snowmenBuilt = 0
     /** Seasonal fetes: a maypole, midsummer bonfire, harvest table or winter lantern tree raised on the green on the last afternoon of each season. */
     var feteOn = false
@@ -557,6 +566,7 @@ class CivSim(
         ageBannerAt = -999.0
         fx.clear()
         statues.clear(); statueCheers = 0; nextStatueAt = 0.0
+        graves.clear(); graveX = -1; graveY = -1; buried = 0; mournVisits = 0; lastBuryAt = -9999.0
         pets.clear(); dogsAdopted = 0; dogWalks = 0; dogBarks = 0; nextPetAt = time + DAY_LEN * 1.2
         // a new world must not inherit the old world's clocks (alerts, rain, festivals...)
         vigils = 0; vigilPoints = 0; legendCalls = 0; shrineGlowUntil = 0.0; shrineCallUntil = 0.0; alertUntil = 0.0; starShards = 0; starsFallen = 0; starShardsGot = 0; starUntil = 0.0; starAnnounced = true; rainUntil = 0.0; stormUntil = 0.0; fogUntil = 0.0; snowUntil = 0.0; rainbowUntil = 0.0; strikeAt = -99.0; nextWeatherAt = time + DAY_LEN * 0.5; lastSeason = -1; wxStats.clear(); festivalUntil = 0.0; feteOn = false; feteUntil = 0.0; lastFeteSeason = -1; fetesHeld = 0; feteRevels = 0; lessonsGiven = 0; apprenticesMade = 0; apprentice.clear(); feteKinds.clear(); feteGuestIds.clear(); plagueUntil = 0.0; godUntil = 0.0; order = ""; orderUntil = 0.0; shakeUntil = 0.0
@@ -1215,6 +1225,12 @@ class CivSim(
                 val b = nearestBuilding(v, "totem") ?: return false
                 return go(v, "honor", b.y * GW + b.x)
             }
+            "mourn" -> {
+                if (isChild(v) || graves.isEmpty()) return false
+                val kin = graves.filter { v.parents.contains(it.name) }
+                val g = (if (kin.isNotEmpty() && rnd.nextInt(3) > 0) kin else graves).let { it[rnd.nextInt(it.size)] }
+                return go(v, "mourn", g.y.toInt() * GW + g.x.toInt())
+            }
             "recover" -> {
                 val b = nearestBuilding(v, "infirmary") ?: return false
                 return go(v, "recover", b.y * GW + b.x)
@@ -1508,6 +1524,42 @@ class CivSim(
         }
     }
 
+    /** Finds a quiet, flat patch away from the huts for the graveyard. */
+    private fun pickGraveyard() {
+        val hub = buildings.firstOrNull { it.type == "hall" } ?: buildings.firstOrNull { it.type == "campfire" } ?: return
+        for (r in 10..22 step 2) for (k in 0 until 24) {
+            val ang = k * 0.2618f + r * 0.37f
+            val x0 = (hub.x + 0.5f + kotlin.math.cos(ang) * r).toInt()
+            val y0 = (hub.y + 0.5f + kotlin.math.sin(ang) * r * 0.7f).toInt()
+            if (x0 < 2 || y0 < 2 || x0 + 7 >= GW - 1 || y0 + 5 >= GH - 1) continue
+            var ok = true
+            loop@ for (yy in y0 - 1..y0 + 4) for (xx in x0 - 1..x0 + 6) {
+                val i = yy * GW + xx
+                if (tiles[i] == T.WATER || tiles[i] == T.FOREST || tiles[i] == T.ROCK || tiles[i] == T.ORE || occupied[i]) { ok = false; break@loop }
+            }
+            if (!ok) continue
+            if (buildings.any { it.x >= x0 - 2 && it.x <= x0 + 7 && it.y >= y0 - 2 && it.y <= y0 + 5 }) continue
+            if (statues.any { it.x >= x0 - 2 && it.x <= x0 + 7 && it.y >= y0 - 2 && it.y <= y0 + 5 }) continue
+            graveX = x0; graveY = y0
+            return
+        }
+    }
+
+    /** A villager who dies is laid to rest in the graveyard with a headstone. */
+    private fun buryVillager(v: Villager, cause: String) {
+        try {
+            if (graveX < 0) pickGraveyard()
+            if (graveX < 0) return
+            val slot = buried % graveSlots
+            val g = Grave(v.name, v.job, graveX + (slot % 6) + 0.5f, graveY + (slot / 6) + 0.5f, ageYears(v), cause, day())
+            if (slot < graves.size) graves[slot] = g else graves.add(g)
+            buried++
+            lastBuryAt = time
+            fx.add(Fx("bless", g.x, g.y, time, 1.4f))
+            addLog("${v.name} is laid to rest in the graveyard.")
+        } catch (e: Exception) { guard(e) }
+    }
+
     /** Villagers who linger near a hero's statue feel proud: a little morale now and then. */
     private fun statueTick() {
         if (time < nextStatueAt) return
@@ -1568,6 +1620,7 @@ class CivSim(
             v.action == "tavern" -> { v.phase = "working"; v.workLeft = 7f }
             v.action == "recover" -> { v.phase = "working"; v.workLeft = 8f }
             v.action == "honor" -> { v.phase = "working"; v.workLeft = 6f }
+            v.action == "mourn" -> { v.phase = "working"; v.workLeft = 7f }
             v.action == "revel" -> { v.phase = "working"; v.workLeft = 8f }
             v.action == "vigil" -> { v.phase = "working"; v.workLeft = 8f }
             v.action == "assault_camp" -> { v.phase = "working"; v.workLeft = 3f }
@@ -1968,6 +2021,22 @@ class CivSim(
                 if (feteOn) fx.add(Fx("spawn", feteX, feteY, time, 1.0f))
                 if (feteRevels % 8 == 1) addLog("${v.name} joins the ${feteTitle()}.")
                 v.remember(if (mates.isNotEmpty()) "joined the ${feteTitle()} with ${mates[0].name}" else "joined the ${feteTitle()}")
+                finish(v)
+            }
+            "mourn" -> {
+                // the graveyard: a quiet moment, flowers on a grave, and a little healing of the heart
+                val g = graves.minByOrNull { hypot(it.x - v.x, it.y - v.y) }
+                if (g != null && hypot(g.x - v.x, g.y - v.y) <= 3f) {
+                mournVisits++
+                g.tribute = time
+                v.happiness = min(100f, v.happiness + 6f)
+                v.energy = min(100f, v.energy + 2f)
+                fx.add(Fx("bless", g.x, g.y, time, 1.0f))
+                val mates = villagers.filter { it !== v && it.phase == "working" && it.action == "mourn" && hypot(it.x - v.x, it.y - v.y) < 4f }
+                for (o in mates) { v.affinity[o.id] = (v.affinity[o.id] ?: 0) + 1; o.affinity[v.id] = (o.affinity[v.id] ?: 0) + 1 }
+                if (mournVisits % 3 == 1) addLog("${v.name} lays flowers on the grave of ${g.name} the ${g.job.lowercase()}.")
+                v.remember(if (mates.isNotEmpty()) "mourned ${g.name} at the graveyard with ${mates[0].name}" else "laid flowers on the grave of ${g.name}")
+                }
                 finish(v)
             }
             "honor" -> {
@@ -2553,6 +2622,7 @@ class CivSim(
             "tavern" to (if (count("tavern") > 0 && food >= 3) 4 else 0),
             "recover" to (if (count("infirmary") > 0 && v.hp < 90f) 5 else 0),
             "honor" to (if (count("totem") > 0 && !isChild(v)) 2 else 0),
+            "mourn" to (if (graves.isNotEmpty() && !isChild(v) && !raining()) 2 else 0),
             "vigil" to (if (vigilOk(v)) 3 else 0),
             "tend_flock" to (if (count("pasture") > 0 && !isChild(v)) 4 else 0),
             "sail" to (if (count("dock") > 0 && !isChild(v) && sailOk()) 5 else 0),
@@ -3033,6 +3103,8 @@ class CivSim(
         if (wood >= 50 && stone >= 40 && metal >= 5 && canBuild("wonder") && (builder || rnd.nextInt(5) == 0)) return "build_wonder" to ""
         if (wood >= 2 && stone >= 2 && canBuild("lamp") && (builder || rnd.nextInt(8) == 0)) return "build_lamp" to ""
 
+        if (graves.isNotEmpty() && !isChild(v) && !starving && !alert() && !isNight() && !raining() &&
+            rnd.nextInt(if (time - lastBuryAt < DAY_LEN) 3 else if (part == "evening" || part == "morning") 9 else 22) == 0) return "mourn" to ""
         if (part == "evening" || part == "morning") {
             if (count("totem") > 0 && !isChild(v) && rnd.nextInt(if (part == "morning") 10 else 6) == 0) return "honor" to ""
             if (vigilOk(v) && rnd.nextInt(if (part == "evening") 4 else 8) == 0) return "vigil" to ""
@@ -3241,6 +3313,7 @@ class CivSim(
         "tavern" -> "eating and chatting at the tavern"
         "recover" -> "resting at the infirmary"
         "honor" -> "honoring the totem pole"
+        "mourn" -> "laying flowers at the graveyard"
         "teach" -> "teaching a child a trade"
         "revel" -> if (feteOn) "joining the ${feteTitle()}" else "celebrating"
         "build_shrine" -> "building a legend shrine"
@@ -3315,6 +3388,7 @@ class CivSim(
         if (canBuild("infirmary") && wood >= 16 && stone >= 8) a.add("build_infirmary")
         if (canBuild("totem") && wood >= 12 && stone >= 4) a.add("build_totem")
         if (count("totem") > 0) a.add("honor")
+        if (graves.isNotEmpty() && !isNight() && !alert()) a.add("mourn")
         if (feteOk()) a.add("revel")
         if (!alert() && !storm() && !isNight() && villagers.any { isChild(it) }) a.add("teach")
         if (canBuild("shrine") && wood >= 20 && stone >= 30) a.add("build_shrine")
@@ -4369,6 +4443,8 @@ class CivSim(
             Deed("dream5", "Village of Dreamers", "Five villagers saw their dreams come true.", "joy for all") { dreamsDone >= 5 },
             Deed("titled", "A Name Earned", "A villager earned an epithet.", "+20 food") { titlesEarned >= 1 },
             Deed("titled6", "Village of Legends", "Fifteen epithets earned in the village.", "joy for all") { titlesEarned >= 15 },
+            Deed("grave1", "Where They Rest", "A graveyard was laid out for the fallen and the old.", "+10 stone, +10 wood") { buried >= 1 },
+            Deed("mourn12", "Flowers for the Gone", "Laid flowers at the graves twelve times.", "joy for all") { mournVisits >= 12 },
             Deed("statue1", "Carved in Memory", "The first hero's statue was raised.", "+10 stone, +10 wood") { statues.isNotEmpty() },
             Deed("statue6", "Heroes' Row", "Six heroes stand in statue.", "joy for all") { statues.size >= 6 },
             Deed("wonder1", "Wonder of the Land", "Raised a great wonder.", "joy for all") { count("wonder") >= 1 },
@@ -5224,6 +5300,7 @@ class CivSim(
         if (v.hp <= 0f) {
             villagers.remove(v)
             loseBonds(v)
+            buryVillager(v, if (v.harmedBy.isNotEmpty()) "killed by a ${v.harmedBy}" else "starved")
             if (v.harmedBy.isNotEmpty()) {
                 event("${v.name} the ${v.job.lowercase()} was killed by a ${v.harmedBy}. The village mourns.")
                 mark("${v.name} the ${v.job.lowercase()} was killed by a ${v.harmedBy}.")
@@ -5236,6 +5313,7 @@ class CivSim(
         if (ageYears(v) >= v.lifespan) {
             villagers.remove(v)
             loseBonds(v)
+            buryVillager(v, "old age")
             for (o in villagers) o.happiness = max(0f, o.happiness - 8f)
             event("${v.name} the ${v.job.lowercase()} passed away peacefully at ${ageYears(v)}.")
             mark("${v.name} the ${v.job.lowercase()} passed away at ${ageYears(v)}.")
@@ -5325,7 +5403,7 @@ class CivSim(
             o.put("nextId", nextId)
             o.put("hides", hides)
             o.put("goods", goods)
-            o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("campUp", if (campUp) 1 else 0).put("campX", campX.toDouble()).put("campY", campY.toDouble()).put("campHp", campHp.toDouble()).put("campMax", campMax.toDouble()).put("campR", campsRazed).put("campH", campHits).put("campS", campSorties).put("expN", expeditions).put("expW", expWins).put("expR", expRetreats).put("expRooms", roomsCleared).put("relics", relics).put("expDeep", deepestRoom).put("wardens", wardensSlain).put("golems", golemsSlain).put("frostPacks", frostPacksBroken).put("pilfF", pilfersFoiled).put("pilfL", pilfersLost).put("swarms", swarmsBroken).put("hornets", hornetsSwatted).put("liches", lichesSlain).put("bones", bonesRaised).put("reavers", reaversSlain).put("ships", shipsSeized).put("landings", landings).put("shamans", shamansSlain).put("golden", goldenAt).put("visits", visitStats.entries.joinToString(",") { "${it.key}:${it.value}" }).put("deeds", deeds.joinToString(",")).put("tavern", tavernVisits).put("pets", pets.joinToString(",") { "${it.name}:${it.owner}:${it.bond}" }).put("dogA", dogsAdopted).put("dogW", dogWalks).put("dogB", dogBarks).put("fetes", fetesHeld).put("feteR", feteRevels).put("feteL", lastFeteSeason).put("feteK", feteKinds.joinToString(",")).put("snowmen", snowmenBuilt).put("leafR", leafPilesRaked).put("starsF", starsFallen).put("starG", starShardsGot).put("kites", kitesFlown).put("sprops", seasonProps.joinToString(",") { "${it.kind}:${it.x.toInt()}:${it.y.toInt()}" }).put("statues", statues.joinToString(";") { "${it.name}|${it.title}|${it.kind}|${it.x.toInt()}|${it.y.toInt()}|${it.tier}" }).put("statueC", statueCheers).put("totemV", totemVisits).put("raised", raised).put("omens", omens).put("recov", recoveries).put("balS", ballistaShots).put("balK", ballistaKills).put("ranchV", ranchVisits).put("pastV", pastureVisits).put("sailN", sailTrips).put("millN", millGrinds).put("millF", flourMade).put("millL", loavesBaked).put("quarryN", quarryHauls).put("quarryS", quarryStone).put("quarryV", quarryVeins).put("vigN", vigils).put("vigP", vigilPoints).put("legCalls", legendCalls).put("dockC", dockCatch).put("bottles", bottlesFound).put("flockS", flockSheep).put("flockH", flockHens).put("eggsG", eggsGathered).put("fleece", fleeces).put("techs", techs.joinToString(",")).put("research", research).put("studyN", studyCount).put("babies", babiesBorn).put("dreams", dreamsDone).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" }).put("lessons", lessonsGiven).put("appMade", apprenticesMade).put("apprentice", apprentice.entries.joinToString(";") { "${it.key}:${it.value}" })
+            o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("campUp", if (campUp) 1 else 0).put("campX", campX.toDouble()).put("campY", campY.toDouble()).put("campHp", campHp.toDouble()).put("campMax", campMax.toDouble()).put("campR", campsRazed).put("campH", campHits).put("campS", campSorties).put("expN", expeditions).put("expW", expWins).put("expR", expRetreats).put("expRooms", roomsCleared).put("relics", relics).put("expDeep", deepestRoom).put("wardens", wardensSlain).put("golems", golemsSlain).put("frostPacks", frostPacksBroken).put("pilfF", pilfersFoiled).put("pilfL", pilfersLost).put("swarms", swarmsBroken).put("hornets", hornetsSwatted).put("liches", lichesSlain).put("bones", bonesRaised).put("reavers", reaversSlain).put("ships", shipsSeized).put("landings", landings).put("shamans", shamansSlain).put("golden", goldenAt).put("visits", visitStats.entries.joinToString(",") { "${it.key}:${it.value}" }).put("deeds", deeds.joinToString(",")).put("tavern", tavernVisits).put("pets", pets.joinToString(",") { "${it.name}:${it.owner}:${it.bond}" }).put("dogA", dogsAdopted).put("dogW", dogWalks).put("dogB", dogBarks).put("fetes", fetesHeld).put("feteR", feteRevels).put("feteL", lastFeteSeason).put("feteK", feteKinds.joinToString(",")).put("snowmen", snowmenBuilt).put("leafR", leafPilesRaked).put("starsF", starsFallen).put("starG", starShardsGot).put("kites", kitesFlown).put("sprops", seasonProps.joinToString(",") { "${it.kind}:${it.x.toInt()}:${it.y.toInt()}" }).put("statues", statues.joinToString(";") { "${it.name}|${it.title}|${it.kind}|${it.x.toInt()}|${it.y.toInt()}|${it.tier}" }).put("statueC", statueCheers).put("graves", graves.joinToString(";") { "${it.name}|${it.job}|${it.x.toInt()}|${it.y.toInt()}|${it.ageYears}|${it.cause}|${it.day}" }).put("graveX", graveX).put("graveY", graveY).put("buried", buried).put("mournN", mournVisits).put("totemV", totemVisits).put("raised", raised).put("omens", omens).put("recov", recoveries).put("balS", ballistaShots).put("balK", ballistaKills).put("ranchV", ranchVisits).put("pastV", pastureVisits).put("sailN", sailTrips).put("millN", millGrinds).put("millF", flourMade).put("millL", loavesBaked).put("quarryN", quarryHauls).put("quarryS", quarryStone).put("quarryV", quarryVeins).put("vigN", vigils).put("vigP", vigilPoints).put("legCalls", legendCalls).put("dockC", dockCatch).put("bottles", bottlesFound).put("flockS", flockSheep).put("flockH", flockHens).put("eggsG", eggsGathered).put("fleece", fleeces).put("techs", techs.joinToString(",")).put("research", research).put("studyN", studyCount).put("babies", babiesBorn).put("dreams", dreamsDone).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" }).put("lessons", lessonsGiven).put("appMade", apprenticesMade).put("apprentice", apprentice.entries.joinToString(";") { "${it.key}:${it.value}" })
             o.put("traffic", String(CharArray(traffic.size) { i -> '0' + min(9, (traffic[i] / 4f).toInt()) }))
             val ks = JSONArray()
             kingdoms.forEach {
@@ -5462,6 +5540,8 @@ class CivSim(
             seasonProps.clear()
             for (e in o.optString("sprops", "").split(",")) { val kv = e.split(":"); if (kv.size == 3) seasonProps.add(SeasonProp(kv[0], (kv[1].toIntOrNull() ?: 0) + 0.5f, (kv[2].toIntOrNull() ?: 0) + 0.5f, time)) }
             statues.clear(); statueCheers = o.optInt("statueC", 0)
+            graves.clear(); graveX = o.optInt("graveX", -1); graveY = o.optInt("graveY", -1); buried = o.optInt("buried", 0); mournVisits = o.optInt("mournN", 0); lastBuryAt = -9999.0
+            for (e in o.optString("graves", "").split(";")) { val kv = e.split("|"); if (kv.size == 7 && kv[0].isNotBlank()) graves.add(Grave(kv[0], kv[1], (kv[2].toIntOrNull() ?: 0) + 0.5f, (kv[3].toIntOrNull() ?: 0) + 0.5f, kv[4].toIntOrNull() ?: 0, kv[5], kv[6].toIntOrNull() ?: 0)) }
             for (e in o.optString("statues", "").split(";")) { val kv = e.split("|"); if (kv.size == 6 && kv[0].isNotBlank()) statues.add(Statue(kv[0], kv[1], kv[2], (kv[3].toIntOrNull() ?: 0) + 0.5f, (kv[4].toIntOrNull() ?: 0) + 0.5f, time, kv[5].toIntOrNull() ?: 0)) }
             tavernVisits = o.optInt("tavern", 0); dogsAdopted = o.optInt("dogA", 0); dogWalks = o.optInt("dogW", 0); dogBarks = o.optInt("dogB", 0)
             pets.clear()

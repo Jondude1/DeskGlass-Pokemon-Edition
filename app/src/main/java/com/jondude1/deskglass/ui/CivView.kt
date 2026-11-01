@@ -1022,6 +1022,7 @@ private fun DrawScope.drawWorld(
     villageStock(sim, art, geo)
     feteSite(sim, geo)
     heroStatues(sim, geo)
+    graveyard(sim, geo)
     reaverShip(sim, geo)
     riftSite(sim, geo)
     starCrater(sim, geo)
