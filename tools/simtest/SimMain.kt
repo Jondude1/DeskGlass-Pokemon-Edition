@@ -25,10 +25,12 @@ fun main(args: Array<String>) {
     var noneOut = 0
     var swaps = 0
     val steps = (hours * 3600 / dt).toInt()
+    var lastAge = sim.age; val ageAt = ArrayList<String>()
     var nextReport = 0
     val t0 = System.currentTimeMillis()
     for (i in 0 until steps) {
         sim.tick(dt)
+        if (sim.age != lastAge) { lastAge = sim.age; ageAt.add("age${sim.age}@%.2fh".format(sim.time / 3600.0)) }
         if (i % 12000 == 0) { val cmds = listOf("gather wood","attack the enemy","defend the village","hold a feast","build more homes","go hunting","everyone hide","study hard","trade at the market","rest now"); sim.whisper(cmds[(i/12000) % cmds.size]) }
         if (i % 40 == 0) { for (w in cw.wilds) if (w.c.species.rarity >= 5) legSeen.merge(w.c.species.name, 1, Int::plus); for (e in cw.encounters) if (e.foe?.species?.rarity ?: 0 >= 5) legEnc.add(e.state + ":" + e.result) }
         if (i % 20 == 0) { for (v in sim.villagers) { actHist.merge(if (v.phase == "idle") "IDLE" else v.action, 1, Int::plus); if (v.job != "Child") perP.getOrPut(v.personaIdx) { HashMap() }.merge(if (v.phase == "idle") "IDLE" else v.action, 1, Int::plus); samples++; if (v.hp < 60f) hurtSamples++; if (v.phase == "idle" && v.idleFor > 2f) stuckIdle++; happySum[0] += v.happiness; val cd = Math.hypot((v.x - 48.0), (v.y - 27.0)); if (cd > 26) farSamples++ } }
@@ -87,6 +89,7 @@ fun main(args: Array<String>) {
     cw.fromJson(j)
     val after = cw.critters.map { Triple(it.uid, it.sp, it.level) }
     println("save round trip ok=${before == after} (${after.size} critters, dex ${cw.caught.size}/${Dex.COUNT})")
+    println("AGES reached: $ageAt final=${sim.age} pop=${sim.villagers.size}")
     println("BUILD pop=${sim.villagers.size} age=${sim.age} ${sim.buildSummary()} total=${sim.buildings.size} goods=${sim.goods}")
     var viol = 0
     for (t in listOf("hut","farm","campfire","smelter","well","workshop","market","lamp")) if (sim.buildings.count{it.type==t} > sim.capFor(t) + 1) viol++

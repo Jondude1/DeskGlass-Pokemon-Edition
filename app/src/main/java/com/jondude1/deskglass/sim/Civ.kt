@@ -2117,17 +2117,17 @@ class CivSim(
         val ad = adults()
         fun n(l: String, h: Int, d: Int) = Need(l, h.toFloat(), d.toFloat())
         return when (age) {
-            0 -> listOf(n("days", day(), 40), n("adults", ad, 6), n("homes", count("hut"), 3), n("food", food, 80), n("wood", wood, 60))
+            0 -> listOf(n("days", day(), 10), n("adults", ad, 6), n("homes", count("hut"), 3), n("food", food, 80), n("wood", wood, 60))
             1 -> listOf(
-                n("days", day(), 120), n("adults", ad, 9), n("homes", count("hut"), 6), n("farms", count("farm"), 2),
+                n("days", day(), 30), n("adults", ad, 9), n("homes", count("hut"), 6), n("farms", count("farm"), 2),
                 n("scouting trips", explored, 6), n("food", food, 200), n("wood", wood, 160), n("stone", stone, 80),
             )
             2 -> listOf(
-                n("days", day(), 300), n("adults", ad, 12), n("homes", count("hut"), 8), n("forges", count("smelter"), 2),
+                n("days", day(), 75), n("adults", ad, 12), n("homes", count("hut"), 8), n("forges", count("smelter"), 2),
                 n("smelted metal", totalSmelted, 20), n("food", food, 400), n("wood", wood, 320), n("stone", stone, 200), n("metal", metal, 15),
             )
             3 -> listOf(
-                n("days", day(), 600), n("adults", ad, 16), n("homes", count("hut"), 12), n("farms", count("farm"), 4),
+                n("days", day(), 150), n("adults", ad, 16), n("homes", count("hut"), 12), n("farms", count("farm"), 4),
                 n("towers", count("tower"), 2), n("smelted metal", totalSmelted, 60), n("food", food, 800), n("wood", wood, 600),
                 n("stone", stone, 400), n("metal", metal, 50), n("hides", hides, 20),
             )
