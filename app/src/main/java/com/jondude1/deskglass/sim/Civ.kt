@@ -346,6 +346,8 @@ class CivSim(
     private var studied = 0
     var tavernVisits = 0
     var recoveries = 0
+    var ballistaShots = 0
+    var ballistaKills = 0
     var totemVisits = 0
     var ranchVisits = 0
     /** Buildings raised by villagers (each plays a visible construction animation). */
@@ -846,6 +848,7 @@ class CivSim(
             "library" -> if (age < 3 || n < 10) 0 else min(2, n / 14)
             "tavern" -> if (age < 3 || n < 10) 0 else min(2, n / 12)
             "infirmary" -> if (age < 3 || n < 8) 0 else min(2, 1 + n / 20)
+            "ballista" -> if (age < 3 || n < 8) 0 else min(if (age >= 4) 3 else 2, 1 + n / 10)
             "wonder" -> if (age < 4 || n < 14) 0 else min(3, 1 + (n - 14) / 6)
             else -> 99
         }
@@ -854,7 +857,7 @@ class CivSim(
     /** Homes, farms, workshops and the like all together: a small village cannot have a sprawl. */
     private fun totalCap() = 4 + n() + n() / 2
     private fun n() = villagers.size
-    private fun civicCount() = buildings.count { it.type != "hall" && it.type != "tower" && it.type != "palisade" && it.type != "totem" && it.type != "ranch" } +
+    private fun civicCount() = buildings.count { it.type != "hall" && it.type != "tower" && it.type != "palisade" && it.type != "totem" && it.type != "ranch" && it.type != "ballista" } +
         villagers.count { it.action.startsWith("build_") }
 
     private fun canBuild(type: String) = counting(type) < capFor(type) && (type == "ranch" || civicCount() < totalCap()) &&
@@ -867,7 +870,7 @@ class CivSim(
     /** A short "what is built and what could be" line for the panels. */
     fun buildSummary(): String {
         val parts = ArrayList<String>()
-        for (t in listOf("hut", "farm", "campfire", "totem", "ranch", "smelter", "well", "workshop", "market", "granary", "barracks", "library", "tavern", "infirmary", "wonder", "lamp")) {
+        for (t in listOf("hut", "farm", "campfire", "totem", "ranch", "smelter", "well", "workshop", "market", "granary", "barracks", "library", "tavern", "infirmary", "ballista", "wonder", "lamp")) {
             val c = capFor(t)
             if (c > 0) parts.add("$t ${count(t)}/$c")
         }
@@ -3175,6 +3178,18 @@ class CivSim(
         if (!danger) return
         nextTowerAt = time + 90.0
         val have = count("tower")
+        if (have >= 1 && count("ballista") < capFor("ballista") && wood >= 14 && stone >= 6 && metal >= 3) {
+            val bs = findSite()
+            if (bs >= 0) {
+                wood -= 14
+                stone -= 6
+                metal -= 3
+                addBuilding("ballista", bs % GW, bs / GW)
+                event("A great ballista is wound up at the edge of the village. Its bolts reach far into the woods.")
+                mark("A ballista was built.")
+                return
+            }
+        }
         if (have >= 3 || wood < 8 || stone < 2) return
         val site = findSite()
         if (site < 0) return
@@ -3209,6 +3224,17 @@ class CivSim(
         if (predators.isEmpty()) return
         val fires = buildings.filter { it.type == "campfire" || it.type == "tower" || it.type == "hut" }
         val towers = buildings.filter { it.type == "tower" }
+        // ballistae: slow, heavy bolts at the nearest foe within range
+        for (bl in buildings) {
+            if (bl.type != "ballista") continue
+            if (bl.timer > 0f) { bl.timer -= dt; continue }
+            val tgt = predators.filter { hypot(bl.x + 0.5f - it.x, bl.y + 0.5f - it.y) < 11f }.minByOrNull { hypot(bl.x + 0.5f - it.x, bl.y + 0.5f - it.y) } ?: continue
+            tgt.hp -= 22f * (if (tgt.kind == "golem") 0.5f else 1f)
+            tgt.byBallista = true
+            bl.timer = 2.8f + rnd.nextFloat()
+            ballistaShots++
+            fx.add(Fx("ballista", tgt.x, tgt.y, time, 0.6f))
+        }
         for (p in predators.toList()) {
             p.life += dt
             if (p.cool > 0f) p.cool -= dt
@@ -3380,7 +3406,7 @@ class CivSim(
             for (tw in towers) {
                 if (hypot(tw.x + 0.5f - p.x, tw.y + 0.5f - p.y) < 6.5f) {
                     p.hp -= 6f * dt * (if (p.kind == "golem") 0.3f else 1f)
-                    if (rnd.nextInt(45) == 0) fx.add(Fx("arrow", p.x, p.y, time, 0.6f))
+                    if (rnd.nextInt(45) == 0) fx.add(Fx("shot", p.x, p.y, time, 0.5f))
                 }
             }
             val critterPower = critters.fightPower(p.x, p.y)
@@ -3395,6 +3421,7 @@ class CivSim(
             }
             if (p.hp <= 0f) {
                 predators.remove(p)
+                if (p.byBallista) ballistaKills++
                 val meat = when (p.kind) { "bear" -> 8; "boar" -> 6; "ogre" -> 12; "drake" -> 14; "frostwolf" -> 3; "lich", "skeleton", "raider", "wraith", "shaman", "warlord", "golem", "pilferer", "hornet" -> 0; else -> 4 }
                 val hide = when (p.kind) { "bear" -> 3; "boar" -> 2; "ogre" -> 5; "drake" -> 8; "frostwolf" -> 3; "lich", "skeleton", "raider", "wraith", "shaman", "warlord", "golem", "pilferer", "hornet" -> 0; else -> 1 }
                 if (meat + hide > 0) drops.add(Drop(p.kind, p.x, p.y, time, meat, hide))
@@ -3664,6 +3691,8 @@ class CivSim(
             Deed("kite", "Kite Day", "Flew kites on five spring days.", "+15 food") { kitesFlown >= 5 },
             Deed("leaves", "Crunchy Leaves", "Raked four piles of autumn leaves.", "+15 wood") { leafPilesRaked >= 4 },
             Deed("omen", "Good Omens", "Read three omens of plenty at the totem.", "+20 food") { omens >= 3 },
+            Deed("siege1", "Siege Engines", "Raised a great ballista.", "+15 wood, +5 stone") { count("ballista") >= 1 },
+            Deed("siege10", "Bolt from Afar", "Felled ten foes with ballista bolts.", "+10 metal, +10 stone") { ballistaKills >= 10 },
             Deed("healer", "Mended and Whole", "Tended the hurt at the infirmary twenty times.", "+20 food, +10 stone") { recoveries >= 20 },
             Deed("pub", "Merry Company", "Shared twenty-five meals at the tavern.", "+20 food, +10 wood") { tavernVisits >= 25 },
             Deed("inn", "Hospitable Hearth", "Welcomed five visitors.", "+20 wood, +10 stone") { visitTotal() >= 5 },
@@ -3713,7 +3742,7 @@ class CivSim(
             deeds.add(d.id)
             val r = d.reward
             fun grab(word: String): Int = Regex("\\+(\\d+) $word").find(r)?.groupValues?.get(1)?.toInt() ?: 0
-            wood += grab("wood"); stone += grab("stone"); food += grab("food")
+            wood += grab("wood"); stone += grab("stone"); food += grab("food"); metal += grab("metal")
             if (r.contains("joy") || deeds.size % 5 == 0) {
                 for (v in villagers) v.happiness = min(100f, v.happiness + 15f)
                 festivalUntil = max(festivalUntil, time + 25.0)
@@ -4390,7 +4419,7 @@ class CivSim(
             o.put("nextId", nextId)
             o.put("hides", hides)
             o.put("goods", goods)
-            o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("expN", expeditions).put("expW", expWins).put("expR", expRetreats).put("expRooms", roomsCleared).put("relics", relics).put("expDeep", deepestRoom).put("wardens", wardensSlain).put("golems", golemsSlain).put("frostPacks", frostPacksBroken).put("pilfF", pilfersFoiled).put("pilfL", pilfersLost).put("swarms", swarmsBroken).put("hornets", hornetsSwatted).put("liches", lichesSlain).put("bones", bonesRaised).put("shamans", shamansSlain).put("golden", goldenAt).put("visits", visitStats.entries.joinToString(",") { "${it.key}:${it.value}" }).put("deeds", deeds.joinToString(",")).put("tavern", tavernVisits).put("pets", pets.joinToString(",") { "${it.name}:${it.owner}:${it.bond}" }).put("dogA", dogsAdopted).put("dogW", dogWalks).put("dogB", dogBarks).put("snowmen", snowmenBuilt).put("leafR", leafPilesRaked).put("kites", kitesFlown).put("sprops", seasonProps.joinToString(",") { "${it.kind}:${it.x.toInt()}:${it.y.toInt()}" }).put("statues", statues.joinToString(";") { "${it.name}|${it.title}|${it.kind}|${it.x.toInt()}|${it.y.toInt()}|${it.tier}" }).put("statueC", statueCheers).put("totemV", totemVisits).put("raised", raised).put("omens", omens).put("recov", recoveries).put("ranchV", ranchVisits).put("babies", babiesBorn).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" })
+            o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("expN", expeditions).put("expW", expWins).put("expR", expRetreats).put("expRooms", roomsCleared).put("relics", relics).put("expDeep", deepestRoom).put("wardens", wardensSlain).put("golems", golemsSlain).put("frostPacks", frostPacksBroken).put("pilfF", pilfersFoiled).put("pilfL", pilfersLost).put("swarms", swarmsBroken).put("hornets", hornetsSwatted).put("liches", lichesSlain).put("bones", bonesRaised).put("shamans", shamansSlain).put("golden", goldenAt).put("visits", visitStats.entries.joinToString(",") { "${it.key}:${it.value}" }).put("deeds", deeds.joinToString(",")).put("tavern", tavernVisits).put("pets", pets.joinToString(",") { "${it.name}:${it.owner}:${it.bond}" }).put("dogA", dogsAdopted).put("dogW", dogWalks).put("dogB", dogBarks).put("snowmen", snowmenBuilt).put("leafR", leafPilesRaked).put("kites", kitesFlown).put("sprops", seasonProps.joinToString(",") { "${it.kind}:${it.x.toInt()}:${it.y.toInt()}" }).put("statues", statues.joinToString(";") { "${it.name}|${it.title}|${it.kind}|${it.x.toInt()}|${it.y.toInt()}|${it.tier}" }).put("statueC", statueCheers).put("totemV", totemVisits).put("raised", raised).put("omens", omens).put("recov", recoveries).put("balS", ballistaShots).put("balK", ballistaKills).put("ranchV", ranchVisits).put("babies", babiesBorn).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" })
             o.put("traffic", String(CharArray(traffic.size) { i -> '0' + min(9, (traffic[i] / 4f).toInt()) }))
             val ks = JSONArray()
             kingdoms.forEach {
@@ -4529,7 +4558,7 @@ class CivSim(
             tavernVisits = o.optInt("tavern", 0); dogsAdopted = o.optInt("dogA", 0); dogWalks = o.optInt("dogW", 0); dogBarks = o.optInt("dogB", 0)
             pets.clear()
             for (e in o.optString("pets", "").split(",")) { val kv = e.split(":"); if (kv.size == 3 && kv[0].isNotBlank()) pets.add(Pet(kv[0], kv[1].toIntOrNull() ?: -1, kv[2].toIntOrNull() ?: 0, false)) }
-             totemVisits = o.optInt("totemV", 0); raised = o.optInt("raised", 0); omens = o.optInt("omens", 0); recoveries = o.optInt("recov", 0); ranchVisits = o.optInt("ranchV", 0)
+             totemVisits = o.optInt("totemV", 0); raised = o.optInt("raised", 0); omens = o.optInt("omens", 0); recoveries = o.optInt("recov", 0); ballistaShots = o.optInt("balS", 0); ballistaKills = o.optInt("balK", 0); ranchVisits = o.optInt("ranchV", 0)
             weds = o.optInt("weds", 0); feudsStarted = o.optInt("feudsS", 0); feudsEnded = o.optInt("feudsE", 0)
             bffs.clear(); o.optString("bffs", "").split(",").filter { it.contains("-") }.forEach { bffs.add(it) }
             courting.clear(); o.optString("courting", "").split(",").forEach { c -> val kv = c.split("@"); if (kv.size == 2) kv[1].toDoubleOrNull()?.let { courting[kv[0]] = it } }

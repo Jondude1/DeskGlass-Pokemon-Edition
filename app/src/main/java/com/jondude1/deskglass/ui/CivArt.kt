@@ -223,6 +223,10 @@ class CivArt {
         'x' to 0xFFD94A4A.toInt(), 'd' to 0xFF4A2E1B.toInt(), 'k' to 0xFF9FD3F0.toInt(), 'b' to 0xFF8D909C.toInt(),
         'h' to 0xFF7BB86B.toInt(),
     ))
+    val ballista = sprite(BALLISTA, mapOf(
+        'w' to 0xFF9A6B38.toInt(), 'W' to 0xFF6B4220.toInt(), 'k' to 0xFF3A2614.toInt(), 's' to 0xFFB9BCC6.toInt(),
+        'S' to 0xFFEDEFF5.toInt(), 'o' to 0xFF2A2A34.toInt(), 'O' to 0xFF8A5A2B.toInt(), 'r' to 0xFFB8452F.toInt(),
+    ))
     val wonderSpire = sprite(WONDER_SPIRE, mapOf(
         'c' to 0xFF9FE8F8.toInt(), 'C' to 0xFFD8F8FF.toInt(), 'p' to 0xFF7A5FC0.toInt(), 'w' to 0xFFE7DCC2.toInt(),
         'W' to 0xFFC9B99A.toInt(), 'k' to 0xFF2B3A67.toInt(), 'd' to 0xFF4A2E1B.toInt(), 'b' to 0xFF8D909C.toInt(),
@@ -791,6 +795,19 @@ class CivArt {
             ".wwwddddwwwffff.",
             ".wwwddddwwwf..f.",
             "bbbbbbbbbbbffffb",
+        )
+        val BALLISTA = listOf(
+            "..........ww..",
+            "..........wk..",
+            ".........wk...",
+            "..rssssssssSS.",
+            ".........wk...",
+            "..wwwwwwwwk...",
+            "..wWWWWWWWw...",
+            "...wW....wW...",
+            "..oooo..oooo..",
+            ".oOOOOooOOOOo.",
+            "..oooo..oooo..",
         )
         val INFIRMARY = listOf(
             "..............",

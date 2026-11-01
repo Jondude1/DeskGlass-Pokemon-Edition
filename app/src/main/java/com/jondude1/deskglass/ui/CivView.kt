@@ -577,6 +577,7 @@ private fun DrawScope.drawWorld(
                 "farm" -> art.farm
                 "smelter" -> art.forge
                 "tower" -> art.tower
+                "ballista" -> art.ballista
                 "palisade" -> art.palisade
                 "well" -> art.well
                 "workshop" -> art.workshop
@@ -890,6 +891,44 @@ private fun DrawScope.drawWorld(
                 }
                 drawRect(Color.White.copy(alpha = 0.35f * a))
                 drawCircle(Color(0xFFFFF3B0).copy(alpha = a), radius = ts * (0.4f + age), center = Offset(cx, cy))
+            }
+            "ballista", "shot" -> {
+                val kindWanted = if (f.type == "ballista") "ballista" else "tower"
+                var src: com.jondude1.deskglass.sim.Building? = null
+                var sd = 1e9f
+                for (bb in sim.buildings) {
+                    if (bb.type != kindWanted) continue
+                    val dd = kotlin.math.hypot(bb.x + 0.5f - f.x, bb.y + 0.5f - f.y)
+                    if (dd < sd) { sd = dd; src = bb }
+                }
+                if (src != null) {
+                    val sx = ox + (src.x + 0.5f) * ts
+                    val sy = oy + (src.y + (if (kindWanted == "tower") -0.2f else 0.3f)) * ts
+                    val flight = if (kindWanted == "tower") 0.2f else 0.28f
+                    val q = (age / flight).coerceIn(0f, 1f)
+                    val hx = sx + (cx - sx) * q
+                    val hy = sy + (cy - sy) * q
+                    val tq = (q - 0.18f).coerceAtLeast(0f)
+                    val tx0 = sx + (cx - sx) * tq
+                    val ty0 = sy + (cy - sy) * tq
+                    if (age < flight + 0.08f) {
+                        val big = kindWanted == "ballista"
+                        drawLine(Color(0xFF6B4220), Offset(tx0, ty0), Offset(hx, hy), strokeWidth = ps * (if (big) 2.2f else 1.2f))
+                        drawLine(Color(0xFFEDEFF5), Offset(hx - (hx - tx0) * 0.25f, hy - (hy - ty0) * 0.25f), Offset(hx, hy), strokeWidth = ps * (if (big) 2.6f else 1.4f))
+                    }
+                    if (age >= flight) {
+                        val ip = ((age - flight) / (f.life - flight).coerceAtLeast(0.05f)).coerceIn(0f, 1f)
+                        if (kindWanted == "ballista") {
+                            drawCircle(Color(0xFFFFE9A0).copy(alpha = 0.7f * (1f - ip)), radius = ts * (0.2f + ip * 0.9f), center = Offset(cx, cy))
+                            for (k in 0 until 8) {
+                                val ang = k * 0.785f
+                                drawRect(Color(0xFFFFF6D0).copy(alpha = 1f - ip), Offset(cx + kotlin.math.cos(ang) * ts * ip * 0.9f, cy + kotlin.math.sin(ang) * ts * ip * 0.6f), Size(ps * 1.6f, ps * 1.6f))
+                            }
+                        } else {
+                            drawCircle(Color(0xFFFFE9A0).copy(alpha = 0.5f * (1f - ip)), radius = ts * 0.25f * (0.5f + ip), center = Offset(cx, cy))
+                        }
+                    }
+                }
             }
             "arrow" -> {
                 val a = 1f - p

@@ -61,6 +61,7 @@ class Predator(val kind: String, var x: Float, var y: Float) {
     var lootF = 0
     var lootW = 0
     var looted = false
+    var byBallista = false
 }
 
 
