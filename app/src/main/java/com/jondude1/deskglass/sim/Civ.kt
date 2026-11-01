@@ -185,7 +185,7 @@ private val ACTIONS = setOf(
     "build_well", "build_workshop", "build_market", "build_lamp",
     "fetch_water", "craft", "trade", "dance", "patrol", "play",
     "build_granary", "build_barracks", "build_library", "build_wonder", "haul", "drill", "study", "attack",
-    "forage_herbs", "swim", "stargaze", "carve", "pick_flowers", "delve", "build_tavern", "tavern", "build_infirmary", "recover", "build_totem", "honor", "build_ranch", "tend_critters", "build_pasture", "tend_flock", "build_dock", "sail", "snowman", "rake_leaves", "fly_kite", "walk_dog", "assault_camp", "gather_star", "build_quarry", "quarry",
+    "forage_herbs", "swim", "stargaze", "carve", "pick_flowers", "delve", "build_tavern", "tavern", "build_infirmary", "recover", "build_totem", "honor", "build_ranch", "tend_critters", "build_pasture", "tend_flock", "build_dock", "sail", "snowman", "rake_leaves", "fly_kite", "walk_dog", "assault_camp", "gather_star", "build_quarry", "quarry", "build_shrine", "vigil",
 )
 
 /** Foes a few healthy fighters will chase down on their own. */
@@ -413,6 +413,14 @@ class CivSim(
     var quarryHauls = 0
     var quarryStone = 0
     var quarryVeins = 0
+    /** The Legend Shrine: vigils there fill a gauge; when it is full a legend of the chain answers and steps out. */
+    var vigils = 0
+    var vigilPoints = 0
+    var legendCalls = 0
+    var shrineGlowUntil = 0.0
+    var shrineCallUntil = 0.0
+    var shrineCallSp = 57
+    fun vigilNeed(): Int = min(90, 24 + 12 * legendCalls)
     private var dockSiteAt = -999.0
     private var dockSiteVal = -1
     var flockSheep = 0
@@ -520,7 +528,7 @@ class CivSim(
         statues.clear(); statueCheers = 0; nextStatueAt = 0.0
         pets.clear(); dogsAdopted = 0; dogWalks = 0; dogBarks = 0; nextPetAt = time + DAY_LEN * 1.2
         // a new world must not inherit the old world's clocks (alerts, rain, festivals...)
-        alertUntil = 0.0; starShards = 0; starsFallen = 0; starShardsGot = 0; starUntil = 0.0; starAnnounced = true; rainUntil = 0.0; stormUntil = 0.0; fogUntil = 0.0; snowUntil = 0.0; rainbowUntil = 0.0; strikeAt = -99.0; nextWeatherAt = time + DAY_LEN * 0.5; lastSeason = -1; wxStats.clear(); festivalUntil = 0.0; plagueUntil = 0.0; godUntil = 0.0; order = ""; orderUntil = 0.0; shakeUntil = 0.0
+        vigils = 0; vigilPoints = 0; legendCalls = 0; shrineGlowUntil = 0.0; shrineCallUntil = 0.0; alertUntil = 0.0; starShards = 0; starsFallen = 0; starShardsGot = 0; starUntil = 0.0; starAnnounced = true; rainUntil = 0.0; stormUntil = 0.0; fogUntil = 0.0; snowUntil = 0.0; rainbowUntil = 0.0; strikeAt = -99.0; nextWeatherAt = time + DAY_LEN * 0.5; lastSeason = -1; wxStats.clear(); festivalUntil = 0.0; plagueUntil = 0.0; godUntil = 0.0; order = ""; orderUntil = 0.0; shakeUntil = 0.0
         nextEventAt = time + DAY_LEN * 0.6
         nextTowerAt = 0.0; nextWallAt = 0.0; nextPlanAt = 0.0
         ageClock = 0f; worldClock = 0f; ownerClock = 0f; bushClock = 0f
@@ -765,7 +773,7 @@ class CivSim(
                 else -> need()
             }
             "build" -> {
-                val kinds = listOf("hut", "farm", "campfire", "totem", "ranch", "pasture", "dock", "quarry", "smelter", "well", "workshop", "granary", "market", "library", "tavern", "infirmary", "barracks", "wonder", "lamp")
+                val kinds = listOf("hut", "farm", "campfire", "totem", "ranch", "pasture", "dock", "quarry", "smelter", "well", "workshop", "granary", "market", "library", "tavern", "infirmary", "barracks", "shrine", "wonder", "lamp")
                 val t = kinds.firstOrNull { canBuild(it) && affordable(it) }
                 if (t != null && (v.job == "Builder" || rnd.nextInt(3) == 0)) "build_$t" to "" else if (v.job == "Builder" || rnd.nextBoolean()) (if (wood < stone * 2) "gather_wood" else "gather_stone") to "" else need()
             }
@@ -788,6 +796,7 @@ class CivSim(
         "pasture" -> wood >= 10
         "dock" -> wood >= 8
         "quarry" -> wood >= 16
+        "shrine" -> wood >= 20 && stone >= 30
         "smelter", "well" -> wood >= 4 && stone >= 6
         "workshop" -> wood >= 10 && stone >= 4
         "granary" -> wood >= 14 && stone >= 6
@@ -917,6 +926,7 @@ class CivSim(
             "pasture" -> if (n < 5) 0 else min(2, 1 + n / 12)
             "dock" -> if (n < 4 || dockSite() < 0) 0 else min(2, 1 + n / 14)
             "quarry" -> if (age < 2 || n < 8) 0 else min(2, 1 + n / 16)
+            "shrine" -> if (age < 3 || n < 12) 0 else 1
             "ranch" -> if (n < 6 || ranchResidents() < 2) 0 else min(2, 1 + ranchResidents() / 9)
             "smelter" -> if (age < 2) 0 else min(3, 1 + ad / 5)
             "well" -> if (age < 1) 0 else min(3, n / 6)
@@ -937,11 +947,11 @@ class CivSim(
     /** Homes, farms, workshops and the like all together: a small village cannot have a sprawl. */
     private fun totalCap() = 4 + n() * 2
     private fun n() = villagers.size
-    private fun civicCount() = buildings.count { it.type != "hall" && it.type != "tower" && it.type != "palisade" && it.type != "totem" && it.type != "ranch" && it.type != "pasture" && it.type != "dock" && it.type != "quarry" && it.type != "ballista" && it.type != "lamp" } +
+    private fun civicCount() = buildings.count { it.type != "hall" && it.type != "tower" && it.type != "palisade" && it.type != "totem" && it.type != "ranch" && it.type != "pasture" && it.type != "dock" && it.type != "quarry" && it.type != "shrine" && it.type != "ballista" && it.type != "lamp" } +
         villagers.count { it.action.startsWith("build_") && it.action != "build_lamp" }
 
-    private fun canBuild(type: String) = counting(type) < capFor(type) && (type == "ranch" || type == "pasture" || type == "dock" || type == "quarry" || civicCount() < totalCap()) &&
-        (type == "wonder" || type == "hut" || type == "farm" || !wonderSaving())
+    private fun canBuild(type: String) = counting(type) < capFor(type) && (type == "ranch" || type == "pasture" || type == "dock" || type == "quarry" || type == "shrine" || civicCount() < totalCap()) &&
+        (type == "wonder" || type == "shrine" || type == "hut" || type == "farm" || !wonderSaving())
 
     /** City Age: the village puts spare stone aside for its next great wonder instead of spending it on small things. */
     private fun wonderSaving(): Boolean = age >= 4 && villagers.size >= 14 && counting("wonder") < capFor("wonder") &&
@@ -950,7 +960,7 @@ class CivSim(
     /** A short "what is built and what could be" line for the panels. */
     fun buildSummary(): String {
         val parts = ArrayList<String>()
-        for (t in listOf("hut", "farm", "campfire", "totem", "ranch", "pasture", "smelter", "well", "workshop", "market", "granary", "barracks", "library", "tavern", "infirmary", "ballista", "wonder", "lamp")) {
+        for (t in listOf("hut", "farm", "campfire", "totem", "ranch", "pasture", "smelter", "well", "workshop", "market", "granary", "barracks", "library", "tavern", "infirmary", "ballista", "shrine", "wonder", "lamp")) {
             val c = capFor(t)
             if (c > 0) parts.add("$t ${count(t)}/$c")
         }
@@ -1067,7 +1077,7 @@ class CivSim(
                 if (i < 0) return false
                 return go(v, action, i)
             }
-            "build_hut", "build_farm", "build_campfire", "build_smelter", "build_well", "build_workshop", "build_market", "build_lamp", "build_granary", "build_barracks", "build_library", "build_wonder", "build_tavern", "build_infirmary", "build_totem", "build_ranch", "build_pasture", "build_dock", "build_quarry" -> {
+            "build_hut", "build_farm", "build_campfire", "build_smelter", "build_well", "build_workshop", "build_market", "build_lamp", "build_granary", "build_barracks", "build_library", "build_wonder", "build_tavern", "build_infirmary", "build_totem", "build_ranch", "build_pasture", "build_dock", "build_quarry", "build_shrine" -> {
                 val type = action.removePrefix("build_")
                 if (!canBuild(type)) return false
                 val ok = when (action) {
@@ -1088,6 +1098,7 @@ class CivSim(
                     "build_pasture" -> wood >= 10
                     "build_dock" -> wood >= 8
                     "build_quarry" -> wood >= 16
+                    "build_shrine" -> wood >= 20 && stone >= 30
                     "build_wonder" -> wood >= 50 && stone >= 40 && metal >= 5
                     else -> stone >= 3
                 }
@@ -1112,6 +1123,7 @@ class CivSim(
                     "build_pasture" -> wood -= 10
                     "build_dock" -> wood -= 8
                     "build_quarry" -> wood -= 16
+                    "build_shrine" -> { wood -= 20; stone -= 30 }
                     "build_wonder" -> { wood -= 50; stone -= 40; metal -= 5 }
                     else -> stone -= 3
                 }
@@ -1151,6 +1163,11 @@ class CivSim(
                 if (isChild(v) || ranchResidents() == 0) return false
                 val b = nearestBuilding(v, "ranch") ?: return false
                 return go(v, "tend_critters", b.y * GW + b.x)
+            }
+            "vigil" -> {
+                if (!vigilOk(v)) return false
+                val b = nearestBuilding(v, "shrine") ?: return false
+                return go(v, "vigil", b.y * GW + b.x)
             }
             "honor" -> {
                 if (isChild(v)) return false
@@ -1501,6 +1518,7 @@ class CivSim(
             v.action == "tavern" -> { v.phase = "working"; v.workLeft = 7f }
             v.action == "recover" -> { v.phase = "working"; v.workLeft = 8f }
             v.action == "honor" -> { v.phase = "working"; v.workLeft = 6f }
+            v.action == "vigil" -> { v.phase = "working"; v.workLeft = 8f }
             v.action == "assault_camp" -> { v.phase = "working"; v.workLeft = 3f }
             v.action == "tend_flock" -> { v.phase = "working"; v.workLeft = 7f }
             v.action == "sail" -> { v.phase = "working"; v.workLeft = 8f }
@@ -1620,11 +1638,11 @@ class CivSim(
                     finish(v)
                 } else v.workLeft = 3f
             }
-            "build_hut", "build_farm", "build_campfire", "build_smelter", "build_well", "build_workshop", "build_market", "build_lamp", "build_granary", "build_barracks", "build_library", "build_wonder", "build_tavern", "build_infirmary", "build_totem", "build_ranch", "build_pasture", "build_dock", "build_quarry" -> {
+            "build_hut", "build_farm", "build_campfire", "build_smelter", "build_well", "build_workshop", "build_market", "build_lamp", "build_granary", "build_barracks", "build_library", "build_wonder", "build_tavern", "build_infirmary", "build_totem", "build_ranch", "build_pasture", "build_dock", "build_quarry", "build_shrine" -> {
                 val i = v.targetTile
                 reserved.remove(i)
                 val type = v.action.removePrefix("build_")
-                val label = if (type == "hut" && age == 0) "tent" else if (type == "smelter") "forge" else if (type == "lamp") "lantern post" else if (type == "totem") "totem pole" else if (type == "ranch") "critter ranch" else if (type == "pasture") "pasture" else if (type == "dock") "fishing dock" else if (type == "quarry") "stone quarry" else type
+                val label = if (type == "hut" && age == 0) "tent" else if (type == "smelter") "forge" else if (type == "lamp") "lantern post" else if (type == "totem") "totem pole" else if (type == "ranch") "critter ranch" else if (type == "pasture") "pasture" else if (type == "dock") "fishing dock" else if (type == "quarry") "stone quarry" else if (type == "shrine") "legend shrine" else type
                 if (type == "wonder" && i >= 0 && !occupied[i] && tiles[i] == T.GRASS) {
                     val kind = (0..2).firstOrNull { k -> buildings.none { it.type == "wonder" && it.era == k } } ?: 0
                     addBuilding("wonder", i % GW, i / GW, kind)
@@ -1842,6 +1860,20 @@ class CivSim(
                     for (o in mates) { v.affinity[o.id] = (v.affinity[o.id] ?: 0) + 1; o.affinity[v.id] = (o.affinity[v.id] ?: 0) + 1 }
                     v.remember("fed ${c.name} at the ranch")
                 }
+                finish(v)
+            }
+            "vigil" -> {
+                // a quiet vigil at the Legend Shrine: the gauge fills, and when it is full a legend of the chain answers
+                vigils++; vigilPoints++
+                v.happiness = min(100f, v.happiness + 5f)
+                v.energy = min(100f, v.energy + 3f)
+                val sh = nearestBuilding(v, "shrine")
+                if (sh != null) fx.add(Fx("spawn", sh.x + 0.5f, sh.y + 0.5f, time, 1.0f))
+                val mates = villagers.filter { it !== v && it.phase == "working" && it.action == "vigil" && hypot(it.x - v.x, it.y - v.y) < 4f }
+                for (o in mates) { v.affinity[o.id] = (v.affinity[o.id] ?: 0) + 1; o.affinity[v.id] = (o.affinity[v.id] ?: 0) + 1 }
+                if (vigils % 10 == 1) addLog("${v.name} keeps a quiet vigil at the legend shrine (${min(vigilPoints, vigilNeed())}/${vigilNeed()}).")
+                v.remember(if (mates.isNotEmpty()) "kept vigil at the shrine with ${mates[0].name}" else "kept vigil at the legend shrine")
+                if (sh != null && vigilPoints >= vigilNeed() && time >= shrineCallUntil) callLegend(sh, v)
                 finish(v)
             }
             "honor" -> {
@@ -2411,6 +2443,7 @@ class CivSim(
             "tavern" to (if (count("tavern") > 0 && food >= 3) 4 else 0),
             "recover" to (if (count("infirmary") > 0 && v.hp < 90f) 5 else 0),
             "honor" to (if (count("totem") > 0 && !isChild(v)) 2 else 0),
+            "vigil" to (if (vigilOk(v)) 3 else 0),
             "tend_flock" to (if (count("pasture") > 0 && !isChild(v)) 4 else 0),
             "sail" to (if (count("dock") > 0 && !isChild(v) && sailOk()) 5 else 0),
             "quarry" to (if (quarryOk(v)) (if (stone < 60 + adults() * 8) 7 else 2) else 0),
@@ -2485,6 +2518,26 @@ class CivSim(
     }
 
     // ---- brains ----
+
+    private fun vigilOk(v: Villager) = count("shrine") > 0 && !isChild(v) && !isNight() && !alert()
+
+    /** The shrine answers: the next legend of the chain that is not yet bound steps out beside it. */
+    private fun callLegend(sh: Building, v: Villager) {
+        val next = (57..62).firstOrNull { id -> critters.critters.none { it.sp == id } } ?: return
+        vigilPoints = 0
+        legendCalls++
+        shrineCallSp = next
+        shrineCallUntil = time + 330.0
+        shrineGlowUntil = time + 40.0
+        critters.spawnLegend(next, sh.x + 0.5f, sh.y + 2.2f)
+        val nm = Dex.byId(next).name
+        event("The legend shrine blazes with light! After the long vigils, $nm answers the village's call.")
+        mark("The shrine answered: $nm stepped out (call ${legendCalls}).")
+        for (o in villagers) o.happiness = min(100f, o.happiness + 8f)
+        festivalUntil = max(festivalUntil, time + 20.0)
+        fx.add(Fx("spawn", sh.x + 0.5f, sh.y + 0.5f, time, 2.0f))
+        v.remember("saw $nm answer the shrine")
+    }
 
     private fun quarryOk(v: Villager) = count("quarry") > 0 && !isChild(v) && !isNight() && !alert() && stone < capStone() * 0.85
     private fun sailOk() = !isNight() && !raining() && !alert() && !foggy() && count("dock") > 0
@@ -2834,6 +2887,8 @@ class CivSim(
         if (count("ranch") > 0 && ranchResidents() > 0 && !isChild(v) && !starving && rnd.nextInt(if (critters.gifted(v)) 6 else 12) == 0) return "tend_critters" to ""
         if (wood >= 10 && canBuild("pasture") && (builder || v.job == "Farmer" || rnd.nextInt(6) == 0)) return "build_pasture" to ""
         if (count("pasture") > 0 && !isChild(v) && !starving && rnd.nextInt(if (v.job == "Farmer") 5 else 10) == 0) return "tend_flock" to ""
+        if (wood >= 20 && stone >= 30 && canBuild("shrine") && (builder || critters.gifted(v) || rnd.nextInt(5) == 0)) return "build_shrine" to ""
+        if (vigilOk(v) && !starving && rnd.nextInt(if (critters.gifted(v)) 4 else 9) == 0) return "vigil" to ""
         if (wood >= 16 && canBuild("quarry") && (builder || v.job == "Miner" || rnd.nextInt(5) == 0)) return "build_quarry" to ""
         if (quarryOk(v) && !starving && rnd.nextInt(if (v.job == "Miner") 2 else if (stone < 60 + adults() * 8) 4 else 12) == 0) return "quarry" to ""
         if (wood >= 8 && canBuild("dock") && (builder || v.job == "Forager" || rnd.nextInt(5) == 0)) return "build_dock" to ""
@@ -2855,6 +2910,7 @@ class CivSim(
 
         if (part == "evening" || part == "morning") {
             if (count("totem") > 0 && !isChild(v) && rnd.nextInt(if (part == "morning") 10 else 6) == 0) return "honor" to ""
+            if (vigilOk(v) && rnd.nextInt(if (part == "evening") 4 else 8) == 0) return "vigil" to ""
         }
         if (part == "evening") {
             if (count("tavern") > 0 && food >= 3 && !isChild(v) && rnd.nextInt(3) == 0) return "tavern" to ""
@@ -3058,6 +3114,8 @@ class CivSim(
         "tavern" -> "eating and chatting at the tavern"
         "recover" -> "resting at the infirmary"
         "honor" -> "honoring the totem pole"
+        "build_shrine" -> "building a legend shrine"
+        "vigil" -> "keeping a vigil at the legend shrine"
         "tend_critters" -> "feeding and grooming critters at the ranch"
         "build_ranch" -> "building a critter ranch"
         "tend_flock" -> "tending the sheep and hens at the pasture"
@@ -3126,6 +3184,8 @@ class CivSim(
         if (canBuild("infirmary") && wood >= 16 && stone >= 8) a.add("build_infirmary")
         if (canBuild("totem") && wood >= 12 && stone >= 4) a.add("build_totem")
         if (count("totem") > 0) a.add("honor")
+        if (canBuild("shrine") && wood >= 20 && stone >= 30) a.add("build_shrine")
+        if (count("shrine") > 0 && !isNight() && !alert()) a.add("vigil")
         if (canBuild("ranch") && wood >= 18 && stone >= 6) a.add("build_ranch")
         if (count("ranch") > 0 && ranchResidents() > 0) a.add("tend_critters")
         if (canBuild("pasture") && wood >= 10) a.add("build_pasture")
@@ -3180,7 +3240,7 @@ class CivSim(
         if (age >= 1) sb.append("${count("farm")} farms, ")
         if (age >= 2) sb.append("${count("smelter")} forges, ")
         sb.append("${count("campfire")} campfires")
-        for ((t, nm) in listOf("well" to "wells", "workshop" to "workshops", "market" to "markets", "granary" to "granaries", "barracks" to "barracks", "library" to "libraries", "tavern" to "taverns", "ranch" to "critter ranches", "pasture" to "pastures", "dock" to "fishing docks", "quarry" to "stone quarries", "totem" to "totem poles", "infirmary" to "infirmaries", "wonder" to "great wonders")) if (count(t) > 0) sb.append(", ${count(t)} $nm")
+        for ((t, nm) in listOf("well" to "wells", "workshop" to "workshops", "market" to "markets", "granary" to "granaries", "barracks" to "barracks", "library" to "libraries", "tavern" to "taverns", "ranch" to "critter ranches", "pasture" to "pastures", "dock" to "fishing docks", "quarry" to "stone quarries", "shrine" to "legend shrines", "totem" to "totem poles", "infirmary" to "infirmaries", "wonder" to "great wonders")) if (count(t) > 0) sb.append(", ${count(t)} $nm")
         if (goods > 0) sb.append(", $goods goods to sell")
         sb.append(". ${villagers.size} villagers (${villagers.count { isChild(it) }} children).\n")
         val near = nearby(v)
@@ -4037,6 +4097,8 @@ class CivSim(
             Deed("flock1", "Shepherd's Hands", "Tended the pasture flock twelve times.", "+12 food, +6 hides") { pastureVisits >= 12 },
             Deed("dock1", "Gone Fishing", "Rowed out from the fishing dock twelve times.", "+15 food, +6 wood") { sailTrips >= 12 },
             Deed("quarry1", "Stone by the Cartload", "Cut stone at the quarry twenty times.", "+20 wood, +10 food") { quarryHauls >= 20 },
+            Deed("vigil1", "Keepers of the Flame", "Kept vigil at the legend shrine twenty times.", "+15 stone, +10 food") { vigils >= 20 },
+            Deed("vigil2", "The Shrine Answers", "A legend answered the call of the shrine.", "joy for all") { legendCalls >= 1 },
             Deed("quarry2", "Deep Vein", "Struck three veins in the quarry wall.", "+6 metal") { quarryVeins >= 3 },
             Deed("dock2", "Message in a Bottle", "Fished three sealed bottles from the lake.", "+20 food, +10 stone") { bottlesFound >= 3 },
             Deed("flock2", "Wool and Eggs", "Gathered fifty eggs from the pasture hens.", "+20 food, +10 wood") { eggsGathered >= 50 },
@@ -4959,7 +5021,7 @@ class CivSim(
             o.put("nextId", nextId)
             o.put("hides", hides)
             o.put("goods", goods)
-            o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("campUp", if (campUp) 1 else 0).put("campX", campX.toDouble()).put("campY", campY.toDouble()).put("campHp", campHp.toDouble()).put("campMax", campMax.toDouble()).put("campR", campsRazed).put("campH", campHits).put("campS", campSorties).put("expN", expeditions).put("expW", expWins).put("expR", expRetreats).put("expRooms", roomsCleared).put("relics", relics).put("expDeep", deepestRoom).put("wardens", wardensSlain).put("golems", golemsSlain).put("frostPacks", frostPacksBroken).put("pilfF", pilfersFoiled).put("pilfL", pilfersLost).put("swarms", swarmsBroken).put("hornets", hornetsSwatted).put("liches", lichesSlain).put("bones", bonesRaised).put("shamans", shamansSlain).put("golden", goldenAt).put("visits", visitStats.entries.joinToString(",") { "${it.key}:${it.value}" }).put("deeds", deeds.joinToString(",")).put("tavern", tavernVisits).put("pets", pets.joinToString(",") { "${it.name}:${it.owner}:${it.bond}" }).put("dogA", dogsAdopted).put("dogW", dogWalks).put("dogB", dogBarks).put("snowmen", snowmenBuilt).put("leafR", leafPilesRaked).put("starsF", starsFallen).put("starG", starShardsGot).put("kites", kitesFlown).put("sprops", seasonProps.joinToString(",") { "${it.kind}:${it.x.toInt()}:${it.y.toInt()}" }).put("statues", statues.joinToString(";") { "${it.name}|${it.title}|${it.kind}|${it.x.toInt()}|${it.y.toInt()}|${it.tier}" }).put("statueC", statueCheers).put("totemV", totemVisits).put("raised", raised).put("omens", omens).put("recov", recoveries).put("balS", ballistaShots).put("balK", ballistaKills).put("ranchV", ranchVisits).put("pastV", pastureVisits).put("sailN", sailTrips).put("quarryN", quarryHauls).put("quarryS", quarryStone).put("quarryV", quarryVeins).put("dockC", dockCatch).put("bottles", bottlesFound).put("flockS", flockSheep).put("flockH", flockHens).put("eggsG", eggsGathered).put("fleece", fleeces).put("techs", techs.joinToString(",")).put("research", research).put("studyN", studyCount).put("babies", babiesBorn).put("dreams", dreamsDone).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" })
+            o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("campUp", if (campUp) 1 else 0).put("campX", campX.toDouble()).put("campY", campY.toDouble()).put("campHp", campHp.toDouble()).put("campMax", campMax.toDouble()).put("campR", campsRazed).put("campH", campHits).put("campS", campSorties).put("expN", expeditions).put("expW", expWins).put("expR", expRetreats).put("expRooms", roomsCleared).put("relics", relics).put("expDeep", deepestRoom).put("wardens", wardensSlain).put("golems", golemsSlain).put("frostPacks", frostPacksBroken).put("pilfF", pilfersFoiled).put("pilfL", pilfersLost).put("swarms", swarmsBroken).put("hornets", hornetsSwatted).put("liches", lichesSlain).put("bones", bonesRaised).put("shamans", shamansSlain).put("golden", goldenAt).put("visits", visitStats.entries.joinToString(",") { "${it.key}:${it.value}" }).put("deeds", deeds.joinToString(",")).put("tavern", tavernVisits).put("pets", pets.joinToString(",") { "${it.name}:${it.owner}:${it.bond}" }).put("dogA", dogsAdopted).put("dogW", dogWalks).put("dogB", dogBarks).put("snowmen", snowmenBuilt).put("leafR", leafPilesRaked).put("starsF", starsFallen).put("starG", starShardsGot).put("kites", kitesFlown).put("sprops", seasonProps.joinToString(",") { "${it.kind}:${it.x.toInt()}:${it.y.toInt()}" }).put("statues", statues.joinToString(";") { "${it.name}|${it.title}|${it.kind}|${it.x.toInt()}|${it.y.toInt()}|${it.tier}" }).put("statueC", statueCheers).put("totemV", totemVisits).put("raised", raised).put("omens", omens).put("recov", recoveries).put("balS", ballistaShots).put("balK", ballistaKills).put("ranchV", ranchVisits).put("pastV", pastureVisits).put("sailN", sailTrips).put("quarryN", quarryHauls).put("quarryS", quarryStone).put("quarryV", quarryVeins).put("vigN", vigils).put("vigP", vigilPoints).put("legCalls", legendCalls).put("dockC", dockCatch).put("bottles", bottlesFound).put("flockS", flockSheep).put("flockH", flockHens).put("eggsG", eggsGathered).put("fleece", fleeces).put("techs", techs.joinToString(",")).put("research", research).put("studyN", studyCount).put("babies", babiesBorn).put("dreams", dreamsDone).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" })
             o.put("traffic", String(CharArray(traffic.size) { i -> '0' + min(9, (traffic[i] / 4f).toInt()) }))
             val ks = JSONArray()
             kingdoms.forEach {
@@ -5100,7 +5162,7 @@ class CivSim(
             tavernVisits = o.optInt("tavern", 0); dogsAdopted = o.optInt("dogA", 0); dogWalks = o.optInt("dogW", 0); dogBarks = o.optInt("dogB", 0)
             pets.clear()
             for (e in o.optString("pets", "").split(",")) { val kv = e.split(":"); if (kv.size == 3 && kv[0].isNotBlank()) pets.add(Pet(kv[0], kv[1].toIntOrNull() ?: -1, kv[2].toIntOrNull() ?: 0, false)) }
-             totemVisits = o.optInt("totemV", 0); raised = o.optInt("raised", 0); omens = o.optInt("omens", 0); recoveries = o.optInt("recov", 0); ballistaShots = o.optInt("balS", 0); ballistaKills = o.optInt("balK", 0); ranchVisits = o.optInt("ranchV", 0); pastureVisits = o.optInt("pastV", 0); sailTrips = o.optInt("sailN", 0); quarryHauls = o.optInt("quarryN", 0); quarryStone = o.optInt("quarryS", 0); quarryVeins = o.optInt("quarryV", 0); dockCatch = o.optInt("dockC", 0); bottlesFound = o.optInt("bottles", 0); flockSheep = o.optInt("flockS", 0); flockHens = o.optInt("flockH", 0); eggsGathered = o.optInt("eggsG", 0); fleeces = o.optInt("fleece", 0)
+             totemVisits = o.optInt("totemV", 0); raised = o.optInt("raised", 0); omens = o.optInt("omens", 0); recoveries = o.optInt("recov", 0); ballistaShots = o.optInt("balS", 0); ballistaKills = o.optInt("balK", 0); ranchVisits = o.optInt("ranchV", 0); pastureVisits = o.optInt("pastV", 0); sailTrips = o.optInt("sailN", 0); quarryHauls = o.optInt("quarryN", 0); quarryStone = o.optInt("quarryS", 0); quarryVeins = o.optInt("quarryV", 0); vigils = o.optInt("vigN", 0); vigilPoints = o.optInt("vigP", 0); legendCalls = o.optInt("legCalls", 0); dockCatch = o.optInt("dockC", 0); bottlesFound = o.optInt("bottles", 0); flockSheep = o.optInt("flockS", 0); flockHens = o.optInt("flockH", 0); eggsGathered = o.optInt("eggsG", 0); fleeces = o.optInt("fleece", 0)
             techs.clear(); o.optString("techs", "").split(",").filter { it.isNotBlank() }.forEach { techs.add(it) }
             research = o.optInt("research", 0); studyCount = o.optInt("studyN", 0)
             weds = o.optInt("weds", 0); feudsStarted = o.optInt("feudsS", 0); feudsEnded = o.optInt("feudsE", 0)
@@ -5125,7 +5187,7 @@ class CivSim(
     companion object {
         private const val SYSTEM = """You play one villager in a small pixel-art village, as a distinct character with a job, a personality, a way of speaking and a dream. Reply with ONLY a JSON object, no other text:
 {"thought": "<your private thought, first person, under 14 words, in your voice>", "action": "<one action>", "target": "<villager name, only for talk>", "say": "<one short sentence you say aloud in your own voice, or empty>"}
-Actions: gather_wood, gather_stone, gather_food (berries), fish (at the lake), hunt (game in the forest, hunter-gatherers' best food), tend_farm (needs a farm, Farming Age on), explore (scouting far away), delve (join the rift expedition, only while a rift is open), tell_story (at the fire, lifts everyone's spirits), huddle (stay by the fire), build_hut (6 wood + 2 stone), build_farm (4 wood, Farming Age on), build_campfire (3 stone), mine_ore (Bronze Age on), smelt (2 ore + 1 wood at a forge, Bronze Age on), build_smelter (4 wood + 6 stone, Bronze Age on), build_well (4 wood + 6 stone), build_workshop (10 wood + 4 stone), build_market (12 wood + 6 stone), build_lamp (2 wood + 2 stone), fetch_water (at a well, waters the farms), craft (at a workshop), trade (goods for food at a market), dance (at the fire), build_granary (14 wood + 6 stone), build_barracks (16 wood, 14 stone, 2 metal), build_library (18 wood + 12 stone), build_totem (12 wood + 4 stone, carve a totem pole), honor (bow and dance at the totem pole, lifts mood, may bring an omen of plenty), build_ranch (18 wood + 6 stone, a fenced critter ranch once the village keeps critters), tend_critters (feed and groom the village critters at the ranch: heals them, makes them stronger and fonder of us, needs a ranch), build_pasture (10 wood, a fenced pasture for sheep and hens, needs 5 villagers), tend_flock (gather eggs and shear sheep at the pasture: brings food and hides, needs a pasture), build_quarry (16 wood, Village Age on, a stone quarry pit that supplies stone), quarry (cut blocks of stone at the quarry: brings plenty of stone, needs a quarry), build_dock (8 wood, a fishing pier at the lake, needs 4 villagers and a lake shore), sail (row a boat out from the dock for a big catch, daytime and fair weather only, needs a dock), build_tavern (20 wood + 10 stone, Town Age on), tavern (eat and chat with friends at the tavern, needs food, lifts mood), build_infirmary (16 wood + 8 stone, Town Age on), recover (rest and be bandaged at the infirmary: use when hurt, heals a lot), build_wonder (City Age, 50 wood + 40 stone + 5 metal: a great wonder that blesses the whole village), haul (fill the granary), drill (train at the barracks), study (read at the library; scholars earn lore that unlocks discoveries), attack (charge the enemy), patrol (walk the edge of the village and watch), play (children), carve (whittle wooden toys at the fire from spare wood; the children cheer up), pick_flowers (gather wildflowers and give them to a friend), forage_herbs (pick healing herbs: mends you and hurt people nearby, use when hurt or when others are hurt), swim (summer days at the lake, lifts mood), snowman (winter days, build a snowman near the fire, cheers the children), rake_leaves (autumn days, rake a pile of leaves the children jump in), fly_kite (spring days, fly a kite in the breeze), walk_dog (play fetch with your dog, only if you have one), assault_camp (storm the bandit camp beyond the hills, only while it stands; for the healthy and brave, it stops its raids when razed), stargaze (clear evenings at the fire, lifts mood), gather_star (gather shining starmetal from a fallen star's crater, only while the facts say a star fell; gives metal), eat (needs food in stock), sleep, talk (set target and say), wander. Use only the actions listed as available to you in the message.
+Actions: gather_wood, gather_stone, gather_food (berries), fish (at the lake), hunt (game in the forest, hunter-gatherers' best food), tend_farm (needs a farm, Farming Age on), explore (scouting far away), delve (join the rift expedition, only while a rift is open), tell_story (at the fire, lifts everyone's spirits), huddle (stay by the fire), build_hut (6 wood + 2 stone), build_farm (4 wood, Farming Age on), build_campfire (3 stone), mine_ore (Bronze Age on), smelt (2 ore + 1 wood at a forge, Bronze Age on), build_smelter (4 wood + 6 stone, Bronze Age on), build_well (4 wood + 6 stone), build_workshop (10 wood + 4 stone), build_market (12 wood + 6 stone), build_lamp (2 wood + 2 stone), fetch_water (at a well, waters the farms), craft (at a workshop), trade (goods for food at a market), dance (at the fire), build_granary (14 wood + 6 stone), build_barracks (16 wood, 14 stone, 2 metal), build_library (18 wood + 12 stone), build_totem (12 wood + 4 stone, carve a totem pole), honor (bow and dance at the totem pole, lifts mood, may bring an omen of plenty), build_ranch (18 wood + 6 stone, a fenced critter ranch once the village keeps critters), tend_critters (feed and groom the village critters at the ranch: heals them, makes them stronger and fonder of us, needs a ranch), build_pasture (10 wood, a fenced pasture for sheep and hens, needs 5 villagers), tend_flock (gather eggs and shear sheep at the pasture: brings food and hides, needs a pasture), build_shrine (20 wood + 30 stone, City Age on, a Legend Shrine; once enough vigils are kept a legendary critter answers), vigil (kneel and keep a quiet vigil at the shrine in daytime, needs a shrine), build_quarry (16 wood, Village Age on, a stone quarry pit that supplies stone), quarry (cut blocks of stone at the quarry: brings plenty of stone, needs a quarry), build_dock (8 wood, a fishing pier at the lake, needs 4 villagers and a lake shore), sail (row a boat out from the dock for a big catch, daytime and fair weather only, needs a dock), build_tavern (20 wood + 10 stone, Town Age on), tavern (eat and chat with friends at the tavern, needs food, lifts mood), build_infirmary (16 wood + 8 stone, Town Age on), recover (rest and be bandaged at the infirmary: use when hurt, heals a lot), build_wonder (City Age, 50 wood + 40 stone + 5 metal: a great wonder that blesses the whole village), haul (fill the granary), drill (train at the barracks), study (read at the library; scholars earn lore that unlocks discoveries), attack (charge the enemy), patrol (walk the edge of the village and watch), play (children), carve (whittle wooden toys at the fire from spare wood; the children cheer up), pick_flowers (gather wildflowers and give them to a friend), forage_herbs (pick healing herbs: mends you and hurt people nearby, use when hurt or when others are hurt), swim (summer days at the lake, lifts mood), snowman (winter days, build a snowman near the fire, cheers the children), rake_leaves (autumn days, rake a pile of leaves the children jump in), fly_kite (spring days, fly a kite in the breeze), walk_dog (play fetch with your dog, only if you have one), assault_camp (storm the bandit camp beyond the hills, only while it stands; for the healthy and brave, it stops its raids when razed), stargaze (clear evenings at the fire, lifts mood), gather_star (gather shining starmetal from a fallen star's crater, only while the facts say a star fell; gives metal), eat (needs food in stock), sleep, talk (set target and say), wander. Use only the actions listed as available to you in the message.
 Mostly do the work of your job, but react to your needs, the weather, wolves, news and what others say. Talk about what you have seen, feel or remember, with opinions and feelings. Never repeat a line or an action you just did, and vary your sentences. Stay alive: eat when hungry, sleep when tired or at night.
 Speak only about facts given in the message: your needs, the stock, the weather, people nearby and what they said, family, village history and news. Never invent buildings, people, resources or events. Answer what others actually said to you. If you are a child, use very short, simple words."""
         private const val SYSTEM_SHORT = """Reply with ONLY a JSON object: {"thought": "", "action": "<one allowed action>", "target": "", "say": "<one short sentence using only the facts given, or empty>"}"""

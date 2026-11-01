@@ -593,6 +593,7 @@ private fun DrawScope.drawWorld(
                 "pasture" -> art.pasture
                 "dock" -> art.dock
                 "quarry" -> art.quarry
+                "shrine" -> art.shrine
                 "wonder" -> when (b.era) { 0 -> art.wonderSpire; 1 -> art.wonderFountain; else -> art.wonderBeacon }
                 else -> art.fire[fireFrame]
             }
@@ -889,6 +890,37 @@ private fun DrawScope.drawWorld(
                     }
                 }
                 if (dark > 0.1f) drawCircle(Color(0xFFFF9A3A).copy(alpha = min(0.18f, dark * 0.3f)), radius = ts * 1.1f, center = Offset(cx, baseY - hh * 0.3f))
+            }
+            if (b.type == "shrine") {
+                // runes pulse faintly at night, brighter while villagers keep vigil; a full gauge calls a pillar of light
+                val keepers = sim.villagers.count { it.action == "vigil" && it.phase == "working" && kotlin.math.hypot(it.x - (b.x + 0.5f), it.y - (b.y + 0.5f)) < 2.5f }
+                val orb = Offset(cx, baseY - hh * 0.82f)
+                val pulse = 0.5f + 0.5f * kotlin.math.sin(t * 3f + b.x)
+                val base = 0.1f + min(0.25f, dark * 0.4f) + (if (keepers > 0) 0.22f else 0f)
+                drawCircle(Color(0xFF9FF0FF).copy(alpha = base * (0.6f + 0.4f * pulse)), radius = ts * (0.55f + 0.08f * pulse), center = orb)
+                if (keepers > 0) {
+                    for (k in 0 until 5) {
+                        val ph = (t * 0.5f + k * 0.2f + b.x * 0.07f) % 1f
+                        val mx = cx + kotlin.math.sin(t * 1.6f + k * 1.9f) * ts * 0.6f
+                        val my = baseY - hh * 0.3f - ph * ts * 1.7f
+                        drawRect(Color(0xFFD9C2FF).copy(alpha = 1f - ph), Offset(mx, my), Size(ps * 1.1f, ps * 1.1f))
+                    }
+                }
+                // gauge pips above the orb: how close the next legend is to answering
+                val need = sim.vigilNeed()
+                val lit = (kotlin.math.min(sim.vigilPoints, need) * 6) / need
+                for (k in 0 until 6) {
+                    val col = if (k < lit) Color(0xFFFFE9A0) else Color(0xFF3A3A4A).copy(alpha = 0.7f)
+                    drawRect(col, Offset(cx - ps * 6.5f + k * ps * 2.2f, baseY - hh - ps * 2.2f), Size(ps * 1.5f, ps * 1.5f))
+                }
+                val glow = sim.shrineGlowUntil - sim.time
+                if (glow > 0.0) {
+                    val a = kotlin.math.min(1f, (glow / 6.0).toFloat())
+                    drawRect(Color(0xFFBDF3FF).copy(alpha = 0.35f * a), Offset(cx - ps * 1.6f, 0f), Size(ps * 3.2f, baseY - hh * 0.8f))
+                    drawRect(Color.White.copy(alpha = 0.5f * a), Offset(cx - ps * 0.6f, 0f), Size(ps * 1.2f, baseY - hh * 0.8f))
+                    val ring = ((40.0 - glow) / 40.0).toFloat().coerceIn(0f, 1f)
+                    drawCircle(Color(0xFFB07CFF).copy(alpha = 0.5f * a * (1f - ring)), radius = ts * (0.8f + 2.5f * ring), center = Offset(cx, baseY - hh * 0.1f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = ps * 1.2f))
+                }
             }
             if (b.type == "wonder") {
                 val sh = kotlin.math.sin(t * 2.2f + b.x)

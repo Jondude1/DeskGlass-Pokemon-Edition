@@ -115,6 +115,7 @@ fun main(args: Array<String>) {
     println("DOCK built=${sim.buildings.count { it.type == "dock" }} sails=${sim.sailTrips} dockCatch=${sim.dockCatch} bottles=${sim.bottlesFound}")
     println("QUARRYAT ${sim.buildings.filter { it.type == "quarry" }.map { (it.built / 3600.0) }} now=${sim.time / 3600.0}")
     println("QUARRY built=${sim.buildings.count { it.type == "quarry" }} hauls=${sim.quarryHauls} stone=${sim.quarryStone} veins=${sim.quarryVeins} storeStone=${sim.stone}")
+    println("SHRINE built=${sim.buildings.count { it.type == "shrine" }} vigils=${sim.vigils} calls=${sim.legendCalls} points=${sim.vigilPoints}/${sim.vigilNeed()} legendsOwned=${sim.critters.legendsOwned()}")
     println("CAMP up=${sim.campUp} razed=${sim.campsRazed} hits=${sim.campHits} sorties=${sim.campSorties} hp=${sim.campHp.toInt()}/${sim.campMax.toInt()}")
     println("RANCH built=${sim.buildings.count { it.type == "ranch" }} visits=${sim.ranchVisits} tended=${sim.critters.ranchTended} residents=${sim.ranchResidents()} atRanch=$atRanch")
     println("BALLISTA built=${sim.buildings.count { it.type == "ballista" }} shots=${sim.ballistaShots} kills=${sim.ballistaKills} towers=${sim.buildings.count { it.type == "tower" }}")

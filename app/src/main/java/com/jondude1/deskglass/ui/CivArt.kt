@@ -204,6 +204,10 @@ class CivArt {
         'r' to 0xFF3F5E8C.toInt(), 'R' to 0xFF2B4468.toInt(), 'w' to 0xFFE7DCC2.toInt(), 'W' to 0xFFC9B99A.toInt(),
         'd' to 0xFF4A2E1B.toInt(), 'k' to 0xFF9FD3F0.toInt(), 'y' to 0xFFF2D88A.toInt(), 'b' to 0xFF8D909C.toInt(),
     ))
+    val shrine = sprite(SHRINE, mapOf(
+        's' to 0xFFC9CBD6.toInt(), 'S' to 0xFF8F93A6.toInt(), 'y' to 0xFFFFE9A0.toInt(), 'g' to 0xFF9FF0FF.toInt(),
+        'p' to 0xFFB07CFF.toInt(), 'k' to 0xFF3A3A4A.toInt(), 'm' to 0xFF4C7A3E.toInt(),
+    ))
     val totem = sprite(TOTEM, mapOf(
         'w' to 0xFFB98A57.toInt(), 'W' to 0xFF8A6238.toInt(), 'r' to 0xFFC0392B.toInt(), 'b' to 0xFF3F7FBF.toInt(),
         'y' to 0xFFF2D04A.toInt(), 'k' to 0xFF2A1A10.toInt(), 'f' to 0xFF3FA060.toInt(), 'F' to 0xFF2A7A48.toInt(),
@@ -765,6 +769,18 @@ class CivArt {
             ".sSssssssssSs.",
             ".sssssddsssss.",
             ".SSSSSddSSSSS.",
+        )
+        val SHRINE = listOf(
+            "......yy......",
+            ".....yggy.....",
+            "..ss.yggy.ss..",
+            "..sS..yy..Ss..",
+            "..sS.SSSS.Ss..",
+            "..sSSSppSSSs..",
+            "..ssppyyppss..",
+            "sSSSSSSSSSSSSs",
+            "SSkSSSSSSSSkSS",
+            "mmmmmmmmmmmmmm",
         )
         val TOTEM = listOf(
             "f..yyy..F",
