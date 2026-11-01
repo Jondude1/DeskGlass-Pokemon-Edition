@@ -259,6 +259,15 @@ class CivSim(
     var onError: (String) -> Unit = {}
 
     private val occupied = BooleanArray(GW * GH)
+    /** Tiles holding a piece of the stone town wall or a gate post (slows foes that reach it). */
+    val wallAt = BooleanArray(GW * GH)
+    val wallPlan = ArrayList<Int>()
+    var wallCx = -1
+    var wallCy = -1
+    var wallsRaised = 0
+    var wallHoldSecs = 0f
+    var wallDone = false
+    private var nextStoneWallAt = 0.0
     private val reserved = HashSet<Int>()
     private var seed = System.currentTimeMillis()
     private var rnd = Random(seed)
@@ -545,6 +554,8 @@ class CivSim(
         villagers.clear()
         log.clear()
         occupied.fill(false)
+        wallAt.fill(false)
+        wallPlan.clear(); wallCx = -1; wallCy = -1; wallsRaised = 0; wallHoldSecs = 0f; wallDone = false; nextStoneWallAt = 0.0
         reserved.clear()
         wood = 4
         stone = 2
@@ -633,6 +644,7 @@ class CivSim(
     private fun addBuilding(type: String, x: Int, y: Int, era: Int = age) {
         buildings.add(Building(type, x, y, era))
         occupied[y * GW + x] = true
+        if (type == "wall" || type == "gate") wallAt[y * GW + x] = true
     }
 
     private fun spawnVillager(parent: Villager? = null, other: Villager? = null): Villager {
@@ -994,7 +1006,7 @@ class CivSim(
     /** Homes, farms, workshops and the like all together: a small village cannot have a sprawl. */
     private fun totalCap() = 4 + n() * 2
     private fun n() = villagers.size
-    private fun civicCount() = buildings.count { it.type != "hall" && it.type != "tower" && it.type != "palisade" && it.type != "totem" && it.type != "ranch" && it.type != "pasture" && it.type != "dock" && it.type != "quarry" && it.type != "mill" && it.type != "shrine" && it.type != "ballista" && it.type != "lamp" } +
+    private fun civicCount() = buildings.count { it.type != "hall" && it.type != "tower" && it.type != "palisade" && it.type != "wall" && it.type != "gate" && it.type != "totem" && it.type != "ranch" && it.type != "pasture" && it.type != "dock" && it.type != "quarry" && it.type != "mill" && it.type != "shrine" && it.type != "ballista" && it.type != "lamp" } +
         villagers.count { it.action.startsWith("build_") && it.action != "build_lamp" }
 
     private fun canBuild(type: String) = counting(type) < capFor(type) && (type == "ranch" || type == "pasture" || type == "dock" || type == "quarry" || type == "mill" || type == "shrine" || civicCount() < totalCap()) &&
@@ -3900,9 +3912,90 @@ class CivSim(
         mark("A palisade wall was built.")
     }
 
+
+    // ---- the stone town wall ----
+
+
+    /** Lists the ring of cells around the hall; gate posts are stored as cell + GW*GH, the gaps between them stay open. */
+    private fun planWall() {
+        if (wallCx < 0) {
+            val hall = buildings.firstOrNull { it.type == "hall" }
+            if (hall != null) { wallCx = hall.x; wallCy = hall.y }
+            else if (buildings.isNotEmpty()) { wallCx = buildings.map { it.x }.average().toInt(); wallCy = buildings.map { it.y }.average().toInt() }
+            else return
+        }
+        val cx = wallCx
+        val cy = wallCy
+        val rx = 14
+        val ry = 9
+        val cells = ArrayList<Pair<Double, Int>>()
+        for (x in cx - rx..cx + rx) for (y in cy - ry..cy + ry) {
+            if (x < 1 || y < 1 || x >= GW - 1 || y >= GH - 1) continue
+            val horiz = y == cy - ry || y == cy + ry
+            val vert = x == cx - rx || x == cx + rx
+            if (!horiz && !vert) continue
+            val dx = x - cx
+            val dy = y - cy
+            if ((horiz && abs(dx) <= 1) || (vert && abs(dy) <= 1)) continue
+            val post = (horiz && abs(dx) == 2) || (vert && abs(dy) == 2)
+            val i = y * GW + x
+            if (occupied[i] || i in reserved) continue
+            if (tiles[i] != T.GRASS && tiles[i] != T.BUSH) continue
+            cells.add(Math.atan2(dy.toDouble(), dx.toDouble()) to (if (post) i + GW * GH else i))
+        }
+        cells.sortBy { it.first }
+        for (c in cells) wallPlan.add(c.second)
+    }
+
+    /** Masons raise the stone wall one piece at a time from surplus stone, ringed round the village with gates on every side. */
+    private fun stoneWallTick() {
+        if (time < nextStoneWallAt || wallDone || age < 2 || villagers.size < 8) return
+        nextStoneWallAt = time + 6.0
+        if (stone < 40 || wood < 6) return
+        if (wallPlan.isEmpty()) {
+            planWall()
+            if (wallPlan.isEmpty()) { wallDone = true; return }
+        }
+        while (wallPlan.isNotEmpty()) {
+            val c = wallPlan[0] % (GW * GH)
+            if (occupied[c] || (tiles[c] != T.GRASS && tiles[c] != T.BUSH)) wallPlan.removeAt(0) else break
+        }
+        if (wallPlan.isEmpty()) {
+            wallDone = true
+            if (wallsRaised >= 40) event("The stone wall is complete: gates stand open on every side.")
+            return
+        }
+        val raw = wallPlan.removeAt(0)
+        val post = raw >= GW * GH
+        val c = raw % (GW * GH)
+        stone -= 3
+        wood -= 1
+        if (tiles[c] == T.BUSH) { tiles[c] = T.GRASS; amt[c] = 0 }
+        addBuilding(if (post) "gate" else "wall", c % GW, c / GW)
+        wallsRaised++
+        if (wallsRaised == 1) event("Masons begin a stone wall around the village, with gates on every side.")
+        if (wallsRaised % 25 == 0) mark("The stone wall grows: $wallsRaised pieces.")
+    }
+
+    /** Foes that reach the wall are pelted from the ramparts and slow a little as they climb (flyers and wraiths ignore it). */
+    private fun wallSlow(p: Predator, dt: Float): Float {
+        if (wallsRaised == 0 || p.kind == "hornet" || p.kind == "wraith") return 1f
+        val fx = p.x.toInt()
+        val fy = p.y.toInt()
+        for (yy in fy - 1..fy + 1) for (xx in fx - 1..fx + 1) {
+            if (xx in 0 until GW && yy in 0 until GH && wallAt[yy * GW + xx]) {
+                wallHoldSecs += dt
+                p.hp -= 5f * dt
+                return 0.75f
+            }
+        }
+        return 1f
+    }
+
     private fun predatorTick(dt: Float) {
         defenceTick()
         wallTick()
+        stoneWallTick()
         shipTick(dt)
         if (predators.isEmpty()) return
         val fires = buildings.filter { it.type == "campfire" || it.type == "tower" || it.type == "hut" }
@@ -3932,7 +4025,7 @@ class CivSim(
                     prey = v
                 }
             }
-            val speed = (when (p.kind) { "bear" -> 1.5f; "boar" -> 2.4f; "raider" -> 2.0f; "ogre" -> 1.3f; "wraith" -> 2.7f; "drake" -> 1.8f; "shaman" -> 1.7f; "warlord" -> 1.7f; "golem" -> 0.9f; "frostwolf" -> 2.9f; "lich" -> 1.3f; "skeleton" -> 1.7f; "pilferer" -> 3.1f; "hornet" -> 3.0f; "reaver" -> 2.2f; else -> 2.1f }) * dt * (if (p.buffUntil > p.life) 1.5f else 1f)
+            val speed = (when (p.kind) { "bear" -> 1.5f; "boar" -> 2.4f; "raider" -> 2.0f; "ogre" -> 1.3f; "wraith" -> 2.7f; "drake" -> 1.8f; "shaman" -> 1.7f; "warlord" -> 1.7f; "golem" -> 0.9f; "frostwolf" -> 2.9f; "lich" -> 1.3f; "skeleton" -> 1.7f; "pilferer" -> 3.1f; "hornet" -> 3.0f; "reaver" -> 2.2f; else -> 2.1f }) * dt * (if (p.buffUntil > p.life) 1.5f else 1f) * wallSlow(p, dt)
             var gone = false
             when (p.kind) {
                 "pilferer" -> {
@@ -4371,7 +4464,7 @@ class CivSim(
             Deed("big_folk", "A Real Village", "10 villagers live here.", "+30 food") { villagers.size >= 10 },
             Deed("town", "Bustling Town", "20 villagers live here.", "+40 food, +20 stone") { villagers.size >= 20 },
             Deed("bronze", "Fire and Ore", "Smelted 10 metal.", "+30 stone") { totalSmelted >= 10 },
-            Deed("builder", "Master Builders", "Raised 25 buildings.", "+40 wood, +20 stone") { buildings.size >= 25 },
+            Deed("builder", "Master Builders", "Raised 25 buildings.", "+40 wood, +20 stone") { buildings.count { it.type != "wall" && it.type != "gate" } >= 25 },
             Deed("city", "City Age", "Reached the City Age.", "joy for all") { age >= 4 },
             Deed("first_raid", "Hold the Line", "Beat back a raider band.", "+20 food") { raidsRepelled >= 1 },
             Deed("raid5", "Wall of Spears", "Beat back 5 raider bands.", "+40 wood, +40 stone") { raidsRepelled >= 5 },
@@ -4459,6 +4552,9 @@ class CivSim(
             Deed("mourn12", "Flowers for the Gone", "Laid flowers at the graves twelve times.", "joy for all") { mournVisits >= 12 },
             Deed("statue1", "Carved in Memory", "The first hero's statue was raised.", "+10 stone, +10 wood") { statues.isNotEmpty() },
             Deed("statue6", "Heroes' Row", "Six heroes stand in statue.", "joy for all") { statues.size >= 6 },
+            Deed("wall1", "Mason's Round", "Raised twenty pieces of the stone town wall.", "+15 stone, +10 wood") { wallsRaised >= 20 },
+            Deed("wall2", "Walled Town", "Closed the stone wall around the village.", "joy for all") { wallDone && wallsRaised >= 40 },
+            Deed("wall3", "Hold the Line", "Foes lost a full minute climbing the wall.", "+6 metal") { wallHoldSecs >= 60f },
             Deed("wonder1", "Wonder of the Land", "Raised a great wonder.", "joy for all") { count("wonder") >= 1 },
             Deed("wonder3", "Three Wonders", "All three great wonders stand together.", "+60 wood, +60 stone") { count("wonder") >= 3 },
             Deed("golden", "Golden Age", "Completed every legacy goal.", "joy for all") { goldenAt >= 0.0 },
@@ -5418,7 +5514,7 @@ class CivSim(
             o.put("nextId", nextId)
             o.put("hides", hides)
             o.put("goods", goods)
-            o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("campUp", if (campUp) 1 else 0).put("campX", campX.toDouble()).put("campY", campY.toDouble()).put("campHp", campHp.toDouble()).put("campMax", campMax.toDouble()).put("campR", campsRazed).put("campH", campHits).put("campS", campSorties).put("expN", expeditions).put("expW", expWins).put("expR", expRetreats).put("expRooms", roomsCleared).put("relics", relics).put("expDeep", deepestRoom).put("wardens", wardensSlain).put("golems", golemsSlain).put("frostPacks", frostPacksBroken).put("pilfF", pilfersFoiled).put("pilfL", pilfersLost).put("swarms", swarmsBroken).put("hornets", hornetsSwatted).put("liches", lichesSlain).put("bones", bonesRaised).put("reavers", reaversSlain).put("ships", shipsSeized).put("landings", landings).put("shamans", shamansSlain).put("golden", goldenAt).put("visits", visitStats.entries.joinToString(",") { "${it.key}:${it.value}" }).put("deeds", deeds.joinToString(",")).put("tavern", tavernVisits).put("pets", pets.joinToString(",") { "${it.name}:${it.owner}:${it.bond}" }).put("dogA", dogsAdopted).put("dogW", dogWalks).put("dogB", dogBarks).put("fetes", fetesHeld).put("feteR", feteRevels).put("feteL", lastFeteSeason).put("feteK", feteKinds.joinToString(",")).put("snowmen", snowmenBuilt).put("leafR", leafPilesRaked).put("starsF", starsFallen).put("starG", starShardsGot).put("kites", kitesFlown).put("sprops", seasonProps.joinToString(",") { "${it.kind}:${it.x.toInt()}:${it.y.toInt()}" }).put("statues", statues.joinToString(";") { "${it.name}|${it.title}|${it.kind}|${it.x.toInt()}|${it.y.toInt()}|${it.tier}" }).put("statueC", statueCheers).put("graves", graves.joinToString(";") { "${it.name}|${it.job}|${it.x.toInt()}|${it.y.toInt()}|${it.ageYears}|${it.cause}|${it.day}" }).put("graveX", graveX).put("graveY", graveY).put("buried", buried).put("mournN", mournVisits).put("totemV", totemVisits).put("raised", raised).put("omens", omens).put("recov", recoveries).put("balS", ballistaShots).put("balK", ballistaKills).put("ranchV", ranchVisits).put("pastV", pastureVisits).put("sailN", sailTrips).put("millN", millGrinds).put("millF", flourMade).put("millL", loavesBaked).put("quarryN", quarryHauls).put("quarryS", quarryStone).put("quarryV", quarryVeins).put("vigN", vigils).put("vigP", vigilPoints).put("legCalls", legendCalls).put("dockC", dockCatch).put("bottles", bottlesFound).put("flockS", flockSheep).put("flockH", flockHens).put("eggsG", eggsGathered).put("fleece", fleeces).put("techs", techs.joinToString(",")).put("research", research).put("studyN", studyCount).put("babies", babiesBorn).put("dreams", dreamsDone).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" }).put("lessons", lessonsGiven).put("appMade", apprenticesMade).put("apprentice", apprentice.entries.joinToString(";") { "${it.key}:${it.value}" })
+            o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("campUp", if (campUp) 1 else 0).put("campX", campX.toDouble()).put("campY", campY.toDouble()).put("campHp", campHp.toDouble()).put("campMax", campMax.toDouble()).put("campR", campsRazed).put("campH", campHits).put("campS", campSorties).put("expN", expeditions).put("expW", expWins).put("expR", expRetreats).put("expRooms", roomsCleared).put("relics", relics).put("expDeep", deepestRoom).put("wardens", wardensSlain).put("golems", golemsSlain).put("frostPacks", frostPacksBroken).put("pilfF", pilfersFoiled).put("pilfL", pilfersLost).put("swarms", swarmsBroken).put("hornets", hornetsSwatted).put("liches", lichesSlain).put("bones", bonesRaised).put("reavers", reaversSlain).put("ships", shipsSeized).put("landings", landings).put("shamans", shamansSlain).put("golden", goldenAt).put("visits", visitStats.entries.joinToString(",") { "${it.key}:${it.value}" }).put("deeds", deeds.joinToString(",")).put("tavern", tavernVisits).put("pets", pets.joinToString(",") { "${it.name}:${it.owner}:${it.bond}" }).put("dogA", dogsAdopted).put("dogW", dogWalks).put("dogB", dogBarks).put("fetes", fetesHeld).put("feteR", feteRevels).put("feteL", lastFeteSeason).put("feteK", feteKinds.joinToString(",")).put("snowmen", snowmenBuilt).put("leafR", leafPilesRaked).put("starsF", starsFallen).put("starG", starShardsGot).put("kites", kitesFlown).put("sprops", seasonProps.joinToString(",") { "${it.kind}:${it.x.toInt()}:${it.y.toInt()}" }).put("statues", statues.joinToString(";") { "${it.name}|${it.title}|${it.kind}|${it.x.toInt()}|${it.y.toInt()}|${it.tier}" }).put("statueC", statueCheers).put("graves", graves.joinToString(";") { "${it.name}|${it.job}|${it.x.toInt()}|${it.y.toInt()}|${it.ageYears}|${it.cause}|${it.day}" }).put("graveX", graveX).put("graveY", graveY).put("buried", buried).put("mournN", mournVisits).put("totemV", totemVisits).put("raised", raised).put("omens", omens).put("recov", recoveries).put("balS", ballistaShots).put("balK", ballistaKills).put("ranchV", ranchVisits).put("pastV", pastureVisits).put("sailN", sailTrips).put("millN", millGrinds).put("millF", flourMade).put("millL", loavesBaked).put("quarryN", quarryHauls).put("quarryS", quarryStone).put("quarryV", quarryVeins).put("vigN", vigils).put("vigP", vigilPoints).put("legCalls", legendCalls).put("dockC", dockCatch).put("bottles", bottlesFound).put("flockS", flockSheep).put("flockH", flockHens).put("eggsG", eggsGathered).put("fleece", fleeces).put("techs", techs.joinToString(",")).put("research", research).put("studyN", studyCount).put("babies", babiesBorn).put("dreams", dreamsDone).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" }).put("wallN", wallsRaised).put("wallX", wallCx).put("wallY", wallCy).put("wallD", if (wallDone) 1 else 0).put("wallH", wallHoldSecs.toDouble()).put("lessons", lessonsGiven).put("appMade", apprenticesMade).put("apprentice", apprentice.entries.joinToString(";") { "${it.key}:${it.value}" })
             o.put("traffic", String(CharArray(traffic.size) { i -> '0' + min(9, (traffic[i] / 4f).toInt()) }))
             val ks = JSONArray()
             kingdoms.forEach {
@@ -5499,6 +5595,7 @@ class CivSim(
             val shx = if (migrate) mx else 0
             val shy = if (migrate) my else 0
             occupied.fill(false)
+            wallAt.fill(false)
             buildings.clear()
             val bs = o.getJSONArray("buildings")
             for (i in 0 until bs.length()) {
@@ -5551,7 +5648,8 @@ class CivSim(
             expeditions = o.optInt("expN", 0); expWins = o.optInt("expW", 0); expRetreats = o.optInt("expR", 0); roomsCleared = o.optInt("expRooms", 0); relics = o.optInt("relics", 0); deepestRoom = o.optInt("expDeep", 0); wardensSlain = o.optInt("wardens", 0)
             deeds.clear(); o.optString("deeds", "").split(",").filter { it.isNotBlank() }.forEach { deeds.add(it) }
             babiesBorn = o.optInt("babies", 0); dreamsDone = o.optInt("dreams", 0)
-            fetesHeld = o.optInt("fetes", 0); feteRevels = o.optInt("feteR", 0); lastFeteSeason = o.optInt("feteL", -1); feteKinds.clear(); o.optString("feteK", "").split(",").filter { it.isNotBlank() }.forEach { feteKinds.add(it) }; snowmenBuilt = o.optInt("snowmen", 0); leafPilesRaked = o.optInt("leafR", 0); starsFallen = o.optInt("starsF", 0); starShardsGot = o.optInt("starG", 0); kitesFlown = o.optInt("kites", 0); lessonsGiven = o.optInt("lessons", 0); apprenticesMade = o.optInt("appMade", 0); apprentice.clear(); o.optString("apprentice", "").split(";").filter { it.contains(":") }.forEach { e -> val k = e.substringBefore(":").toIntOrNull(); if (k != null) apprentice[k] = e.substringAfter(":") }
+            fetesHeld = o.optInt("fetes", 0); feteRevels = o.optInt("feteR", 0); lastFeteSeason = o.optInt("feteL", -1); feteKinds.clear(); o.optString("feteK", "").split(",").filter { it.isNotBlank() }.forEach { feteKinds.add(it) }; snowmenBuilt = o.optInt("snowmen", 0); leafPilesRaked = o.optInt("leafR", 0); starsFallen = o.optInt("starsF", 0); starShardsGot = o.optInt("starG", 0); kitesFlown = o.optInt("kites", 0); wallsRaised = o.optInt("wallN", 0); wallCx = o.optInt("wallX", -1); wallCy = o.optInt("wallY", -1); wallDone = o.optInt("wallD", 0) == 1; wallHoldSecs = o.optDouble("wallH", 0.0).toFloat(); wallPlan.clear()
+            lessonsGiven = o.optInt("lessons", 0); apprenticesMade = o.optInt("appMade", 0); apprentice.clear(); o.optString("apprentice", "").split(";").filter { it.contains(":") }.forEach { e -> val k = e.substringBefore(":").toIntOrNull(); if (k != null) apprentice[k] = e.substringAfter(":") }
             seasonProps.clear()
             for (e in o.optString("sprops", "").split(",")) { val kv = e.split(":"); if (kv.size == 3) seasonProps.add(SeasonProp(kv[0], (kv[1].toIntOrNull() ?: 0) + 0.5f, (kv[2].toIntOrNull() ?: 0) + 0.5f, time)) }
             statues.clear(); statueCheers = o.optInt("statueC", 0)

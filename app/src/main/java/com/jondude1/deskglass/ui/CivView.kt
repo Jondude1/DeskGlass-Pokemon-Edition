@@ -579,6 +579,8 @@ private fun DrawScope.drawWorld(
                 "tower" -> art.tower
                 "ballista" -> art.ballista
                 "palisade" -> art.palisade
+                "wall" -> art.wall
+                "gate" -> art.gate
                 "well" -> art.well
                 "workshop" -> art.workshop
                 "market" -> art.market
@@ -603,13 +605,14 @@ private fun DrawScope.drawWorld(
             val hh = sp.lh * ps * big
             val cx = ox + (b.x + 0.5f) * ts
             val baseY = oy + (b.y + 0.97f) * ts
-            if (b.type != "farm") {
+            val isWall = b.type == "wall" || b.type == "gate"
+            if (b.type != "farm" && !isWall) {
                 shadow(cx, baseY, w * 0.9f, 3.5f * ps)
                 if (b.type != "campfire") castShadow(art, sp, cx, baseY, w, hh, sun)
             }
             val cAge = (sim.time - b.built).toFloat()
-            val cDur = if (b.type == "wonder") 24f else 9f
-            val cSite = b.type != "farm" && b.type != "campfire" && b.type != "lamp" && cAge >= 0f && cAge < cDur
+            val cDur = if (b.type == "wonder") 24f else if (isWall) 3f else 9f
+            val cSite = b.type != "farm" && b.type != "campfire" && b.type != "lamp" && !isWall && cAge >= 0f && cAge < cDur
             if (cSite) {
                 // construction site: the walls rise from the ground inside a timber scaffold, with dust and hammer sparks
                 val cShown = hh * (0.12f + 0.88f * (cAge / cDur))
@@ -644,9 +647,24 @@ private fun DrawScope.drawWorld(
                         center = Offset(cx + (k - 1.5f) * w * 0.3f, baseY - ps * 2f * ph),
                     )
                 }
+            } else if (isWall && cAge >= 0f && cAge < cDur) {
+                // a wall piece rises course by course, with a puff of mortar dust
+                val rise = hh * (0.15f + 0.85f * (cAge / cDur))
+                clipRect(cx - w / 2f, baseY - rise, cx + w / 2f + ps, baseY + ps) {
+                    img(sp, cx - w / 2f, baseY - hh, w, hh)
+                }
+                for (k in 0 until 2) {
+                    val ph = (t * 1.2f + k * 0.5f) % 1f
+                    drawCircle(Color(0xFFD8D4C8).copy(alpha = 0.45f * (1f - ph)), radius = ps * (1.5f + 3f * ph), center = Offset(cx + (k - 0.5f) * w * 0.4f, baseY - rise))
+                }
             } else {
                 img(sp, cx - w / 2f, baseY - hh, w, hh)
-                if (b.built > 0.0 && cAge >= cDur && cAge < cDur + 1.4f) {
+                if (b.type == "gate") {
+                    // torch flame flickers; at night the gate throws a warm light over the road
+                    drawRect(Color(0xFFFFE070).copy(alpha = 0.6f + 0.4f * kotlin.math.sin(t * 11f + b.x)), Offset(cx - ps * 0.2f, baseY - hh + ps * 0.3f), Size(ps * 1.4f, ps * 1.6f))
+                    if (dark > 0.1f) drawCircle(Color(0xFFFFB347).copy(alpha = min(0.4f, dark * 0.7f)), radius = ts * (1.3f + 0.06f * kotlin.math.sin(t * 7f + b.y)), center = Offset(cx, baseY - hh * 0.8f))
+                }
+                if (b.built > 0.0 && cAge >= cDur && !isWall && cAge < cDur + 1.4f) {
                     // finished: a little burst of sparkles over the roof
                     val cf = (cAge - cDur) / 1.4f
                     for (k in 0 until 8) {

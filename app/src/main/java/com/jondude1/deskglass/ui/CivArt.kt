@@ -167,6 +167,13 @@ class CivArt {
         'w' to 0xFF8A5A2B.toInt(), 'W' to 0xFF6B4220.toInt(), 'r' to 0xFFB8452F.toInt(), 'R' to 0xFF8E3322.toInt(),
         'f' to 0xFFFFC34A.toInt(), 'd' to 0xFF4A2E1B.toInt(),
     ))
+    val wall = sprite(WALL, mapOf(
+        's' to 0xFFA9ADB8.toInt(), 'S' to 0xFF8A8E9B.toInt(), 'b' to 0xFFC6CAD4.toInt(), 'k' to 0xFF4A4C58.toInt(),
+    ))
+    val gate = sprite(GATE, mapOf(
+        's' to 0xFFA9ADB8.toInt(), 'S' to 0xFF8A8E9B.toInt(), 'b' to 0xFFC6CAD4.toInt(), 'k' to 0xFF4A4C58.toInt(),
+        'r' to 0xFFB8452F.toInt(), 'R' to 0xFF8E3322.toInt(), 'f' to 0xFFFF9A2E.toInt(), 'F' to 0xFFFFE070.toInt(), 'd' to 0xFF6B4220.toInt(),
+    ))
     val palisade = sprite(PALISADE, mapOf(
         'w' to 0xFF9A6B38.toInt(), 'W' to 0xFF7A5028.toInt(), 'k' to 0xFF3A2614.toInt(),
     ))
@@ -651,6 +658,35 @@ class CivArt {
             ".bbbbbbbbp",
             ".B.B..B.B.",
             ".B.B..B.B.",
+        )
+        val WALL = listOf(
+            "sssss...sssss...",
+            "sbbbs...sbbbs...",
+            "ssssssssssssssss",
+            "sbsSsbsSsbsSsbsS",
+            "SsSbsSsSSsSbsSsS",
+            "sSsSsbsSsSsSsbsS",
+            "SsbsSsSSsbsSsSsS",
+            "SSSSSSSSSSSSSSSS",
+            "kkkkkkkkkkkkkkkk",
+        )
+        val GATE = listOf(
+            ".......F........",
+            ".......f........",
+            ".......d........",
+            "sssss.sssss.ssss",
+            "sbbbs.sbbbs.sbbs",
+            "ssssssssssssssss",
+            "sbsSsrrrrrSbsSsS",
+            "SsSbsrRRRrsSsbsS",
+            "sSsSsrRRRrSsSsSs",
+            "SsbsSrRRRrsSbsSs",
+            "sSsSsrR.RrSsSsbs",
+            "SsSbsSr.rSsSsSsS",
+            "sSsbSsSsSsbSsSsS",
+            "SsSsSbsSsSsSsbsS",
+            "SSSSSSSSSSSSSSSS",
+            "kkkkkkkkkkkkkkkk",
         )
         val PALISADE = listOf(
             "w.w.w.w.w.w.",

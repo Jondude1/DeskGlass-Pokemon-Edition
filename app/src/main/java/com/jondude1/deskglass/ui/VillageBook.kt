@@ -144,7 +144,8 @@ private fun recordsPage(sim: CivSim) {
         "Rifts" to "${sim.expWins} of ${sim.expeditions} expeditions cleared · ${sim.roomsCleared} rooms · ${sim.relics} relics",
         "Critters" to "${cw.critters.size} kept · ${cw.caught.size} species summoned · ${cw.seen.size} seen · ${cw.tourneys} tournaments",
         "Graveyard" to (if (sim.buried == 0) "no one has been laid to rest yet" else "${sim.buried} laid to rest · ${sim.mournVisits} visits with flowers" + (sim.graves.lastOrNull()?.let { " · latest: ${it.name} the ${it.job.lowercase()}, ${it.ageYears}, ${it.cause}" } ?: "")),
-        "Builders" to "${sim.buildings.size} buildings · ${sim.titlesEarned} titles earned",
+        "Town wall" to (if (sim.wallsRaised == 0) "not begun (masons start in the Village Age)" else "${sim.wallsRaised} pieces raised" + (if (sim.wallDone) " · the ring is closed, gates open on every side" else " · still growing") + " · foes lost ${sim.wallHoldSecs.toInt()}s at the ramparts"),
+        "Builders" to "${sim.buildings.count { it.type != "wall" && it.type != "gate" }} buildings · ${sim.titlesEarned} titles earned",
         "Stores" to "food ${sim.food} · wood ${sim.wood} · stone ${sim.stone} · hides ${sim.hides} · metal ${sim.metal}",
     )
     for (r in rows) {
