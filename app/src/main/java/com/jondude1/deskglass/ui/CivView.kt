@@ -593,6 +593,7 @@ private fun DrawScope.drawWorld(
                 "pasture" -> art.pasture
                 "dock" -> art.dock
                 "quarry" -> art.quarry
+                "mill" -> art.mill
                 "shrine" -> art.shrine
                 "wonder" -> when (b.era) { 0 -> art.wonderSpire; 1 -> art.wonderFountain; else -> art.wonderBeacon }
                 else -> art.fire[fireFrame]
@@ -852,6 +853,35 @@ private fun DrawScope.drawWorld(
                     }
                 }
                 if (dark > 0.1f) drawCircle(Color(0xFFFFD27A).copy(alpha = min(0.3f, dark * 0.5f)), radius = ts * 0.8f, center = Offset(cx + w * 0.12f, baseY - hh * 0.8f))
+            }
+            if (b.type == "mill") {
+                // four sail arms turn on the hub (faster while someone grinds); flour dust puffs; lit window at night
+                val grinders = sim.villagers.count { it.action == "grind" && it.phase == "working" && kotlin.math.hypot(it.x - (b.x + 0.5f), it.y - (b.y + 0.5f)) < 2.5f }
+                val hubX = cx
+                val hubY = baseY - hh * (1f - 5.5f / 14f)
+                val armLen = hh * 0.62f
+                val spin = t * (if (grinders > 0) 2.6f else 0.7f) + b.x * 0.9f
+                for (k in 0 until 4) {
+                    val ang = spin + k * 1.5708f
+                    val ex = hubX + kotlin.math.cos(ang) * armLen
+                    val ey = hubY + kotlin.math.sin(ang) * armLen
+                    val sx = hubX + kotlin.math.cos(ang) * armLen * 0.25f
+                    val sy = hubY + kotlin.math.sin(ang) * armLen * 0.25f
+                    drawLine(Color(0xFF6B4220), Offset(hubX, hubY), Offset(ex, ey), strokeWidth = ps * 1.3f)
+                    val nx = -kotlin.math.sin(ang) * ps * 2.6f
+                    val ny = kotlin.math.cos(ang) * ps * 2.6f
+                    drawLine(Color(0xFFF1EBDD), Offset(sx + nx, sy + ny), Offset(ex + nx, ey + ny), strokeWidth = ps * 3.4f)
+                }
+                drawCircle(Color(0xFF3A2614), radius = ps * 1.7f, center = Offset(hubX, hubY))
+                if (grinders > 0) {
+                    for (k in 0 until 4) {
+                        val ph = (t * 0.9f + k * 0.25f + b.x * 0.1f) % 1f
+                        val dx = cx + w * 0.22f + kotlin.math.sin(t * 1.7f + k * 2.3f) * ts * 0.3f
+                        val dy = baseY - ps * 3f - ph * ts * 0.9f
+                        drawCircle(Color(0xFFF5F0E2).copy(alpha = 0.6f * (1f - ph)), radius = ps * (0.9f + 1.6f * ph), center = Offset(dx, dy))
+                    }
+                }
+                if (dark > 0.1f) drawCircle(Color(0xFFFFD27A).copy(alpha = min(0.25f, dark * 0.4f)), radius = ts * 0.7f, center = Offset(cx - w * 0.08f, baseY - hh * 0.38f))
             }
             if (b.type == "quarry") {
                 // hammer sparks and a drifting stone-dust cloud while masons cut blocks; a lantern glows at night
