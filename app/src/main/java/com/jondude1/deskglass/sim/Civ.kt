@@ -4,6 +4,8 @@ import java.io.File
 import java.util.Random
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.sin
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
@@ -183,7 +185,7 @@ private val ACTIONS = setOf(
     "build_well", "build_workshop", "build_market", "build_lamp",
     "fetch_water", "craft", "trade", "dance", "patrol", "play",
     "build_granary", "build_barracks", "build_library", "build_wonder", "haul", "drill", "study", "attack",
-    "forage_herbs", "swim", "stargaze", "carve", "pick_flowers", "delve", "build_tavern", "tavern", "build_infirmary", "recover", "build_totem", "honor", "build_ranch", "tend_critters", "build_pasture", "tend_flock", "build_dock", "sail", "snowman", "rake_leaves", "fly_kite", "walk_dog", "assault_camp",
+    "forage_herbs", "swim", "stargaze", "carve", "pick_flowers", "delve", "build_tavern", "tavern", "build_infirmary", "recover", "build_totem", "honor", "build_ranch", "tend_critters", "build_pasture", "tend_flock", "build_dock", "sail", "snowman", "rake_leaves", "fly_kite", "walk_dog", "assault_camp", "gather_star",
 )
 
 private val DX = intArrayOf(1, -1, 0, 0)
@@ -279,6 +281,20 @@ class CivSim(
     var kitesFlown = 0
     var herbed = 0
     var stargazed = 0
+    // ---- fallen stars: a streak crosses the night sky, lands near the village and leaves shards of starmetal to gather ----
+    /** Time of the impact (the streak is drawn in the 3.5 s before it). */
+    var starFallAt = -100.0
+    var starX = 0f
+    var starY = 0f
+    var starShards = 0
+    var starUntil = 0.0
+        private set
+    private var starAnnounced = true
+    private var nextStarAt = DAY_LEN * 0.9
+    var starsFallen = 0
+    var starShardsGot = 0
+    fun starIncoming(): Boolean = starShards > 0 && time < starFallAt
+    fun starReady(): Boolean = starShards > 0 && time >= starFallAt && time < starUntil
     var carved = 0
     // bandit camp: an outlaw hideout beyond the hills that sends raiders until the village storms it
     var campUp = false
@@ -497,7 +513,7 @@ class CivSim(
         statues.clear(); statueCheers = 0; nextStatueAt = 0.0
         pets.clear(); dogsAdopted = 0; dogWalks = 0; dogBarks = 0; nextPetAt = time + DAY_LEN * 1.2
         // a new world must not inherit the old world's clocks (alerts, rain, festivals...)
-        alertUntil = 0.0; rainUntil = 0.0; stormUntil = 0.0; fogUntil = 0.0; snowUntil = 0.0; rainbowUntil = 0.0; strikeAt = -99.0; nextWeatherAt = time + DAY_LEN * 0.5; lastSeason = -1; wxStats.clear(); festivalUntil = 0.0; plagueUntil = 0.0; godUntil = 0.0; order = ""; orderUntil = 0.0; shakeUntil = 0.0
+        alertUntil = 0.0; starShards = 0; starsFallen = 0; starShardsGot = 0; starUntil = 0.0; starAnnounced = true; rainUntil = 0.0; stormUntil = 0.0; fogUntil = 0.0; snowUntil = 0.0; rainbowUntil = 0.0; strikeAt = -99.0; nextWeatherAt = time + DAY_LEN * 0.5; lastSeason = -1; wxStats.clear(); festivalUntil = 0.0; plagueUntil = 0.0; godUntil = 0.0; order = ""; orderUntil = 0.0; shakeUntil = 0.0
         nextEventAt = time + DAY_LEN * 0.6
         nextTowerAt = 0.0; nextWallAt = 0.0; nextPlanAt = 0.0
         ageClock = 0f; worldClock = 0f; ownerClock = 0f; bushClock = 0f
@@ -1287,6 +1303,11 @@ class CivSim(
                 if (i < 0) return false
                 return go(v, "pick_flowers", i)
             }
+            "gather_star" -> {
+                if (!starReady() || alert() || isChild(v)) return false
+                val i = starY.toInt().coerceIn(0, GH - 1) * GW + starX.toInt().coerceIn(0, GW - 1)
+                return go(v, "gather_star", i)
+            }
             "stargaze" -> {
                 if (!canStargaze()) return false
                 val b = nearestBuilding(v, "campfire") ?: return false
@@ -1479,6 +1500,7 @@ class CivSim(
             v.action == "walk_dog" -> { v.phase = "working"; v.workLeft = 10f }
             v.action == "forage_herbs" -> { v.phase = "working"; v.workLeft = 4f }
             v.action == "stargaze" -> { v.phase = "working"; v.workLeft = 8f }
+            v.action == "gather_star" -> { v.phase = "working"; v.workLeft = 5f }
             v.action == "carve" -> { v.phase = "working"; v.workLeft = 7f }
             v.action == "pick_flowers" -> { v.phase = "working"; v.workLeft = 4f }
             v.action == "delve" -> { v.phase = "working"; v.workLeft = 9999f }
@@ -1964,6 +1986,22 @@ class CivSim(
                     if (posies % 4 == 1) { addLog("${v.name} brings ${f.name} a posy of wildflowers."); narrate("${v.name} gives ${f.name} flowers") }
                     v.remember("picked wildflowers for ${f.name}")
                     f.remember("was given wildflowers by ${v.name}")
+                }
+                finish(v)
+            }
+            "gather_star" -> {
+                if (starShards > 0) {
+                    starShards--
+                    starShardsGot++
+                    metal += 1
+                    if (starShardsGot % 4 == 0) stone += 2
+                    var n = 0
+                    for (o in villagers) if (o !== v && o.phase != "sleeping" && hypot(o.x - v.x, o.y - v.y) < 7f) { o.happiness = min(100f, o.happiness + 2f); n++ }
+                    v.happiness = min(100f, v.happiness + 8f)
+                    v.hp = min(100f, v.hp + 3f)
+                    v.remember(if (n > 0) "gathered a shard of the fallen star while others watched" else "gathered a shard of the fallen star")
+                    if (starShards == 0) { starUntil = 0.0; addLog("The last shard of the fallen star is gathered (${starShardsGot} shards in all)."); narrate("${v.name} gathers the last star shard") }
+                    else if (starShardsGot % 3 == 1) { addLog("${v.name} gathers starmetal from the crater."); narrate("${v.name} gathers starmetal") }
                 }
                 finish(v)
             }
@@ -2777,6 +2815,7 @@ class CivSim(
             if (count("campfire") > 0 && rnd.nextInt(4) == 0) return "dance" to ""
             if (chat == 1 && others.isNotEmpty() && rnd.nextInt(6) == 0) return "talk" to (friendFor(v)?.name ?: "")
         }
+        if (starReady() && !alert() && !starving && v.hunger < 55f && (rnd.nextInt(3) == 0 || villagers.count { it.action == "gather_star" } == 0)) return "gather_star" to ""
         // leisure: a swim on summer days, stars on clear evenings, herbs now and then
         if (v.happiness < 85f || rnd.nextInt(3) == 0) {
             if (canSwim() && hasShore && v.hunger < 55f && rnd.nextInt(7) == 0) return "swim" to ""
@@ -2961,6 +3000,7 @@ class CivSim(
         "walk_dog" -> "playing fetch with the dog"
         "forage_herbs" -> "gathering healing herbs"
         "stargaze" -> "watching the stars"
+        "gather_star" -> "gathering shards of a fallen star"
         "carve" -> "carving wooden toys"
         "pick_flowers" -> "picking wildflowers for a friend"
         "assault_camp" -> "storming the bandit camp"
@@ -3025,6 +3065,7 @@ class CivSim(
         for (sa in listOf("snowman", "rake_leaves", "fly_kite")) if (seasonFunOk(sa)) a.add(sa)
         if (pets.isNotEmpty() && dogOk()) a.add("walk_dog")
         if (canStargaze() && count("campfire") > 0) a.add("stargaze")
+        if (starReady() && !alert()) a.add("gather_star")
         if (wood >= 8 && goods < 30 && count("campfire") > 0) a.add("carve")
         a.add("pick_flowers")
         if (riftState == 1 && party.size < 4) a.add("delve")
@@ -3067,6 +3108,7 @@ class CivSim(
         if (alert()) ev.add(foeText() + " near the village")
         if (festival()) ev.add("a feast is being held by the fire")
         if (time < plagueUntil) ev.add("a sickness is spreading")
+        if (starReady()) ev.add("a star fell from the sky near the village and ${starShards} shards of starmetal lie in the crater")
         wars().firstOrNull()?.let { ev.add("${it.first.name} is at war with ${it.second.name}") }
         sb.append("Happening now: " + (if (ev.isEmpty()) "nothing unusual" else ev.joinToString("; ")) + ". ${ageInfo().name}: ${ageInfo().blurb}\n")
         sb.append("You are ${v.name}, ${if (kid) "a small child" else "the ${v.job.lowercase()}"} of Hearthvale, ${ageYears(v)} years old. ${JOB_BLURB[v.job] ?: ""}\n")
@@ -3952,6 +3994,8 @@ class CivSim(
             Deed("fetch", "Good Dog", "Played fetch with the dogs ten times.", "joy for all") { dogWalks >= 10 },
             Deed("snowman", "Frosty Friends", "Built three snowmen.", "joy for all") { snowmenBuilt >= 3 },
             Deed("kite", "Kite Day", "Flew kites on five spring days.", "+15 food") { kitesFlown >= 5 },
+            Deed("fallstar1", "Wish Upon a Star", "A shooting star fell near the village.", "joy for all") { starsFallen >= 1 },
+            Deed("fallstar2", "Starmetal Smiths", "Gathered ten shards of fallen stars.", "+3 metal, +10 stone") { starShardsGot >= 10 },
             Deed("leaves", "Crunchy Leaves", "Raked four piles of autumn leaves.", "+15 wood") { leafPilesRaked >= 4 },
             Deed("omen", "Good Omens", "Read three omens of plenty at the totem.", "+20 food") { omens >= 3 },
             Deed("lore1", "First Discovery", "The scholars made their first discovery.", "+20 food, +10 stone") { techs.size >= 1 },
@@ -4540,6 +4584,37 @@ class CivSim(
         }
     }
 
+    private fun starTick() {
+        if (starShards > 0 && !starAnnounced && time >= starFallAt) {
+            starAnnounced = true
+            starsFallen++
+            event("A shooting star streaks down and crashes beyond the fields! Shards of starmetal glitter in the crater.")
+            for (v in villagers) if (v.phase != "sleeping") v.happiness = min(100f, v.happiness + 4f)
+        }
+        if (starShards > 0 && starAnnounced && time >= starUntil) { starShards = 0; addLog("The fallen star's crater has gone dark; the shards are lost.") }
+        if (time < nextStarAt || villagers.size < 3 || starShards > 0) return
+        if (!isNight() || raining() || foggy() || snowing() || alert()) return
+        // pick a bare grass tile some way from the fire, in the open
+        val cx = 48f; val cy = 27f
+        for (n in 0 until 60) {
+            val a = rnd.nextFloat() * 6.2832f
+            val d = 9f + rnd.nextFloat() * 8f
+            val tx = (cx + cos(a) * d).toInt().coerceIn(3, GW - 4)
+            val ty = (cy + sin(a) * d * 0.75f).toInt().coerceIn(3, GH - 4)
+            val i = ty * GW + tx
+            if (tiles[i] != T.GRASS || occupied[i]) continue
+            starX = tx + 0.5f; starY = ty + 0.5f
+            starFallAt = time + 3.5
+            starShards = (3 + age / 2).coerceAtMost(6)
+            starUntil = time + DAY_LEN * 0.95
+            starAnnounced = false
+            nextStarAt = time + DAY_LEN * (2.0 + rnd.nextFloat() * 1.5)
+            wx("star")
+            return
+        }
+        nextStarAt = time + 60.0
+    }
+
     private fun wx(k: String) { wxStats[k] = (wxStats[k] ?: 0) + 1 }
 
     private fun seasonChange(s: Int) {
@@ -4628,6 +4703,7 @@ class CivSim(
         val dt = dtIn.coerceIn(0f, 0.1f)
         time += dt
         weatherTick()
+        starTick()
         drain()
 
         for (v in villagers.toList()) update(v, dt)
@@ -4830,7 +4906,7 @@ class CivSim(
             o.put("nextId", nextId)
             o.put("hides", hides)
             o.put("goods", goods)
-            o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("campUp", if (campUp) 1 else 0).put("campX", campX.toDouble()).put("campY", campY.toDouble()).put("campHp", campHp.toDouble()).put("campMax", campMax.toDouble()).put("campR", campsRazed).put("campH", campHits).put("campS", campSorties).put("expN", expeditions).put("expW", expWins).put("expR", expRetreats).put("expRooms", roomsCleared).put("relics", relics).put("expDeep", deepestRoom).put("wardens", wardensSlain).put("golems", golemsSlain).put("frostPacks", frostPacksBroken).put("pilfF", pilfersFoiled).put("pilfL", pilfersLost).put("swarms", swarmsBroken).put("hornets", hornetsSwatted).put("liches", lichesSlain).put("bones", bonesRaised).put("shamans", shamansSlain).put("golden", goldenAt).put("visits", visitStats.entries.joinToString(",") { "${it.key}:${it.value}" }).put("deeds", deeds.joinToString(",")).put("tavern", tavernVisits).put("pets", pets.joinToString(",") { "${it.name}:${it.owner}:${it.bond}" }).put("dogA", dogsAdopted).put("dogW", dogWalks).put("dogB", dogBarks).put("snowmen", snowmenBuilt).put("leafR", leafPilesRaked).put("kites", kitesFlown).put("sprops", seasonProps.joinToString(",") { "${it.kind}:${it.x.toInt()}:${it.y.toInt()}" }).put("statues", statues.joinToString(";") { "${it.name}|${it.title}|${it.kind}|${it.x.toInt()}|${it.y.toInt()}|${it.tier}" }).put("statueC", statueCheers).put("totemV", totemVisits).put("raised", raised).put("omens", omens).put("recov", recoveries).put("balS", ballistaShots).put("balK", ballistaKills).put("ranchV", ranchVisits).put("pastV", pastureVisits).put("sailN", sailTrips).put("dockC", dockCatch).put("bottles", bottlesFound).put("flockS", flockSheep).put("flockH", flockHens).put("eggsG", eggsGathered).put("fleece", fleeces).put("techs", techs.joinToString(",")).put("research", research).put("studyN", studyCount).put("babies", babiesBorn).put("dreams", dreamsDone).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" })
+            o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("campUp", if (campUp) 1 else 0).put("campX", campX.toDouble()).put("campY", campY.toDouble()).put("campHp", campHp.toDouble()).put("campMax", campMax.toDouble()).put("campR", campsRazed).put("campH", campHits).put("campS", campSorties).put("expN", expeditions).put("expW", expWins).put("expR", expRetreats).put("expRooms", roomsCleared).put("relics", relics).put("expDeep", deepestRoom).put("wardens", wardensSlain).put("golems", golemsSlain).put("frostPacks", frostPacksBroken).put("pilfF", pilfersFoiled).put("pilfL", pilfersLost).put("swarms", swarmsBroken).put("hornets", hornetsSwatted).put("liches", lichesSlain).put("bones", bonesRaised).put("shamans", shamansSlain).put("golden", goldenAt).put("visits", visitStats.entries.joinToString(",") { "${it.key}:${it.value}" }).put("deeds", deeds.joinToString(",")).put("tavern", tavernVisits).put("pets", pets.joinToString(",") { "${it.name}:${it.owner}:${it.bond}" }).put("dogA", dogsAdopted).put("dogW", dogWalks).put("dogB", dogBarks).put("snowmen", snowmenBuilt).put("leafR", leafPilesRaked).put("starsF", starsFallen).put("starG", starShardsGot).put("kites", kitesFlown).put("sprops", seasonProps.joinToString(",") { "${it.kind}:${it.x.toInt()}:${it.y.toInt()}" }).put("statues", statues.joinToString(";") { "${it.name}|${it.title}|${it.kind}|${it.x.toInt()}|${it.y.toInt()}|${it.tier}" }).put("statueC", statueCheers).put("totemV", totemVisits).put("raised", raised).put("omens", omens).put("recov", recoveries).put("balS", ballistaShots).put("balK", ballistaKills).put("ranchV", ranchVisits).put("pastV", pastureVisits).put("sailN", sailTrips).put("dockC", dockCatch).put("bottles", bottlesFound).put("flockS", flockSheep).put("flockH", flockHens).put("eggsG", eggsGathered).put("fleece", fleeces).put("techs", techs.joinToString(",")).put("research", research).put("studyN", studyCount).put("babies", babiesBorn).put("dreams", dreamsDone).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" })
             o.put("traffic", String(CharArray(traffic.size) { i -> '0' + min(9, (traffic[i] / 4f).toInt()) }))
             val ks = JSONArray()
             kingdoms.forEach {
@@ -4963,7 +5039,7 @@ class CivSim(
             expeditions = o.optInt("expN", 0); expWins = o.optInt("expW", 0); expRetreats = o.optInt("expR", 0); roomsCleared = o.optInt("expRooms", 0); relics = o.optInt("relics", 0); deepestRoom = o.optInt("expDeep", 0); wardensSlain = o.optInt("wardens", 0)
             deeds.clear(); o.optString("deeds", "").split(",").filter { it.isNotBlank() }.forEach { deeds.add(it) }
             babiesBorn = o.optInt("babies", 0); dreamsDone = o.optInt("dreams", 0)
-            snowmenBuilt = o.optInt("snowmen", 0); leafPilesRaked = o.optInt("leafR", 0); kitesFlown = o.optInt("kites", 0)
+            snowmenBuilt = o.optInt("snowmen", 0); leafPilesRaked = o.optInt("leafR", 0); starsFallen = o.optInt("starsF", 0); starShardsGot = o.optInt("starG", 0); kitesFlown = o.optInt("kites", 0)
             seasonProps.clear()
             for (e in o.optString("sprops", "").split(",")) { val kv = e.split(":"); if (kv.size == 3) seasonProps.add(SeasonProp(kv[0], (kv[1].toIntOrNull() ?: 0) + 0.5f, (kv[2].toIntOrNull() ?: 0) + 0.5f, time)) }
             statues.clear(); statueCheers = o.optInt("statueC", 0)
@@ -4996,7 +5072,7 @@ class CivSim(
     companion object {
         private const val SYSTEM = """You play one villager in a small pixel-art village, as a distinct character with a job, a personality, a way of speaking and a dream. Reply with ONLY a JSON object, no other text:
 {"thought": "<your private thought, first person, under 14 words, in your voice>", "action": "<one action>", "target": "<villager name, only for talk>", "say": "<one short sentence you say aloud in your own voice, or empty>"}
-Actions: gather_wood, gather_stone, gather_food (berries), fish (at the lake), hunt (game in the forest, hunter-gatherers' best food), tend_farm (needs a farm, Farming Age on), explore (scouting far away), delve (join the rift expedition, only while a rift is open), tell_story (at the fire, lifts everyone's spirits), huddle (stay by the fire), build_hut (6 wood + 2 stone), build_farm (4 wood, Farming Age on), build_campfire (3 stone), mine_ore (Bronze Age on), smelt (2 ore + 1 wood at a forge, Bronze Age on), build_smelter (4 wood + 6 stone, Bronze Age on), build_well (4 wood + 6 stone), build_workshop (10 wood + 4 stone), build_market (12 wood + 6 stone), build_lamp (2 wood + 2 stone), fetch_water (at a well, waters the farms), craft (at a workshop), trade (goods for food at a market), dance (at the fire), build_granary (14 wood + 6 stone), build_barracks (16 wood, 14 stone, 2 metal), build_library (18 wood + 12 stone), build_totem (12 wood + 4 stone, carve a totem pole), honor (bow and dance at the totem pole, lifts mood, may bring an omen of plenty), build_ranch (18 wood + 6 stone, a fenced critter ranch once the village keeps critters), tend_critters (feed and groom the village critters at the ranch: heals them, makes them stronger and fonder of us, needs a ranch), build_pasture (10 wood, a fenced pasture for sheep and hens, needs 5 villagers), tend_flock (gather eggs and shear sheep at the pasture: brings food and hides, needs a pasture), build_dock (8 wood, a fishing pier at the lake, needs 4 villagers and a lake shore), sail (row a boat out from the dock for a big catch, daytime and fair weather only, needs a dock), build_tavern (20 wood + 10 stone, Town Age on), tavern (eat and chat with friends at the tavern, needs food, lifts mood), build_infirmary (16 wood + 8 stone, Town Age on), recover (rest and be bandaged at the infirmary: use when hurt, heals a lot), build_wonder (City Age, 50 wood + 40 stone + 5 metal: a great wonder that blesses the whole village), haul (fill the granary), drill (train at the barracks), study (read at the library; scholars earn lore that unlocks discoveries), attack (charge the enemy), patrol (walk the edge of the village and watch), play (children), carve (whittle wooden toys at the fire from spare wood; the children cheer up), pick_flowers (gather wildflowers and give them to a friend), forage_herbs (pick healing herbs: mends you and hurt people nearby, use when hurt or when others are hurt), swim (summer days at the lake, lifts mood), snowman (winter days, build a snowman near the fire, cheers the children), rake_leaves (autumn days, rake a pile of leaves the children jump in), fly_kite (spring days, fly a kite in the breeze), walk_dog (play fetch with your dog, only if you have one), assault_camp (storm the bandit camp beyond the hills, only while it stands; for the healthy and brave, it stops its raids when razed), stargaze (clear evenings at the fire, lifts mood), eat (needs food in stock), sleep, talk (set target and say), wander. Use only the actions listed as available to you in the message.
+Actions: gather_wood, gather_stone, gather_food (berries), fish (at the lake), hunt (game in the forest, hunter-gatherers' best food), tend_farm (needs a farm, Farming Age on), explore (scouting far away), delve (join the rift expedition, only while a rift is open), tell_story (at the fire, lifts everyone's spirits), huddle (stay by the fire), build_hut (6 wood + 2 stone), build_farm (4 wood, Farming Age on), build_campfire (3 stone), mine_ore (Bronze Age on), smelt (2 ore + 1 wood at a forge, Bronze Age on), build_smelter (4 wood + 6 stone, Bronze Age on), build_well (4 wood + 6 stone), build_workshop (10 wood + 4 stone), build_market (12 wood + 6 stone), build_lamp (2 wood + 2 stone), fetch_water (at a well, waters the farms), craft (at a workshop), trade (goods for food at a market), dance (at the fire), build_granary (14 wood + 6 stone), build_barracks (16 wood, 14 stone, 2 metal), build_library (18 wood + 12 stone), build_totem (12 wood + 4 stone, carve a totem pole), honor (bow and dance at the totem pole, lifts mood, may bring an omen of plenty), build_ranch (18 wood + 6 stone, a fenced critter ranch once the village keeps critters), tend_critters (feed and groom the village critters at the ranch: heals them, makes them stronger and fonder of us, needs a ranch), build_pasture (10 wood, a fenced pasture for sheep and hens, needs 5 villagers), tend_flock (gather eggs and shear sheep at the pasture: brings food and hides, needs a pasture), build_dock (8 wood, a fishing pier at the lake, needs 4 villagers and a lake shore), sail (row a boat out from the dock for a big catch, daytime and fair weather only, needs a dock), build_tavern (20 wood + 10 stone, Town Age on), tavern (eat and chat with friends at the tavern, needs food, lifts mood), build_infirmary (16 wood + 8 stone, Town Age on), recover (rest and be bandaged at the infirmary: use when hurt, heals a lot), build_wonder (City Age, 50 wood + 40 stone + 5 metal: a great wonder that blesses the whole village), haul (fill the granary), drill (train at the barracks), study (read at the library; scholars earn lore that unlocks discoveries), attack (charge the enemy), patrol (walk the edge of the village and watch), play (children), carve (whittle wooden toys at the fire from spare wood; the children cheer up), pick_flowers (gather wildflowers and give them to a friend), forage_herbs (pick healing herbs: mends you and hurt people nearby, use when hurt or when others are hurt), swim (summer days at the lake, lifts mood), snowman (winter days, build a snowman near the fire, cheers the children), rake_leaves (autumn days, rake a pile of leaves the children jump in), fly_kite (spring days, fly a kite in the breeze), walk_dog (play fetch with your dog, only if you have one), assault_camp (storm the bandit camp beyond the hills, only while it stands; for the healthy and brave, it stops its raids when razed), stargaze (clear evenings at the fire, lifts mood), gather_star (gather shining starmetal from a fallen star's crater, only while the facts say a star fell; gives metal), eat (needs food in stock), sleep, talk (set target and say), wander. Use only the actions listed as available to you in the message.
 Mostly do the work of your job, but react to your needs, the weather, wolves, news and what others say. Talk about what you have seen, feel or remember, with opinions and feelings. Never repeat a line or an action you just did, and vary your sentences. Stay alive: eat when hungry, sleep when tired or at night.
 Speak only about facts given in the message: your needs, the stock, the weather, people nearby and what they said, family, village history and news. Never invent buildings, people, resources or events. Answer what others actually said to you. If you are a child, use very short, simple words."""
         private const val SYSTEM_SHORT = """Reply with ONLY a JSON object: {"thought": "", "action": "<one allowed action>", "target": "", "say": "<one short sentence using only the facts given, or empty>"}"""

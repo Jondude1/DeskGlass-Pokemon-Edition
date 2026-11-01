@@ -941,6 +941,7 @@ private fun DrawScope.drawWorld(
     villageStock(sim, art, geo)
     heroStatues(sim, geo)
     riftSite(sim, geo)
+    starCrater(sim, geo)
     campSite(sim, geo)
     lifeCritters(sim, art, geo)
     drawDrops(sim, geo)
@@ -1323,6 +1324,7 @@ private fun DrawScope.drawWorld(
     }
 
     nightMagic(sim, geo)
+    starStreak(sim, geo)
 
     // seasons turn with the village's own days: blossoms, warm light, falling leaves, snow
     val season = sim.seasonIdx()
