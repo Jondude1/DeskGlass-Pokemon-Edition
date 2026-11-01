@@ -910,10 +910,10 @@ class CivSim(
     }
 
     /** Homes, farms, workshops and the like all together: a small village cannot have a sprawl. */
-    private fun totalCap() = 4 + n() + n() / 2
+    private fun totalCap() = 4 + n() * 2
     private fun n() = villagers.size
-    private fun civicCount() = buildings.count { it.type != "hall" && it.type != "tower" && it.type != "palisade" && it.type != "totem" && it.type != "ranch" && it.type != "pasture" && it.type != "dock" && it.type != "ballista" } +
-        villagers.count { it.action.startsWith("build_") }
+    private fun civicCount() = buildings.count { it.type != "hall" && it.type != "tower" && it.type != "palisade" && it.type != "totem" && it.type != "ranch" && it.type != "pasture" && it.type != "dock" && it.type != "ballista" && it.type != "lamp" } +
+        villagers.count { it.action.startsWith("build_") && it.action != "build_lamp" }
 
     private fun canBuild(type: String) = counting(type) < capFor(type) && (type == "ranch" || type == "pasture" || type == "dock" || civicCount() < totalCap()) &&
         (type == "wonder" || type == "hut" || type == "farm" || !wonderSaving())
@@ -3227,7 +3227,7 @@ class CivSim(
         val b = brainProvider()
         val configured = b != null
         if (b == null) brain = "autopilot — set your local model in Settings"
-        val idle = villagers.filter { it.phase == "idle" && it.idleFor >= 0.6f }.sortedByDescending { it.idleFor }
+        val idle = villagers.filter { it.phase == "idle" && it.idleFor >= 0.25f }.sortedByDescending { it.idleFor }
         for (v in idle) {
             if (isChild(v)) {
                 val (a, t) = ruleDecision(v)
