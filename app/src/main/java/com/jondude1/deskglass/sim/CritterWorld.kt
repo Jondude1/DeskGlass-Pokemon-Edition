@@ -1115,10 +1115,10 @@ class CritterWorld(private val sim: CivSim) {
     private fun triggerTick(dt: Float) {
         triggerClock -= dt
         if (triggerClock > 0f) return
-        triggerClock = 1.3f
+        triggerClock = 0.6f
         if (encounters.size >= 2 || sim.predators.isNotEmpty() || sim.villagers.size < 2) return
         val idle = sim.villagers.filter {
-            !sim.isChild(it) && it.phase == "idle" && it.idleFor >= 0.5f && !busy(it) &&
+            !sim.isChild(it) && it.phase == "idle" && it.idleFor >= 0.05f && !busy(it) &&
                 it.hunger < 75f && it.hp > 40f && it.energy > 20f
         }.shuffled(rnd)
         for (v in idle) {
