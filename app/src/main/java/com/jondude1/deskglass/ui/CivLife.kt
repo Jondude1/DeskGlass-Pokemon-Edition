@@ -400,6 +400,7 @@ fun DrawScope.drawVillagers(sim: CivSim, art: CivArt, g: Geo, sun: Sun) {
         }) {
             img(sp, cx - w / 2f, top, w, h)
             if (!child) jobGear(v.job, cx - w / 2f, top, w / 8f, working, t + v.id)
+            weatherGear(sim, v, g, cx, top, feetY, w, 1f, child, working, walking)
             // what they carry on their back
             if (v.gathered > 0 && !child) {
                 val u = w / 8f

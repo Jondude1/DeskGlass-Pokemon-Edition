@@ -946,6 +946,7 @@ private fun DrawScope.drawWorld(
     drawDrops(sim, geo)
     drawCritters(sim, art, cart, geo, sun)
     val sorted = sim.villagers.sortedBy { it.y }
+    footprints(sim, geo)
     drawVillagers(sim, art, geo, sun)
     drawVisitor(sim, art, geo, sun)
     loveLife(sim, geo)
