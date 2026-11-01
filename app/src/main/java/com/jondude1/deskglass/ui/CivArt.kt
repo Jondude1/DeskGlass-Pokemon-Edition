@@ -303,6 +303,11 @@ class CivArt {
         'b' to 0xFFC8A060.toInt(), 'B' to 0xFF8C6C3A.toInt(), 'g' to 0xFF6A7A3A.toInt(), 'k' to 0xFF1E1A16.toInt(),
         'r' to 0xFFB02A2A.toInt(),
     ))
+    val reaver = sprite(REAVER, mapOf(
+        'w' to 0xFFE8E0C8.toInt(), 'i' to 0xFF8D909C.toInt(), 'I' to 0xFF5E616C.toInt(), 's' to 0xFFE0B48A.toInt(),
+        'k' to 0xFF1E1A16.toInt(), 'o' to 0xFFD08A2A.toInt(), 'B' to 0xFF8C5A2B.toInt(), 'e' to 0xFFE8C547.toInt(),
+        'r' to 0xFF2F5F9A.toInt(), 'c' to 0xFF6B4A2B.toInt(), 'a' to 0xFFD8DCE4.toInt(), 'A' to 0xFF9A9EA8.toInt(),
+    ))
     val hornet = sprite(HORNET, mapOf(
         'y' to 0xFFF2C830.toInt(), 'k' to 0xFF1E1A16.toInt(), 'w' to 0xFFD8F0FF.toInt(), 'r' to 0xFFD04A2A.toInt(),
     ))
@@ -1085,6 +1090,19 @@ class CivArt {
             "..hhhhhh..",
             "..hh..hh..",
             ".kkk..kkk.",
+        )
+        val REAVER = listOf(
+            "w..iiii..w.",
+            "ww.iIIi.ww.",
+            ".w.ssss.w..",
+            "...skks....",
+            "..ooooo..aa",
+            "BBBrrrrr.aA",
+            "BeBrrrrrrcA",
+            "BBBrrrrr.c.",
+            "...rrrrr.c.",
+            "...rr.rr...",
+            "..kkk.kkk..",
         )
         val HORNET = listOf(
             "ww....ww",

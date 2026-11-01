@@ -137,7 +137,7 @@ private fun recordsPage(sim: CivSim) {
     val cw = sim.critters
     val rows = listOf(
         "Village" to "${sim.ageName()} · day ${sim.day()} · ${sim.villagers.size}/${sim.popCap()} villagers · ${sim.babiesBorn} babies born · ${sim.weds} weddings",
-        "War" to "${sim.raidsRepelled} raids beaten · ${sim.ogresSlain} ogres · ${sim.bossesSlain} bosses · ${sim.warlordsSlain} warlords · ${sim.golemsSlain} golems · ${sim.lichesSlain} liches",
+        "War" to "${sim.raidsRepelled} raids beaten · ${sim.ogresSlain} ogres · ${sim.bossesSlain} bosses · ${sim.warlordsSlain} warlords · ${sim.golemsSlain} golems · ${sim.lichesSlain} liches · ${sim.reaversSlain} sea reavers · ${sim.shipsSeized} longships burned",
         "Fallen stars" to "${sim.starsFallen} fell · ${sim.starShardsGot} starmetal shards gathered" + (if (sim.starReady()) " · ${sim.starShards} shards still glitter in a crater" else ""),
         "Bandit camps" to "${sim.campsRazed} razed · ${sim.campHits} blows struck · ${sim.campSorties} raids sent" + (if (sim.campUp) " · a camp stands, ${(sim.campHp / sim.campMax * 100).toInt()}% strength" else ""),
         "Rifts" to "${sim.expWins} of ${sim.expeditions} expeditions cleared · ${sim.roomsCleared} rooms · ${sim.relics} relics",
