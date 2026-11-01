@@ -164,7 +164,7 @@ private fun DrawScope.drawWildCritter(w: Wild, cart: CritterArt, art: CivArt, g:
     val ts = g.ts
     val t = g.t
     val sp = w.c.sp
-    val img = cart.frame(sp, idleFrame(t, sp + w.c.uid, w.moving))
+    val img = cart.frame(sp, idleFrame(t, sp + w.c.uid, w.moving), w.c.shiny)
     val wd = img.lw * ps
     val ht = img.lh * ps
     val cx = g.ox + w.x * ts
@@ -180,6 +180,7 @@ private fun DrawScope.drawWildCritter(w: Wild, cart: CritterArt, art: CivArt, g:
     if (alpha < 0.98f) riftFx(w.x, w.y, sin(alpha.coerceIn(0f, 1f) * PI.toFloat()), g)
     critShadow(art, img, cx, base, wd, ht, sun, ps, alpha)
     spr(img, cx, base - hop, wd, ht, w.facing, alpha)
+    if (w.c.shiny && alpha > 0.4f) shinySparkle(cx, base, wd, ht, t, ps, w.c.uid, alpha)
     if (species.rarity >= 3 && alpha > 0.5f) {
         for (k in 0 until 2) {
             val a = t * 1.4f + k * 3.1f + sp
@@ -191,6 +192,21 @@ private fun DrawScope.drawWildCritter(w: Wild, cart: CritterArt, art: CivArt, g:
     }
 }
 
+/** Twinkling four-point glints that circle a shiny critter. */
+private fun DrawScope.shinySparkle(cx: Float, base: Float, wd: Float, ht: Float, t: Float, ps: Float, seed: Int, alpha: Float) {
+    for (k in 0 until 3) {
+        val u = (t * 0.7f + k * 0.33f + seed * 0.17f) % 1f
+        val a = t * 1.1f + k * 2.1f + seed
+        val px = cx + cos(a) * wd * 0.55f
+        val py = base - ht * 0.15f - u * ht * 0.9f
+        val tw = sin(u * PI.toFloat())
+        val c = Color(0xFFFFF8C8).copy(alpha = (0.85f * tw * alpha).coerceIn(0f, 1f))
+        val r = ps * (1.2f + 1.4f * tw)
+        drawRect(c, Offset(px - r, py - ps * 0.5f), Size(r * 2f, ps))
+        drawRect(c, Offset(px - ps * 0.5f, py - r), Size(ps, r * 2f))
+    }
+}
+
 private fun DrawScope.drawKeptCritter(
     cw: CritterWorld, c: Critter, x: Float, y: Float, facing: Int, moving: Boolean,
     cart: CritterArt, art: CivArt, g: Geo, sun: Sun,
@@ -199,7 +215,7 @@ private fun DrawScope.drawKeptCritter(
     val ts = g.ts
     val t = g.t
     val tired = cw.isTired(c)
-    val img = cart.frame(c.sp, idleFrame(t, c.uid, moving && !tired))
+    val img = cart.frame(c.sp, idleFrame(t, c.uid, moving && !tired), c.shiny)
     val wd = img.lw * ps
     val ht = img.lh * ps
     val cx = g.ox + x * ts
@@ -213,6 +229,7 @@ private fun DrawScope.drawKeptCritter(
     } else {
         spr(img, cx, base - hop, wd, ht, facing)
     }
+    if (c.shiny) shinySparkle(cx, base, wd, ht, t, ps, c.uid, 1f)
     if (c.companion && !tired) {
         // a little bright mark above a companion, so you can tell who walks with whom
         val bx = cx

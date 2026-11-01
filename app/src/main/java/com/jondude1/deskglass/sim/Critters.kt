@@ -361,12 +361,14 @@ class Critter(val uid: Int, var sp: Int, var level: Int) {
     var regen = 0f
     var work = 0f
     var cycle = 0
+    /** A rare recoloured critter: a little tougher and always sparkling. */
+    var shiny = false
 
     val species: Species get() = Dex.byId(sp)
-    val maxHp: Int get() = Dex.maxHp(species, level)
-    val atk: Int get() = Dex.atk(species, level)
-    val def: Int get() = Dex.def(species, level)
-    val spd: Int get() = Dex.spd(species, level)
+    val maxHp: Int get() = Dex.maxHp(species, level).let { if (shiny) it * 108 / 100 else it }
+    val atk: Int get() = Dex.atk(species, level).let { if (shiny) it * 108 / 100 else it }
+    val def: Int get() = Dex.def(species, level).let { if (shiny) it * 108 / 100 else it }
+    val spd: Int get() = Dex.spd(species, level).let { if (shiny) it * 108 / 100 else it }
     val moves: List<Move> get() = Dex.movesAt(species, level)
     val name: String get() = nick.ifBlank { species.name }
     /** "Ember the Cindrel" once named, plain species name before. */

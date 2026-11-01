@@ -72,6 +72,36 @@ class CritterArt {
 
     val whites: Array<ImageBitmap> = Array(Dex_COUNT + 1) { whiteOf(frames[it][0]) }
 
+    /** Shiny coats: the same sprite with its colour channels rotated, built on first use. */
+    private val shinyCache = arrayOfNulls<Array<ImageBitmap>>(Dex_COUNT + 1)
+
+    private fun shinyOf(sp: ImageBitmap): ImageBitmap {
+        val w = sp.width
+        val h = sp.height
+        val px = IntArray(w * h)
+        sp.asAndroidBitmap().getPixels(px, 0, w, 0, 0, w, h)
+        for (i in px.indices) {
+            val c = px[i]
+            val a = c ushr 24
+            val r = (c shr 16) and 0xFF
+            val g = (c shr 8) and 0xFF
+            val b = c and 0xFF
+            // keep near-white and near-black (eyes, outline) as they are; swap the hues of the rest
+            val keep = (r > 235 && g > 235 && b > 235) || (r < 50 && g < 50 && b < 60)
+            px[i] = if (keep) c else (a shl 24) or (minOf(255, b + 20) shl 16) or (r shl 8) or g
+        }
+        val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        bmp.setPixels(px, 0, w, 0, 0, w, h)
+        return bmp.asImageBitmap()
+    }
+
+    fun frame(id: Int, n: Int, shiny: Boolean): ImageBitmap {
+        if (!shiny || id <= 0) return frame(id, n)
+        val i = id.coerceIn(0, Dex_COUNT)
+        val arr = shinyCache[i] ?: arrayOf(shinyOf(frames[i][0]), shinyOf(frames[i][1])).also { shinyCache[i] = it }
+        return arr[n and 1]
+    }
+
     fun frame(id: Int, n: Int): ImageBitmap = frames[id.coerceIn(0, Dex_COUNT)][n and 1]
     fun white(id: Int): ImageBitmap = whites[id.coerceIn(0, Dex_COUNT)]
 

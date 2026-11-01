@@ -3726,6 +3726,8 @@ class CivSim(
             Deed("raise30", "A Town Takes Shape", "Raised thirty new buildings.", "joy for all") { raised >= 30 },
             Deed("guests", "Every Kind of Guest", "Met a merchant, a bard and a pilgrim.", "joy for all") { listOf("merchant", "bard", "pilgrim").all { (visitStats[it] ?: 0) >= 1 } },
             Deed("egg1", "Warm Nest", "A critter egg hatched in the village.", "+20 food") { critters.eggsHatched >= 1 },
+            Deed("shiny1", "A Glimmer in the Ether", "Befriended a shiny critter.", "+15 food, +8 stone") { critters.shinyKept() >= 1 },
+            Deed("shiny3", "Rainbow Menagerie", "Kept three shiny critters at once.", "+25 food, +12 wood") { critters.shinyKept() >= 3 },
             Deed("egg6", "Cradle of Critters", "Six critter eggs hatched.", "+20 food, +10 wood") { critters.eggsHatched >= 6 },
             Deed("zoo", "Critter Keepers", "Own 10 critters.", "+20 food") { critters.critters.size >= 10 },
             Deed("dex", "Field Naturalists", "Caught 15 species.", "+30 food") { critters.caught.size >= 15 },
