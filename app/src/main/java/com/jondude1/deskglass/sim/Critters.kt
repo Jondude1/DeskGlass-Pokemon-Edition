@@ -52,6 +52,8 @@ object Dex {
     const val DUMMY = 0
     const val COUNT = 71
     const val MAX_LEVEL = 50
+    /** Level at which a critter learns the ultimate of its main type. */
+    const val ULTIMATE_LV = 30
 
     // ---- moves ----
     private val moveList = listOf(
@@ -92,6 +94,19 @@ object Dex {
         Move("wispnudge", "Wisp Nudge", CType.SPIRIT, 40, 100, "shot", 1),
         Move("hauntwave", "Haunt Wave", CType.SPIRIT, 62, 95, "burst", 2),
         Move("soulbloom", "Soul Bloom", CType.SPIRIT, 90, 85, "swirl", 3),
+        // tier 4: one ultimate per type, learned very late
+        Move("ashencataclysm", "Ashen Cataclysm", CType.EMBER, 118, 80, "rain", 4),
+        Move("maelstromcrown", "Maelstrom Crown", CType.TIDE, 118, 80, "swirl", 4),
+        Move("worldrootsurge", "Worldroot Surge", CType.LEAF, 118, 80, "burst", 4),
+        Move("thundersovereign", "Thunder Sovereign", CType.SPARK, 118, 80, "beam", 4),
+        Move("mountainfall", "Mountainfall", CType.STONE, 118, 80, "rain", 4),
+        Move("skyrendgale", "Skyrend Gale", CType.GALE, 118, 80, "swirl", 4),
+        Move("absolutewinter", "Absolute Winter", CType.FROST, 118, 80, "rain", 4),
+        Move("midnightmaw", "Midnight Maw", CType.SHADE, 118, 80, "burst", 4),
+        Move("aurorajudgement", "Aurora Judgement", CType.GLOW, 118, 80, "beam", 4),
+        Move("plaguenova", "Plague Nova", CType.VENOM, 118, 80, "burst", 4),
+        Move("titanhammer", "Titan Hammer", CType.IRON, 118, 80, "lunge", 4),
+        Move("requiemtide", "Requiem Tide", CType.SPIRIT, 118, 80, "swirl", 4),
     )
     val moves: Map<String, Move> = moveList.associateBy { it.id }
     val scuffle: Move = moves.getValue("scuffle")
@@ -243,11 +258,13 @@ object Dex {
         out.add(1 to moveOf(sp.t1, 1))
         out.add(9 to moveOf(sp.t1, 2))
         out.add(20 to moveOf(sp.t1, 3))
+        if (sp.t1 != CType.PLAIN) out.add(ULTIMATE_LV to moveOf(sp.t1, 4))
         val t2 = sp.t2
         if (t2 != null) {
             out.add(12 to moveOf(t2, 1))
             out.add(26 to moveOf(t2, 2))
             out.add(38 to moveOf(t2, 3))
+            if (t2 != CType.PLAIN) out.add(46 to moveOf(t2, 4))
         }
         return out.sortedBy { it.first }
     }
@@ -490,6 +507,8 @@ class Battle(val a: Critter, val b: Critter, private val rnd: Random) {
     val status = IntArray(2)
     private val statusLeft = IntArray(2)
     private val used = BooleanArray(2)
+    private val burstUsed = BooleanArray(2)
+    private val burstOn = BooleanArray(2)
 
     var over = false
         private set
@@ -582,6 +601,14 @@ class Battle(val a: Critter, val b: Critter, private val rnd: Random) {
             att.hp = min(att.maxHp, att.hp + h)
             fire("+$h Regrowth", s, "Regrowth")
         }
+        if (!burstUsed[s] && att.bond >= BURST_BOND && att.hpFrac < 0.3f) {
+            burstUsed[s] = true
+            burstOn[s] = true
+            status[s] = 0
+            val h = max(2, att.maxHp * 3 / 10)
+            att.hp = min(att.maxHp, att.hp + h)
+            fire("Bond Burst! +$h", s, "Bond Burst")
+        }
         val move = pickMove(att, def)
         var hit = rnd.nextInt(100) < move.acc
         if (hit && Abil.has(def, CType.GLOW) && rnd.nextInt(100) < 10) {
@@ -593,6 +620,7 @@ class Battle(val a: Critter, val b: Critter, private val rnd: Random) {
             fire("Evasive!", 1 - s, "Evasive")
         }
         if (hit && st == FRIGHT && rnd.nextInt(100) < 35) hit = false
+        if (burstOn[s]) hit = true
         var dmg = 0
         var eff = 1f
         var crit = false
@@ -612,6 +640,11 @@ class Battle(val a: Critter, val b: Critter, private val rnd: Random) {
                 fire("Blaze!", s, "Blaze")
             }
             if (Abil.has(att, CType.PLAIN)) d *= 1.08f
+            if (burstOn[s]) {
+                d *= 1.5f
+                burstOn[s] = false
+            }
+            if (move.tier >= 4 && abil.isEmpty()) fire("ULTIMATE!", s, "Ultimate")
             if (Abil.has(def, CType.IRON)) d *= 0.88f
             d *= 0.88f + rnd.nextFloat() * 0.12f
             if (s == 1 && shield > 0) {
@@ -648,7 +681,7 @@ class Battle(val a: Critter, val b: Critter, private val rnd: Random) {
             }
             val kind = statusOf(move.type)
             if (kind != 0 && def.hp > 0 && status[1 - s] == 0) {
-                val chance = when (move.tier) { 1 -> 14; 2 -> 22; else -> 32 }
+                val chance = when (move.tier) { 1 -> 14; 2 -> 22; 3 -> 32; else -> 45 }
                 if (rnd.nextInt(100) < chance) {
                     status[1 - s] = kind
                     statusLeft[1 - s] = when (kind) { STUN -> 1; POISON -> 4; else -> 3 }
@@ -666,6 +699,8 @@ class Battle(val a: Critter, val b: Critter, private val rnd: Random) {
     }
 
     companion object {
+        /** Bond a critter needs before it can find a last burst of strength. */
+        const val BURST_BOND = 25
         const val BURN = 1
         const val POISON = 2
         const val STUN = 3

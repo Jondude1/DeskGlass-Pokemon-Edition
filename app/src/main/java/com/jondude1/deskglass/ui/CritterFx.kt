@@ -670,7 +670,12 @@ private fun DrawScope.moveFx(e: Enc, g: Geo) {
     val lite = mixC(col, Color.White, 0.55f)
     val after = (k - TURN_IMPACT) / 0.55f
     val big = tn.move.tier >= 3
-    val size = ps * (if (big) 3.2f else if (tn.move.tier == 2) 2.6f else 2.0f)
+    val size = ps * (if (tn.move.tier >= 4) 4.4f else if (big) 3.2f else if (tn.move.tier == 2) 2.6f else 2.0f)
+    if (tn.move.tier >= 4 && after in 0f..1f) {
+        // an ultimate lands with a wide shock ring in the type colour
+        drawCircle(col.copy(alpha = 0.55f * (1f - after)), ts * (0.3f + 1.7f * after), d, style = Stroke(width = ps * 2.4f))
+        drawCircle(Color.White.copy(alpha = 0.35f * (1f - after)), ts * (0.15f + 1.0f * after), d, style = Stroke(width = ps * 1.4f))
+    }
     when (tn.move.fx) {
         "lunge" -> {
             if (k in 0.35f..1.0f) {
