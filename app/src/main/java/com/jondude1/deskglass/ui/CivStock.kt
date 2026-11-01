@@ -268,3 +268,103 @@ fun DrawScope.riftSite(sim: CivSim, g: Geo) {
         }
     }
 }
+
+/**
+ * The bandit camp: a ring of sharpened stakes round two ragged tents, a smoking fire, a black banner and watchful guards,
+ * with a health bar showing how battered it is. After it falls it smoulders for a while as charred ruins.
+ */
+fun DrawScope.campSite(sim: CivSim, g: Geo) {
+    val u = g.ps
+    val t = g.t
+    val sinceRaze = (sim.time - sim.campRazedAt).toFloat()
+    if (!sim.campUp) {
+        if (sinceRaze < 0f || sinceRaze > 60f) return
+        val fade = 1f - sinceRaze / 60f
+        val rx = g.ox + sim.campRazedX * g.ts
+        val ry = g.oy + sim.campRazedY * g.ts
+        drawOval(Color(0xFF1E1A18).copy(alpha = 0.55f * fade), Offset(rx - u * 14f, ry - u * 3f), Size(u * 28f, u * 8f))
+        for (k in 0 until 5) {
+            drawRect(Color(0xFF2B221C).copy(alpha = fade), Offset(rx + (k - 2.5f) * u * 4.5f, ry - u * (2f + (k % 3) * 1.5f)), Size(u * 1.6f, u * (3f + (k % 3) * 1.5f)))
+        }
+        for (k in 0 until 8) {
+            val p = (t * 0.5f + k * 0.125f) % 1f
+            drawCircle(Color(0xFF5A5450).copy(alpha = 0.45f * (1f - p) * fade), radius = u * (1.5f + 2.5f * p), center = Offset(rx + sin(k * 1.9f + t) * u * 8f, ry - u * (3f + p * 18f)))
+            drawRect(Color(0xFFFF8A3C).copy(alpha = 0.8f * (1f - p) * fade), Offset(rx + sin(k * 2.7f) * u * 9f, ry - u * (1f + p * 7f)), Size(u * 0.9f, u * 0.9f))
+        }
+        return
+    }
+    val hit = (sim.time - sim.campHitAt).toFloat()
+    val shake = if (hit in 0f..0.6f) sin(t * 60f) * u * 0.8f else 0f
+    val cx = g.ox + sim.campX * g.ts + shake
+    val cy = g.oy + sim.campY * g.ts
+    // ground shadow and trampled earth
+    drawOval(Color.Black.copy(alpha = 0.25f), Offset(cx - u * 17f, cy - u * 4f), Size(u * 34f, u * 10f))
+    drawOval(Color(0xFF6B5638).copy(alpha = 0.55f), Offset(cx - u * 15f, cy - u * 3f), Size(u * 30f, u * 8f))
+    // stake palisade across the back
+    for (k in -6..6) {
+        val sx = cx + k * u * 2.4f
+        val sy = cy - u * 3.5f - abs(k) * u * 0.25f
+        drawRect(Color(0xFF5A3F25), Offset(sx, sy - u * 6f), Size(u * 1.6f, u * 6f))
+        drawRect(Color(0xFF7B5A38), Offset(sx, sy - u * 6f), Size(u * 0.6f, u * 6f))
+        drawRect(Color(0xFF2E2118), Offset(sx + u * 0.4f, sy - u * 7.2f), Size(u * 0.8f, u * 1.4f))
+    }
+    // two ragged tents
+    fun tent(x: Float, w: Float, h: Float, body: Color, shade: Color) {
+        val p = androidx.compose.ui.graphics.Path().apply {
+            moveTo(x - w / 2f, cy + u); lineTo(x, cy + u - h); lineTo(x + w / 2f, cy + u); close()
+        }
+        drawPath(p, body)
+        val q = androidx.compose.ui.graphics.Path().apply {
+            moveTo(x, cy + u - h); lineTo(x + w / 2f, cy + u); lineTo(x + w * 0.1f, cy + u); close()
+        }
+        drawPath(q, shade)
+        drawRect(Color(0xFF1B1411), Offset(x - w * 0.09f, cy + u - h * 0.45f), Size(w * 0.18f, h * 0.45f))
+        drawRect(Color(0xFF3A2A1E), Offset(x - u * 0.3f, cy + u - h - u * 2f), Size(u * 0.6f, u * 2f))
+    }
+    tent(cx - u * 9f, u * 13f, u * 10f, Color(0xFF8E3B34), Color(0xFF6B2A25))
+    tent(cx + u * 9.5f, u * 11f, u * 8.5f, Color(0xFFA68246), Color(0xFF7D6232))
+    // fire in the middle, with smoke
+    val fl = 0.7f + 0.3f * sin(t * 11f)
+    drawCircle(Color(0xFFFF9A3C).copy(alpha = 0.2f * fl), radius = u * 9f, center = Offset(cx, cy))
+    drawRect(Color(0xFF3A2A1E), Offset(cx - u * 2.2f, cy - u * 0.6f), Size(u * 4.4f, u * 1.2f))
+    drawRect(Color(0xFFFF7A1E), Offset(cx - u * 1.2f, cy - u * (2.6f * fl + 0.6f)), Size(u * 2.4f, u * 2.6f * fl))
+    drawRect(Color(0xFFFFD66B), Offset(cx - u * 0.6f, cy - u * (1.6f * fl + 0.4f)), Size(u * 1.2f, u * 1.6f * fl))
+    for (k in 0 until 4) {
+        val p = (t * 0.35f + k * 0.25f) % 1f
+        drawCircle(Color(0xFF4A4642).copy(alpha = 0.5f * (1f - p)), radius = u * (1.2f + 2.4f * p), center = Offset(cx + sin(t + k) * u * 1.5f + p * u * 3f, cy - u * (3f + p * 22f)))
+    }
+    // black banner on a tall pole, flapping
+    val px = cx + u * 1.5f
+    drawRect(Color(0xFF3A2A1E), Offset(px, cy - u * 22f), Size(u * 0.9f, u * 20f))
+    for (k in 0 until 6) {
+        val wv = sin(t * 5f + k * 0.8f) * u * 0.6f
+        drawRect(Color(0xFF1C1A22), Offset(px + u * 0.9f + k * u * 1.2f, cy - u * 22f + wv), Size(u * 1.3f, u * 6f))
+    }
+    drawRect(Color(0xFFE8E2D0), Offset(px + u * 3.2f, cy - u * 20.2f + sin(t * 5f + 2.4f) * u * 0.6f), Size(u * 1.4f, u * 1.4f))
+    drawRect(Color(0xFFE8E2D0), Offset(px + u * 4.6f, cy - u * 20.2f + sin(t * 5f + 3.6f) * u * 0.6f), Size(u * 1.4f, u * 1.4f))
+    // guards pacing with spears
+    for (k in 0 until 2) {
+        val gx = cx + sin(t * 0.7f + k * 3.1f) * u * 6f + (if (k == 0) -u * 3f else u * 4f)
+        val gy = cy + u * (2f + k * 1.2f) - abs(sin(t * 5f + k)) * u * 0.6f
+        drawOval(Color.Black.copy(alpha = 0.25f), Offset(gx - u * 2f, gy - u * 0.4f), Size(u * 4f, u * 1.2f))
+        drawRect(Color(0xFF2B2B33), Offset(gx - u * 1.2f, gy - u * 5f), Size(u * 2.4f, u * 4.6f))
+        drawRect(Color(0xFFD9B08A), Offset(gx - u * 1f, gy - u * 7f), Size(u * 2f, u * 2f))
+        drawRect(Color(0xFF1C1A22), Offset(gx - u * 1.2f, gy - u * 7.4f), Size(u * 2.4f, u * 1f))
+        drawRect(Color(0xFF8B8F99), Offset(gx + u * 1.6f, gy - u * 9f), Size(u * 0.6f, u * 8.5f))
+        drawRect(Color(0xFFC9CEDA), Offset(gx + u * 1.4f, gy - u * 10.4f), Size(u * 1f, u * 1.6f))
+    }
+    // sparks and a red flash when a villager lands a blow
+    if (hit in 0f..0.7f) {
+        for (k in 0 until 6) {
+            val p = hit / 0.7f
+            drawRect(Color(0xFFFFE08A).copy(alpha = 1f - p), Offset(cx + sin(k * 2.3f) * u * 9f * p, cy - u * (5f + k * 1.2f) - p * u * 4f), Size(u * 1f, u * 1f))
+        }
+    }
+    // health bar
+    val frac = (sim.campHp / sim.campMax).coerceIn(0f, 1f)
+    val bw = u * 22f
+    val by = cy - u * 27f
+    drawRect(Color.Black.copy(alpha = 0.6f), Offset(cx - bw / 2f - u * 0.5f, by - u * 0.5f), Size(bw + u, u * 3f))
+    drawRect(Color(0xFF5A2020), Offset(cx - bw / 2f, by), Size(bw, u * 2f))
+    drawRect(if (frac > 0.5f) Color(0xFFD64545) else Color(0xFFFF9A3C), Offset(cx - bw / 2f, by), Size(bw * frac, u * 2f))
+}

@@ -910,6 +910,7 @@ private fun DrawScope.drawWorld(
     villageStock(sim, art, geo)
     heroStatues(sim, geo)
     riftSite(sim, geo)
+    campSite(sim, geo)
     lifeCritters(sim, art, geo)
     drawDrops(sim, geo)
     drawCritters(sim, art, cart, geo, sun)
@@ -1679,7 +1680,7 @@ fun VillageScreen(vm: MainViewModel, fullscreen: Boolean, onFullscreen: (Boolean
                     )
                 }
                 Text(
-                    "Renown: ${sim.renownTitle()} · deeds ${sim.deeds.size}/${sim.allDeeds.size}" + (if (sim.expeditions > 0) " · rifts cleared ${sim.expWins}/${sim.expeditions} · relics ${sim.relics}" else "") + (if (sim.critters.tourneys > 0) " · tournaments ${sim.critters.tourneys} (champion ${sim.critters.champName})" else ""),
+                    "Renown: ${sim.renownTitle()} · deeds ${sim.deeds.size}/${sim.allDeeds.size}" + (if (sim.campUp) " · BANDIT CAMP stands (${(sim.campHp / sim.campMax * 100).toInt()}%)" else if (sim.campsRazed > 0) " · camps razed ${sim.campsRazed}" else "") + (if (sim.expeditions > 0) " · rifts cleared ${sim.expWins}/${sim.expeditions} · relics ${sim.relics}" else "") + (if (sim.critters.tourneys > 0) " · tournaments ${sim.critters.tourneys} (champion ${sim.critters.champName})" else ""),
                     color = Color(0xFF9BE3BC), fontSize = 14.sp,
                 )
                 Text(

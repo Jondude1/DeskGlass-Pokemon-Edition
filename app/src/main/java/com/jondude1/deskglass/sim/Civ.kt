@@ -183,7 +183,7 @@ private val ACTIONS = setOf(
     "build_well", "build_workshop", "build_market", "build_lamp",
     "fetch_water", "craft", "trade", "dance", "patrol", "play",
     "build_granary", "build_barracks", "build_library", "build_wonder", "haul", "drill", "study", "attack",
-    "forage_herbs", "swim", "stargaze", "carve", "pick_flowers", "delve", "build_tavern", "tavern", "build_infirmary", "recover", "build_totem", "honor", "build_ranch", "tend_critters", "build_pasture", "tend_flock", "snowman", "rake_leaves", "fly_kite", "walk_dog",
+    "forage_herbs", "swim", "stargaze", "carve", "pick_flowers", "delve", "build_tavern", "tavern", "build_infirmary", "recover", "build_totem", "honor", "build_ranch", "tend_critters", "build_pasture", "tend_flock", "snowman", "rake_leaves", "fly_kite", "walk_dog", "assault_camp",
 )
 
 private val DX = intArrayOf(1, -1, 0, 0)
@@ -280,6 +280,21 @@ class CivSim(
     var herbed = 0
     var stargazed = 0
     var carved = 0
+    // bandit camp: an outlaw hideout beyond the hills that sends raiders until the village storms it
+    var campUp = false
+    var campX = 0f
+    var campY = 0f
+    var campHp = 0f
+    var campMax = 100f
+    var campRazedAt = -999.0
+    var campRazedX = 0f
+    var campRazedY = 0f
+    var campHitAt = -999.0
+    var campsRazed = 0
+    var campHits = 0
+    var campSorties = 0
+    private var campNextAt = DAY_LEN * 1.5
+    private var campSortieAt = 0.0
     // rift expeditions: a party walks to a violet rift, clears four rooms and brings back loot and relics
     var riftState = 0 // 0 closed, 1 party gathering, 2 delving
     var riftX = 0f
@@ -466,6 +481,7 @@ class CivSim(
         goods = 0
         visitor = null; nextVisitAt = time + DAY_LEN * 1.2; visitStats.clear(); raidsRepelled = 0; ogresSlain = 0; bossesSlain = 0; warlordsSlain = 0; golemsSlain = 0; shamansSlain = 0; frostPacksBroken = 0; pilfersFoiled = 0; pilfersLost = 0; swarmsBroken = 0; hornetsSwatted = 0; lichesSlain = 0; bonesRaised = 0; lastLichAt = -999.0; foeStats.clear(); lastWarlordAt = -999.0; goldenAt = -1.0; deeds.clear(); babiesBorn = 0; weds = 0; feudsStarted = 0; feudsEnded = 0; bffs.clear(); feudEnds.clear(); courting.clear(); weddingAt = -999.0; nextRelAt = 0.0; deedBannerAt = -999.0; nextDeedAt = 0.0; titlesEarned = 0; dreamsDone = 0; lastThreatAt = 0.0
         riftState = 0; party.clear(); expeditions = 0; expWins = 0; expRetreats = 0; roomsCleared = 0; relics = 0; deepestRoom = 0; wardensSlain = 0; nextRiftAt = time + DAY_LEN
+        campUp = false; campsRazed = 0; campHits = 0; campSorties = 0; campRazedAt = -999.0; campHitAt = -999.0; campNextAt = time + DAY_LEN * 1.5
         nextThreatAt = DAY_LEN * 1.4; lastBossAt = -999.0
         traffic.fill(0f)
         fauna.reset()
@@ -1208,6 +1224,14 @@ class CivSim(
                 val b = nearestBuilding(v, "campfire") ?: return false
                 return go(v, "carve", b.y * GW + b.x)
             }
+            "assault_camp" -> {
+                if (!campAssaultOk(v)) return false
+                val ax = campX + (rnd.nextFloat() - 0.5f) * 1.6f
+                val ay = campY + 1.2f
+                val i = ay.toInt().coerceIn(0, GH - 1) * GW + ax.toInt().coerceIn(0, GW - 1)
+                if (blocked(i)) return false
+                return go(v, "assault_camp", i)
+            }
             "delve" -> {
                 if (riftState != 1 || party.size >= 4 || isChild(v) || v.hp < 60f || v.id in party) return false
                 val i = riftY.toInt() * GW + riftX.toInt()
@@ -1398,6 +1422,7 @@ class CivSim(
             v.action == "tavern" -> { v.phase = "working"; v.workLeft = 7f }
             v.action == "recover" -> { v.phase = "working"; v.workLeft = 8f }
             v.action == "honor" -> { v.phase = "working"; v.workLeft = 6f }
+            v.action == "assault_camp" -> { v.phase = "working"; v.workLeft = 3f }
             v.action == "tend_flock" -> { v.phase = "working"; v.workLeft = 7f }
             v.action == "tend_critters" -> { v.phase = "working"; v.workLeft = 7f }
             v.action == "craft" -> { v.phase = "working"; v.workLeft = 7f }
@@ -1634,6 +1659,21 @@ class CivSim(
                 research += 1 + (if (v.job == "Storyteller" || v.job == "Scholar") 1 else 0) + (if (count("library") >= 2) 1 else 0)
                 if (studied % 6 == 1) addLog("${v.name} studies in the library.")
                 v.remember("read in the library")
+                finish(v)
+            }
+            "assault_camp" -> {
+                if (campUp) {
+                    val dmg = 8f + rnd.nextInt(7) + (if (isFighter(v)) 5f else 0f) + toolBonus() * 1.5f
+                    campHp -= dmg
+                    campHits++
+                    campHitAt = time
+                    v.hp = max(30f, v.hp - (3f + rnd.nextInt(7)))
+                    v.bump("camp", 1)
+                    fx.add(Fx("clash", campX + (rnd.nextFloat() - 0.5f) * 1.8f, campY + 0.4f + (rnd.nextFloat() - 0.5f), time, 0.8f))
+                    if (campHits % 7 == 1) addLog("${v.name} charges the bandit camp.")
+                    v.remember("stormed the bandit camp")
+                    if (campHp <= 0f) razeCamp(v)
+                }
                 finish(v)
             }
             "tend_flock" -> {
@@ -2228,6 +2268,7 @@ class CivSim(
             "recover" to (if (count("infirmary") > 0 && v.hp < 90f) 5 else 0),
             "honor" to (if (count("totem") > 0 && !isChild(v)) 2 else 0),
             "tend_flock" to (if (count("pasture") > 0 && !isChild(v)) 4 else 0),
+            "assault_camp" to (if (campAssaultOk(v)) (if (isFighter(v)) 8 else 3) else 0),
             "tend_critters" to (if (count("ranch") > 0 && ranchResidents() > 0 && !isChild(v)) 4 else 0),
             "study" to (if (count("library") > 0) 3 else 0), "drill" to (if (count("barracks") > 0 && isFighter(v)) 3 else 0),
             "dance" to (if (count("campfire") > 0) 2 else 0), "tell_story" to 2, "talk" to 2, "patrol" to (if (isFighter(v)) 2 else 0),
@@ -2642,6 +2683,7 @@ class CivSim(
         if (count("ranch") > 0 && ranchResidents() > 0 && !isChild(v) && !starving && rnd.nextInt(if (critters.gifted(v)) 6 else 12) == 0) return "tend_critters" to ""
         if (wood >= 10 && canBuild("pasture") && (builder || v.job == "Farmer" || rnd.nextInt(6) == 0)) return "build_pasture" to ""
         if (count("pasture") > 0 && !isChild(v) && !starving && rnd.nextInt(if (v.job == "Farmer") 5 else 10) == 0) return "tend_flock" to ""
+        if (campUp && !starving && campAssaultOk(v) && rnd.nextInt(if (isFighter(v)) 3 else 9) == 0) return "assault_camp" to ""
         if (stone >= 6 && wood >= 4 && canBuild("smelter") &&
             (builder || v.job == "Bronzesmith" || v.job == "Blacksmith" || rnd.nextInt(6) == 0)
         ) return "build_smelter" to ""
@@ -2851,6 +2893,7 @@ class CivSim(
         "stargaze" -> "watching the stars"
         "carve" -> "carving wooden toys"
         "pick_flowers" -> "picking wildflowers for a friend"
+        "assault_camp" -> "storming the bandit camp"
         "delve" -> if (riftState == 2) "fighting deep inside the rift" else "marching to the rift"
         "haul" -> "filling the granary"
         "drill" -> "drilling with the guard"
@@ -2913,6 +2956,7 @@ class CivSim(
         if (wood >= 8 && goods < 30 && count("campfire") > 0) a.add("carve")
         a.add("pick_flowers")
         if (riftState == 1 && party.size < 4) a.add("delve")
+        if (campAssaultOk(null)) a.add("assault_camp")
         if (canBuild("granary") && wood >= 14 && stone >= 6) a.add("build_granary")
         if (canBuild("library") && wood >= 18 && stone >= 12) a.add("build_library")
         if (canBuild("tavern") && wood >= 20 && stone >= 10) a.add("build_tavern")
@@ -3703,7 +3747,7 @@ class CivSim(
         val n = villagers.size
         val boss = age >= 4 && time - lastBossAt > DAY_LEN * 6
         val what = pick(
-            "raiders" to (if (age >= 1 && villagers.size >= 6) 4 else 0),
+            "raiders" to (if (age >= 1 && villagers.size >= 6 && !campUp) 4 else 0),
             "pilferer" to (if (age == 0) 8 else 3),
             "hornets" to (if (age >= 1 && (seasonName() == "summer" || seasonName() == "autumn")) 3 else 0),
             "ogre" to (if (age >= 2 && time - lastOgreAt > DAY_LEN * 4) 2 else 0),
@@ -3855,6 +3899,8 @@ class CivSim(
             Deed("dex", "Field Naturalists", "Caught 15 species.", "+30 food") { critters.caught.size >= 15 },
             Deed("level", "Trainer's Pride", "A critter reached level 25.", "joy for all") { critters.critters.any { it.level >= 25 } },
             Deed("legend", "Legend Bound", "Bonded with a legendary critter.", "joy for all") { critters.legendsOwned() > 0 },
+            Deed("camp1", "Camp Breaker", "Stormed and razed a bandit camp.", "+25 wood, +15 stone") { campsRazed >= 1 },
+            Deed("camp3", "Outlaw Bane", "Razed three bandit camps.", "joy for all") { campsRazed >= 3 },
             Deed("delver", "Into the Rift", "A party cleared a rift.", "+30 stone, +20 wood") { expWins >= 1 },
             Deed("delver3", "Rift Walkers", "Cleared three rift expeditions.", "joy for all") { expWins >= 3 },
             Deed("relic", "Relic Keepers", "Brought home 3 rift relics.", "+40 food, +20 stone") { relics >= 3 },
@@ -4218,6 +4264,101 @@ class CivSim(
         fx.add(Fx("spawn", riftX, riftY, time, 1.0f))
     }
 
+    // ---- bandit camp ----
+
+    fun campAssaultOk(v: Villager?): Boolean {
+        if (!campUp || age < 1 || isNight() || plagueUntil > time) return false
+        if (predators.any { isThreat(it.kind) }) return false
+        if (v == null) return true
+        if (isChild(v) || v.hp < 60f || v.hunger > 75f || v.energy < 25f) return false
+        return villagers.count { it !== v && it.action == "assault_camp" } < 5
+    }
+
+    private fun spawnAt(kind: String, n: Int, x: Float, y: Float) {
+        if (isThreat(kind)) foeStats[kind] = (foeStats[kind] ?: 0) + n
+        repeat(n) {
+            predators.add(Predator(kind, (x + (rnd.nextFloat() - 0.5f) * 2f).coerceIn(0.6f, GW - 0.7f), (y + 1f + rnd.nextFloat()).coerceIn(0.6f, GH - 0.7f)).also { it.angle = rnd.nextFloat() * 6.28f })
+        }
+    }
+
+    private fun pitchCamp() {
+        val anchor = villagers.firstOrNull { !isChild(it) } ?: return
+        var site = -1
+        for (k in 0 until 24) {
+            val ang = rnd.nextFloat() * 6.28f
+            val r = 17f + rnd.nextFloat() * 8f
+            val x = (GW / 2f + Math.cos(ang.toDouble()).toFloat() * r).toInt().coerceIn(3, GW - 4)
+            val y = (GH / 2f + Math.sin(ang.toDouble()).toFloat() * r * 0.7f).toInt().coerceIn(3, GH - 4)
+            val i = y * GW + x
+            if (blocked(i) || tiles[i] == T.WATER) continue
+            if (hypot(x + 0.5f - riftX, y + 0.5f - riftY) < 5f && riftState != 0) continue
+            if (findPath(cellOf(anchor), i) == null) continue
+            site = i
+            break
+        }
+        if (site < 0) { campNextAt = time + 40.0; return }
+        campX = site % GW + 0.5f
+        campY = site / GW + 0.5f
+        campMax = 90f + 30f * age + 3f * villagers.size
+        campHp = campMax
+        campUp = true
+        campHitAt = -999.0
+        campSortieAt = time + DAY_LEN * 0.8
+        fx.add(Fx("spawn", campX, campY, time, 1.4f))
+        event("Smoke rises beyond the hills: outlaws have pitched a bandit camp. It will keep sending raiders until the village storms it!")
+        mark("A bandit camp appeared.")
+    }
+
+    private fun razeCamp(last: Villager) {
+        campUp = false
+        campsRazed++
+        campRazedAt = time
+        campRazedX = campX
+        campRazedY = campY
+        val band = villagers.filter { it.action == "assault_camp" || it === last }
+        wood += 25 + 5 * age; stone += 15 + 5 * age; food += 30; hides += 4; goods += 3
+        var loot = "${25 + 5 * age} wood, ${15 + 5 * age} stone, 30 food, 4 hides"
+        if (age >= 2) { metal += 3; loot += ", 3 metal" }
+        if (campsRazed % 2 == 1) { critters.scrolls[1] = critters.scrolls[1] + 1; loot += ", a fine scroll" }
+        for (m in band) {
+            m.bump("camps", 1)
+            m.happiness = min(100f, m.happiness + 10f)
+            m.remember("helped burn down the bandit camp")
+            if (m.action == "assault_camp") finish(m)
+        }
+        for (v in villagers) v.happiness = min(100f, v.happiness + 4f)
+        festivalUntil = max(festivalUntil, time + 18.0)
+        fx.add(Fx("spawn", campX, campY, time, 1.6f))
+        deedBannerAt = time
+        deedBannerTag = "BANDIT CAMP"
+        deedBannerName = "Camp Razed"
+        deedBannerSub = "${last.name} and ${band.size - 1} others burn the outlaw hideout: $loot"
+        event("The bandit camp burns! ${last.name} and the band carry home $loot.")
+        mark("The bandit camp was razed.")
+        campNextAt = time + DAY_LEN * (3.0 + rnd.nextFloat() * 1.5)
+    }
+
+    private fun campTick(dt: Float) {
+        if (!campUp) {
+            if (age < 1 || villagers.size < 7 || time < campNextAt) return
+            if (predators.any { isThreat(it.kind) } || isNight()) return
+            pitchCamp()
+            return
+        }
+        if (time - campHitAt > 20.0) campHp = min(campMax, campHp + 0.6f * dt)
+        if (time < campSortieAt) return
+        campSortieAt = time + DAY_LEN * (1.3 + rnd.nextFloat() * 0.6)
+        if (villagers.size < 5 || predators.any { isThreat(it.kind) }) return
+        val k = min(5, 2 + villagers.size / 8 + age / 3)
+        spawnAt("raider", k, campX, campY)
+        val sh = age >= 2 && rnd.nextInt(3) == 0
+        if (sh) spawnAt("shaman", 1, campX, campY)
+        campSorties++
+        alertUntil = time + 100.0
+        event("Outlaws spill out of their camp! $k bandits${if (sh) " and a shaman" else ""} are marching on the village.")
+        mark("The bandit camp sent raiders.")
+    }
+
     private fun expeditionTick(dt: Float) {
         if (riftState == 0) {
             for (v in villagers) if (v.action == "delve") finish(v)
@@ -4483,6 +4624,7 @@ class CivSim(
         planTick()
         threatTick()
         expeditionTick(dt)
+        campTick(dt)
         visitorTick(dt)
         wonderTick(dt)
         infirmaryTick()
@@ -4612,7 +4754,7 @@ class CivSim(
             o.put("nextId", nextId)
             o.put("hides", hides)
             o.put("goods", goods)
-            o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("expN", expeditions).put("expW", expWins).put("expR", expRetreats).put("expRooms", roomsCleared).put("relics", relics).put("expDeep", deepestRoom).put("wardens", wardensSlain).put("golems", golemsSlain).put("frostPacks", frostPacksBroken).put("pilfF", pilfersFoiled).put("pilfL", pilfersLost).put("swarms", swarmsBroken).put("hornets", hornetsSwatted).put("liches", lichesSlain).put("bones", bonesRaised).put("shamans", shamansSlain).put("golden", goldenAt).put("visits", visitStats.entries.joinToString(",") { "${it.key}:${it.value}" }).put("deeds", deeds.joinToString(",")).put("tavern", tavernVisits).put("pets", pets.joinToString(",") { "${it.name}:${it.owner}:${it.bond}" }).put("dogA", dogsAdopted).put("dogW", dogWalks).put("dogB", dogBarks).put("snowmen", snowmenBuilt).put("leafR", leafPilesRaked).put("kites", kitesFlown).put("sprops", seasonProps.joinToString(",") { "${it.kind}:${it.x.toInt()}:${it.y.toInt()}" }).put("statues", statues.joinToString(";") { "${it.name}|${it.title}|${it.kind}|${it.x.toInt()}|${it.y.toInt()}|${it.tier}" }).put("statueC", statueCheers).put("totemV", totemVisits).put("raised", raised).put("omens", omens).put("recov", recoveries).put("balS", ballistaShots).put("balK", ballistaKills).put("ranchV", ranchVisits).put("pastV", pastureVisits).put("flockS", flockSheep).put("flockH", flockHens).put("eggsG", eggsGathered).put("fleece", fleeces).put("techs", techs.joinToString(",")).put("research", research).put("studyN", studyCount).put("babies", babiesBorn).put("dreams", dreamsDone).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" })
+            o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("campUp", if (campUp) 1 else 0).put("campX", campX.toDouble()).put("campY", campY.toDouble()).put("campHp", campHp.toDouble()).put("campMax", campMax.toDouble()).put("campR", campsRazed).put("campH", campHits).put("campS", campSorties).put("expN", expeditions).put("expW", expWins).put("expR", expRetreats).put("expRooms", roomsCleared).put("relics", relics).put("expDeep", deepestRoom).put("wardens", wardensSlain).put("golems", golemsSlain).put("frostPacks", frostPacksBroken).put("pilfF", pilfersFoiled).put("pilfL", pilfersLost).put("swarms", swarmsBroken).put("hornets", hornetsSwatted).put("liches", lichesSlain).put("bones", bonesRaised).put("shamans", shamansSlain).put("golden", goldenAt).put("visits", visitStats.entries.joinToString(",") { "${it.key}:${it.value}" }).put("deeds", deeds.joinToString(",")).put("tavern", tavernVisits).put("pets", pets.joinToString(",") { "${it.name}:${it.owner}:${it.bond}" }).put("dogA", dogsAdopted).put("dogW", dogWalks).put("dogB", dogBarks).put("snowmen", snowmenBuilt).put("leafR", leafPilesRaked).put("kites", kitesFlown).put("sprops", seasonProps.joinToString(",") { "${it.kind}:${it.x.toInt()}:${it.y.toInt()}" }).put("statues", statues.joinToString(";") { "${it.name}|${it.title}|${it.kind}|${it.x.toInt()}|${it.y.toInt()}|${it.tier}" }).put("statueC", statueCheers).put("totemV", totemVisits).put("raised", raised).put("omens", omens).put("recov", recoveries).put("balS", ballistaShots).put("balK", ballistaKills).put("ranchV", ranchVisits).put("pastV", pastureVisits).put("flockS", flockSheep).put("flockH", flockHens).put("eggsG", eggsGathered).put("fleece", fleeces).put("techs", techs.joinToString(",")).put("research", research).put("studyN", studyCount).put("babies", babiesBorn).put("dreams", dreamsDone).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" })
             o.put("traffic", String(CharArray(traffic.size) { i -> '0' + min(9, (traffic[i] / 4f).toInt()) }))
             val ks = JSONArray()
             kingdoms.forEach {
@@ -4740,6 +4882,8 @@ class CivSim(
             visitStats.clear()
             for (e in o.optString("visits", "").split(",")) { val kv = e.split(":"); if (kv.size == 2) visitStats[kv[0]] = kv[1].toIntOrNull() ?: 0 }
             goldenAt = o.optDouble("golden", -1.0)
+            campUp = o.optInt("campUp", 0) == 1; campX = o.optDouble("campX", 0.0).toFloat(); campY = o.optDouble("campY", 0.0).toFloat(); campMax = o.optDouble("campMax", 100.0).toFloat(); campHp = o.optDouble("campHp", campMax.toDouble()).toFloat(); campsRazed = o.optInt("campR", 0); campHits = o.optInt("campH", 0); campSorties = o.optInt("campS", 0)
+            campNextAt = time + DAY_LEN; campSortieAt = time + DAY_LEN * 0.8; campHitAt = -999.0; campRazedAt = -999.0
             expeditions = o.optInt("expN", 0); expWins = o.optInt("expW", 0); expRetreats = o.optInt("expR", 0); roomsCleared = o.optInt("expRooms", 0); relics = o.optInt("relics", 0); deepestRoom = o.optInt("expDeep", 0); wardensSlain = o.optInt("wardens", 0)
             deeds.clear(); o.optString("deeds", "").split(",").filter { it.isNotBlank() }.forEach { deeds.add(it) }
             babiesBorn = o.optInt("babies", 0); dreamsDone = o.optInt("dreams", 0)
@@ -4776,7 +4920,7 @@ class CivSim(
     companion object {
         private const val SYSTEM = """You play one villager in a small pixel-art village, as a distinct character with a job, a personality, a way of speaking and a dream. Reply with ONLY a JSON object, no other text:
 {"thought": "<your private thought, first person, under 14 words, in your voice>", "action": "<one action>", "target": "<villager name, only for talk>", "say": "<one short sentence you say aloud in your own voice, or empty>"}
-Actions: gather_wood, gather_stone, gather_food (berries), fish (at the lake), hunt (game in the forest, hunter-gatherers' best food), tend_farm (needs a farm, Farming Age on), explore (scouting far away), delve (join the rift expedition, only while a rift is open), tell_story (at the fire, lifts everyone's spirits), huddle (stay by the fire), build_hut (6 wood + 2 stone), build_farm (4 wood, Farming Age on), build_campfire (3 stone), mine_ore (Bronze Age on), smelt (2 ore + 1 wood at a forge, Bronze Age on), build_smelter (4 wood + 6 stone, Bronze Age on), build_well (4 wood + 6 stone), build_workshop (10 wood + 4 stone), build_market (12 wood + 6 stone), build_lamp (2 wood + 2 stone), fetch_water (at a well, waters the farms), craft (at a workshop), trade (goods for food at a market), dance (at the fire), build_granary (14 wood + 6 stone), build_barracks (16 wood, 14 stone, 2 metal), build_library (18 wood + 12 stone), build_totem (12 wood + 4 stone, carve a totem pole), honor (bow and dance at the totem pole, lifts mood, may bring an omen of plenty), build_ranch (18 wood + 6 stone, a fenced critter ranch once the village keeps critters), tend_critters (feed and groom the village critters at the ranch: heals them, makes them stronger and fonder of us, needs a ranch), build_pasture (10 wood, a fenced pasture for sheep and hens, needs 5 villagers), tend_flock (gather eggs and shear sheep at the pasture: brings food and hides, needs a pasture), build_tavern (20 wood + 10 stone, Town Age on), tavern (eat and chat with friends at the tavern, needs food, lifts mood), build_infirmary (16 wood + 8 stone, Town Age on), recover (rest and be bandaged at the infirmary: use when hurt, heals a lot), build_wonder (City Age, 50 wood + 40 stone + 5 metal: a great wonder that blesses the whole village), haul (fill the granary), drill (train at the barracks), study (read at the library; scholars earn lore that unlocks discoveries), attack (charge the enemy), patrol (walk the edge of the village and watch), play (children), carve (whittle wooden toys at the fire from spare wood; the children cheer up), pick_flowers (gather wildflowers and give them to a friend), forage_herbs (pick healing herbs: mends you and hurt people nearby, use when hurt or when others are hurt), swim (summer days at the lake, lifts mood), snowman (winter days, build a snowman near the fire, cheers the children), rake_leaves (autumn days, rake a pile of leaves the children jump in), fly_kite (spring days, fly a kite in the breeze), walk_dog (play fetch with your dog, only if you have one), stargaze (clear evenings at the fire, lifts mood), eat (needs food in stock), sleep, talk (set target and say), wander. Use only the actions listed as available to you in the message.
+Actions: gather_wood, gather_stone, gather_food (berries), fish (at the lake), hunt (game in the forest, hunter-gatherers' best food), tend_farm (needs a farm, Farming Age on), explore (scouting far away), delve (join the rift expedition, only while a rift is open), tell_story (at the fire, lifts everyone's spirits), huddle (stay by the fire), build_hut (6 wood + 2 stone), build_farm (4 wood, Farming Age on), build_campfire (3 stone), mine_ore (Bronze Age on), smelt (2 ore + 1 wood at a forge, Bronze Age on), build_smelter (4 wood + 6 stone, Bronze Age on), build_well (4 wood + 6 stone), build_workshop (10 wood + 4 stone), build_market (12 wood + 6 stone), build_lamp (2 wood + 2 stone), fetch_water (at a well, waters the farms), craft (at a workshop), trade (goods for food at a market), dance (at the fire), build_granary (14 wood + 6 stone), build_barracks (16 wood, 14 stone, 2 metal), build_library (18 wood + 12 stone), build_totem (12 wood + 4 stone, carve a totem pole), honor (bow and dance at the totem pole, lifts mood, may bring an omen of plenty), build_ranch (18 wood + 6 stone, a fenced critter ranch once the village keeps critters), tend_critters (feed and groom the village critters at the ranch: heals them, makes them stronger and fonder of us, needs a ranch), build_pasture (10 wood, a fenced pasture for sheep and hens, needs 5 villagers), tend_flock (gather eggs and shear sheep at the pasture: brings food and hides, needs a pasture), build_tavern (20 wood + 10 stone, Town Age on), tavern (eat and chat with friends at the tavern, needs food, lifts mood), build_infirmary (16 wood + 8 stone, Town Age on), recover (rest and be bandaged at the infirmary: use when hurt, heals a lot), build_wonder (City Age, 50 wood + 40 stone + 5 metal: a great wonder that blesses the whole village), haul (fill the granary), drill (train at the barracks), study (read at the library; scholars earn lore that unlocks discoveries), attack (charge the enemy), patrol (walk the edge of the village and watch), play (children), carve (whittle wooden toys at the fire from spare wood; the children cheer up), pick_flowers (gather wildflowers and give them to a friend), forage_herbs (pick healing herbs: mends you and hurt people nearby, use when hurt or when others are hurt), swim (summer days at the lake, lifts mood), snowman (winter days, build a snowman near the fire, cheers the children), rake_leaves (autumn days, rake a pile of leaves the children jump in), fly_kite (spring days, fly a kite in the breeze), walk_dog (play fetch with your dog, only if you have one), assault_camp (storm the bandit camp beyond the hills, only while it stands; for the healthy and brave, it stops its raids when razed), stargaze (clear evenings at the fire, lifts mood), eat (needs food in stock), sleep, talk (set target and say), wander. Use only the actions listed as available to you in the message.
 Mostly do the work of your job, but react to your needs, the weather, wolves, news and what others say. Talk about what you have seen, feel or remember, with opinions and feelings. Never repeat a line or an action you just did, and vary your sentences. Stay alive: eat when hungry, sleep when tired or at night.
 Speak only about facts given in the message: your needs, the stock, the weather, people nearby and what they said, family, village history and news. Never invent buildings, people, resources or events. Answer what others actually said to you. If you are a child, use very short, simple words."""
         private const val SYSTEM_SHORT = """Reply with ONLY a JSON object: {"thought": "", "action": "<one allowed action>", "target": "", "say": "<one short sentence using only the facts given, or empty>"}"""
