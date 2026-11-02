@@ -3222,6 +3222,19 @@ class CivSim(
     fun foggy() = time < fogUntil
     fun snowing() = time < snowUntil || outsideSnow
     fun seasonIdx(): Int = ((time / DAY_LEN).toInt() / SEASON_DAYS) % 4
+    /** How far through the current season we are, 0..1. */
+    fun seasonFrac(): Float = (((time / DAY_LEN) % SEASON_DAYS) / SEASON_DAYS).toFloat().coerceIn(0f, 1f)
+    /** Snow and ice on the land, 0..1: builds up in winter, melts through the first half of spring. */
+    fun snowCover(): Float {
+        if (time < DAY_LEN * SEASON_DAYS) return 0f
+        val f = seasonFrac()
+        val base = when (seasonIdx()) {
+            3 -> (0.2f + f * 2.6f).coerceAtMost(1f)
+            0 -> (1f - f * 2.2f).coerceAtLeast(0f)
+            else -> 0f
+        }
+        return if (snowing() && seasonIdx() != 1) (base + 0.25f).coerceAtMost(1f) else base
+    }
     private fun festival() = time < festivalUntil
 
     /** The villager's current "quest" line for the follow view. */

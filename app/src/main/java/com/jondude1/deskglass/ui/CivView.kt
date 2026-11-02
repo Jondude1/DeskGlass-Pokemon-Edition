@@ -423,6 +423,8 @@ private fun DrawScope.drawWorld(
         }
     }
 
+    seasonGround(sim, geo, vx0, vx1, vy0, vy1)
+
     // kingdom territories: tinted ground and glowing borders
     val pulse = 0.65f + 0.2f * kotlin.math.sin(t * 2f)
     fun other(nx: Int, ny: Int, o: Int) = nx in 0 until GW && ny in 0 until GH && sim.owner[ny * GW + nx] != o
@@ -484,14 +486,15 @@ private fun DrawScope.drawWorld(
                     if (sim.amt[i] <= 2) {
                         sp = art.stump
                     } else {
-                        sp = if (h % 3 == 0 || sim.biome[i] == 2) art.pine else art.oak
+                        val ss = treeSeason(sim, h)
+                        sp = if (h % 3 == 0 || sim.biome[i] == 2) art.pineS[ss] else art.oakS[ss]
                         shadowW = 10f
                         swaying = true
                     }
                 }
                 T.ROCK -> { sp = art.rock; shadowW = 11f }
                 T.ORE -> { sp = art.oreRock; shadowW = 11f }
-                T.BUSH -> { sp = if (sim.amt[i] > 0) art.bush else art.bushEmpty; shadowW = 9f }
+                T.BUSH -> { val ss = treeSeason(sim, h); sp = if (sim.amt[i] > 0) art.bushS[ss] else art.bushEmptyS[ss]; shadowW = 9f }
                 T.GRASS -> if (sim.biome[i] == 1 && h % 11 == 0 && sim.owner[i] < 0) { sp = art.cactus; shadowW = 6f }
             }
             if (sp != null) {
@@ -574,7 +577,7 @@ private fun DrawScope.drawWorld(
                     else -> art.cityHouse
                 }
                 "hall" -> if (b.era <= 2) art.hall else art.keep
-                "farm" -> art.farm
+                "farm" -> art.farmS[sim.seasonIdx()]
                 "smelter" -> art.forge
                 "tower" -> art.tower
                 "ballista" -> art.ballista

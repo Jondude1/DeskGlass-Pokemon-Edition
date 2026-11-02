@@ -183,6 +183,47 @@ class CivArt {
         'd' to 0xFF6B4A2B.toInt(), 'D' to 0xFF573A20.toInt(), 'g' to 0xFF7BC043.toInt(),
         'G' to 0xFFE8C547.toInt(), 'f' to 0xFF8B6B45.toInt(),
     ))
+
+    // ---- seasonal looks (0 spring, 1 summer, 2 autumn, 3 winter): same grids, new palettes ----
+    private val oakBase = mapOf(
+        'g' to 0xFF3E8E41.toInt(), 'G' to 0xFF2C6B33.toInt(), 'h' to 0xFF6BB85A.toInt(),
+        't' to 0xFF7A4B24.toInt(), 'T' to 0xFF54331A.toInt(),
+    )
+    val oakS: List<ImageBitmap> = listOf(
+        sprite(OAK, oakBase + mapOf('g' to 0xFF5BB04E.toInt(), 'G' to 0xFF3C8A40.toInt(), 'h' to 0xFFFFB9D6.toInt())),
+        sprite(OAK, oakBase),
+        sprite(OAK, oakBase + mapOf('g' to 0xFFD9822B.toInt(), 'G' to 0xFFA24A1E.toInt(), 'h' to 0xFFF2C14E.toInt())),
+        sprite(OAK, oakBase + mapOf('g' to 0xFFE3ECF4.toInt(), 'G' to 0xFF9DB0C6.toInt(), 'h' to 0xFFFFFFFF.toInt())),
+    )
+    private val pineBase = mapOf(
+        'p' to 0xFF2F7F52.toInt(), 'P' to 0xFF1F5A3B.toInt(), 'q' to 0xFF4E9E6A.toInt(),
+        't' to 0xFF7A4B24.toInt(), 'T' to 0xFF54331A.toInt(),
+    )
+    val pineS: List<ImageBitmap> = listOf(
+        sprite(PINE, pineBase + mapOf('p' to 0xFF3A9A5A.toInt(), 'P' to 0xFF246E44.toInt(), 'q' to 0xFF7CCB8A.toInt())),
+        sprite(PINE, pineBase),
+        sprite(PINE, pineBase + mapOf('p' to 0xFF4C7A3C.toInt(), 'P' to 0xFF35592B.toInt(), 'q' to 0xFF8FA84A.toInt())),
+        sprite(PINE, pineBase + mapOf('p' to 0xFF3C6B58.toInt(), 'P' to 0xFF274E40.toInt(), 'q' to 0xFFF2F7FB.toInt())),
+    )
+    private val bushBase = mapOf('g' to 0xFF3E8E41.toInt(), 'G' to 0xFF2C6B33.toInt(), 'h' to 0xFF6BB85A.toInt(), 'r' to 0xFFE0405A.toInt())
+    private val bushPals: List<Map<Char, Int>> = listOf(
+        bushBase + mapOf('g' to 0xFF5BB04E.toInt(), 'h' to 0xFF8CD070.toInt(), 'r' to 0xFFFF9AC8.toInt()),
+        bushBase,
+        bushBase + mapOf('g' to 0xFFB8742A.toInt(), 'G' to 0xFF8A4A1E.toInt(), 'h' to 0xFFE0A83C.toInt()),
+        bushBase + mapOf('g' to 0xFFDCE6EF.toInt(), 'G' to 0xFF93A6BC.toInt(), 'h' to 0xFFFFFFFF.toInt()),
+    )
+    val bushS: List<ImageBitmap> = bushPals.map { sprite(BUSH, it) }
+    val bushEmptyS: List<ImageBitmap> = bushPals.map { sprite(BUSH.map { r -> r.replace('r', 'g') }, it) }
+    private val farmBase = mapOf(
+        'd' to 0xFF6B4A2B.toInt(), 'D' to 0xFF573A20.toInt(), 'g' to 0xFF7BC043.toInt(),
+        'G' to 0xFFE8C547.toInt(), 'f' to 0xFF8B6B45.toInt(),
+    )
+    val farmS: List<ImageBitmap> = listOf(
+        sprite(FARM, farmBase + mapOf('g' to 0xFF9AD55A.toInt(), 'G' to 0xFFFFF2A8.toInt())),
+        sprite(FARM, farmBase),
+        sprite(FARM, farmBase + mapOf('g' to 0xFFC9A23A.toInt(), 'G' to 0xFFE0822B.toInt())),
+        sprite(FARM, farmBase + mapOf('d' to 0xFF8A7A6A.toInt(), 'D' to 0xFF6E6054.toInt(), 'g' to 0xFFDCE6EF.toInt(), 'G' to 0xFFFFFFFF.toInt())),
+    )
     val well = sprite(WELL, mapOf(
         'R' to 0xFFB5533C.toInt(), 'b' to 0xFF7A4B24.toInt(), 's' to 0xFF9AA0AA.toInt(), 'S' to 0xFF2B68AE.toInt(), 'd' to 0xFF6B707A.toInt(),
     ))
