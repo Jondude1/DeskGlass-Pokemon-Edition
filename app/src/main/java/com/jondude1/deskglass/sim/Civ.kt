@@ -4183,15 +4183,16 @@ class CivSim(
         }
     }
 
-    private fun stepPredator(p: Predator, dx: Float, dy: Float) {
+    private fun stepPredator(p: Predator, dx: Float, dy: Float): Boolean {
         val nx = (p.x + dx).coerceIn(0.5f, GW - 0.6f)
         val ny = (p.y + dy).coerceIn(0.5f, GH - 0.6f)
         if (tiles[ny.toInt() * GW + nx.toInt()] == T.WATER) {
             p.angle += 1.7f
-            return
+            return false
         }
         p.x = nx
         p.y = ny
+        return true
     }
 
     private fun isFighter(v: Villager) = !isChild(v) && v.hp > 35f &&
@@ -4384,8 +4385,16 @@ class CivSim(
                     } else {
                         val tx = if (p.x < GW / 2f) GW / 2f - OLD_GW / 2f - 1f else GW / 2f + OLD_GW / 2f + 1f
                         val td = max(0.1f, abs(tx - p.x))
-                        stepPredator(p, (tx - p.x) / td * speed * (if (p.looted) 1.2f else 1f), (GH / 2f - p.y) * 0.02f * dt)
-                        if (abs(p.x - tx) < 1.2f) {
+                        val fleeStep = (tx - p.x) / td * speed * (if (p.looted) 1.2f else 1f)
+                        val moved = stepPredator(p, fleeStep, (GH / 2f - p.y) * 0.02f * dt)
+                        if (!moved) {
+                            // a lake or river in the way: slide along the shore until the way is clear (thieves used to stall here forever)
+                            val side = if (p.y < GH / 2f) 1f else -1f
+                            if (!stepPredator(p, 0f, side * abs(fleeStep))) stepPredator(p, 0f, -side * abs(fleeStep))
+                        }
+                        // a thief that dawdles too long melts into the woods rather than haunting the village
+                        val gaveUp = p.life > (if (p.looted) 150f else 260f) && fires.none { hypot(it.x + 0.5f - p.x, it.y + 0.5f - p.y) < 6f }
+                        if (abs(p.x - tx) < 1.2f || gaveUp) {
                             predators.remove(p)
                             gone = true
                             if (p.looted && p.lootF + p.lootW > 0) {
@@ -4492,12 +4501,17 @@ class CivSim(
             }
             if (gone) continue
             if (p.kind == "pilferer") prey = null
-            if (p.life > (if (p.kind == "ogre" || p.kind == "drake" || p.kind == "golem" || p.kind == "warlord" || p.kind == "lich" || p.kind == "troll") 320f else 150f) && prey == null) {
+            if (p.life > (if (p.kind == "ogre" || p.kind == "drake" || p.kind == "golem" || p.kind == "warlord" || p.kind == "lich" || p.kind == "troll") 320f else 150f) && prey == null && p.hp > 0f) {
                 // the hunt is over: slip away toward the nearest map edge
                 val tx = if (p.x < GW / 2f) GW / 2f - OLD_GW / 2f - 1f else GW / 2f + OLD_GW / 2f + 1f
                 val d = max(0.1f, abs(tx - p.x))
-                stepPredator(p, (tx - p.x) / d * speed, 0f)
-                if (abs(p.x - tx) < 1.2f) {
+                val outStep = (tx - p.x) / d * speed
+                if (!stepPredator(p, outStep, 0f)) {
+                    // water in the way: slide along the shore (foes used to freeze on a lake edge and haunt the village for hours)
+                    val side = if (p.y < GH / 2f) 1f else -1f
+                    if (!stepPredator(p, 0f, side * abs(outStep))) stepPredator(p, 0f, -side * abs(outStep))
+                }
+                if (abs(p.x - tx) < 1.2f || p.life > 480f) {
                     predators.remove(p)
                     if (predators.isEmpty()) event("The ${p.kind}s slink back into the woods. The village breathes again.")
                 }
