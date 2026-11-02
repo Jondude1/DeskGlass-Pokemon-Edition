@@ -145,6 +145,7 @@ private fun recordsPage(sim: CivSim) {
         "Critters" to "${cw.critters.size} kept · ${cw.caught.size} species summoned · ${cw.seen.size} seen · ${cw.tourneys} tournaments",
         "Graveyard" to (if (sim.buried == 0) "no one has been laid to rest yet" else "${sim.buried} laid to rest · ${sim.mournVisits} visits with flowers" + (sim.graves.lastOrNull()?.let { " · latest: ${it.name} the ${it.job.lowercase()}, ${it.ageYears}, ${it.cause}" } ?: "")),
         "Town wall" to (if (sim.wallsRaised == 0) "not begun (masons start in the Village Age)" else "${sim.wallsRaised} pieces raised" + (if (sim.wallDone) " · the ring is closed, gates open on every side" else " · still growing") + " · foes lost ${sim.wallHoldSecs.toInt()}s at the ramparts"),
+        "Great Cathedral" to (if (sim.cathX < 0) "not begun (the village starts it in the City Age with 16+ people and spare wood and stone)" else "tier ${sim.cathTier()} of 5" + (if (sim.cathTier() in 1..4) " · next: ${sim.cathTierName(sim.cathTier() + 1)}" else "") + " · ${sim.cathTrips} loads laid" + (if (sim.cathTier() >= 5) " · bell has tolled ${sim.cathBells} dawns" else "")),
         "Builders" to "${sim.buildings.count { it.type != "wall" && it.type != "gate" }} buildings · ${sim.titlesEarned} titles earned",
         "Stores" to "food ${sim.food} · wood ${sim.wood} · stone ${sim.stone} · hides ${sim.hides} · metal ${sim.metal}",
     )

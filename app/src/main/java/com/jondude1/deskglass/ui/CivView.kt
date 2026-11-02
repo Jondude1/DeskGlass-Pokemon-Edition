@@ -1041,6 +1041,7 @@ private fun DrawScope.drawWorld(
     feteSite(sim, geo)
     heroStatues(sim, geo)
     graveyard(sim, geo)
+    cathedral(sim, geo)
     reaverShip(sim, geo)
     trollRocks(sim, geo)
     riftSite(sim, geo)

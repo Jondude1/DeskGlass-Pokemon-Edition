@@ -116,6 +116,7 @@ fun main(args: Array<String>) {
     println("PASTURE built=${sim.buildings.count { it.type == "pasture" }} visits=${sim.pastureVisits} eggs=${sim.eggsGathered} fleeces=${sim.fleeces} sheep=${sim.sheepNow()} hens=${sim.hensNow()}")
     println("DOCK built=${sim.buildings.count { it.type == "dock" }} sails=${sim.sailTrips} dockCatch=${sim.dockCatch} bottles=${sim.bottlesFound}")
     println("QUARRYAT ${sim.buildings.filter { it.type == "quarry" }.map { (it.built / 3600.0) }} now=${sim.time / 3600.0}")
+    println("CATH tier=${sim.cathTier()}/5 work=${sim.cathWork} trips=${sim.cathTrips} bells=${sim.cathBells} site=${sim.cathX},${sim.cathY} jubilee=${sim.jubileeUntil > 0} wood=${sim.wood} stone=${sim.stone}")
     println("MILL built=${sim.buildings.count { it.type == "mill" }} grinds=${sim.millGrinds} flour=${sim.flourMade} loaves=${sim.loavesBaked} food=${sim.food}")
     println("WALL raised=${sim.wallsRaised} gates=${sim.buildings.count { it.type == "gate" }} done=${sim.wallDone} planLeft=${sim.wallPlan.size} holdSecs=${"%.0f".format(sim.wallHoldSecs)} stone=${sim.stone}")
     println("QUARRY built=${sim.buildings.count { it.type == "quarry" }} hauls=${sim.quarryHauls} stone=${sim.quarryStone} veins=${sim.quarryVeins} storeStone=${sim.stone}")
