@@ -103,6 +103,7 @@ private fun lorePage(sim: CivSim) {
         Text("${next.name} · $pct% · costs ${next.cost}", color = Glass.Ink, fontSize = 15.sp, fontWeight = FontWeight.Medium)
         Text("${sim.research}/${next.need} lore. ${next.text}", color = Glass.InkDim, fontSize = 12.sp)
     }
+    if (next == null && libs > 0 && sim.techs.size < sim.allTechs.size) Text("The scholars have learned all they can for now. Higher learning opens in the Town Age.", color = Glass.InkFaint, fontSize = 13.sp)
     SectionLabel("DISCOVERIES")
     for (t in sim.allTechs) {
         val done = sim.hasTech(t.id)

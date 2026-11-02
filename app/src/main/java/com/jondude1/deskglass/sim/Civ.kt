@@ -492,7 +492,7 @@ class CivSim(
     private var studied = 0
 
     // ---- library research: scholars earn lore points, the village unlocks discoveries ----
-    class Tech(val id: String, val name: String, val need: Int, val cost: String, val text: String)
+    class Tech(val id: String, val name: String, val need: Int, val cost: String, val text: String, val minAge: Int = 0)
     val allTechs: List<Tech> = listOf(
         Tech("farm", "Crop Rotation", 150, "150 food", "Berries and farm harvests yield +1 food."),
         Tech("saws", "Two-Man Saws", 450, "120 wood", "Every load of wood is one log bigger."),
@@ -501,6 +501,14 @@ class CivSim(
         Tech("vault", "Granary Vaults", 2300, "200 stone, 100 wood", "Every store holds a fifth more."),
         Tech("siege", "Siege Craft", 3300, "10 metal, 100 wood", "Ballistae shoot faster and hit harder."),
         Tech("stars", "Star Charts", 4600, "250 stone", "Wonders bless twice as strongly; scouts find richer caches."),
+        // higher learning: opens in the Town Age once the first seven are known
+        Tech("mill2", "Geared Millstones", 5600, "150 wood, 40 stone", "Every grinding at the windmill yields two more meals.", 3),
+        Tech("hives", "Skep Husbandry", 6800, "120 wood, 30 food", "Honey harvests yield two more meals.", 3),
+        Tech("roads", "Paved Roads", 8200, "150 stone", "Everyone walks a twelfth faster.", 3),
+        Tech("blades", "Forged Blades", 9800, "12 metal, 100 wood", "Fighters hit harder; the bandit camp falls faster.", 3),
+        Tech("feast", "Feast Craft", 11500, "200 food, 60 wood", "Loaves, mead and cider feasts come round more often.", 3),
+        Tech("scribes", "Copyists' Hall", 13500, "200 wood, 100 stone", "Every reading adds an extra page of lore.", 3),
+        Tech("marvels", "Age of Marvels", 15800, "250 stone, 250 wood", "Each load at the cathedral counts for more.", 3),
     )
     val techs = LinkedHashSet<String>()
     var research = 0
@@ -508,7 +516,9 @@ class CivSim(
     var discoveryFx = -100.0
     private var nextResearchAt = 0.0
     fun hasTech(id: String) = id in techs
-    fun nextTech(): Tech? = allTechs.firstOrNull { it.id !in techs }
+    fun nextTech(): Tech? = allTechs.firstOrNull { it.id !in techs }?.takeIf { age >= it.minAge }
+    /** Discoveries of the higher learning that the scholars have made. */
+    fun higherTechs(): Int = allTechs.count { it.minAge > 0 && it.id in techs }
     var tavernVisits = 0
     var recoveries = 0
     var ballistaShots = 0
@@ -2243,14 +2253,14 @@ class CivSim(
                 v.happiness = min(100f, v.happiness + 3f)
                 studied++
                 studyCount++
-                research += 1 + (if (v.job == "Storyteller" || v.job == "Scholar") 1 else 0) + (if (count("library") >= 2) 1 else 0)
+                research += 1 + (if (v.job == "Storyteller" || v.job == "Scholar") 1 else 0) + (if (count("library") >= 2) 1 else 0) + (if (hasTech("scribes")) 1 else 0)
                 if (studied % 6 == 1) addLog("${v.name} studies in the library.")
                 v.remember("read in the library")
                 finish(v)
             }
             "assault_camp" -> {
                 if (campUp) {
-                    val dmg = 8f + rnd.nextInt(7) + (if (isFighter(v)) 5f else 0f) + toolBonus() * 1.5f
+                    val dmg = 8f + rnd.nextInt(7) + (if (isFighter(v)) 5f else 0f) + toolBonus() * 1.5f + (if (hasTech("blades")) 4f else 0f)
                     campHp -= dmg
                     campHits++
                     campHitAt = time
@@ -2269,13 +2279,13 @@ class CivSim(
                 if (jars >= 1) {
                     honeyMark = max(honeyMark, time - HONEY_EVERY * 4 * max(1, count("apiary"))) + HONEY_EVERY
                     honeyHarvests++
-                    val got = 3 + min(3, jars) + (if (v.job == "Farmer") 1 else 0)
+                    val got = 3 + min(3, jars) + (if (v.job == "Farmer") 1 else 0) + (if (hasTech("hives")) 2 else 0)
                     var what = "smokes the hives and takes $got meals of honey"
                     val room = max(0, capFood() - food)
                     if (room < got) { goods += 1; what = "takes honey from the hives and sells the surplus (+1 goods)" }
                     food += min(room, got); goods += 1; honeyJars += 1
                     if (honeyHarvests % 4 == 0) { beeStings++; v.hp = max(20f, v.hp - 3f); what = "is stung while taking the honey, but fills the jars all the same" }
-                    if (honeyHarvests % 5 == 0) {
+                    if (honeyHarvests % (if (hasTech("feast")) 4 else 5) == 0) {
                         meadFeasts++
                         for (o in villagers) if (hypot(o.x - v.x, o.y - v.y) < 7f) o.happiness = min(100f, o.happiness + 5f)
                         what = "opens a fresh pot of honey and shares honey cakes round"
@@ -2478,7 +2488,7 @@ class CivSim(
                 if (cathX >= 0 && wood >= 10 && stone >= 10 && cathWork < CATH_STEPS.last()) {
                     wood -= 10; stone -= 10
                     val before = cathTier()
-                    cathWork += if (v.job == "Builder" || v.job == "Miner") 2 else 1
+                    cathWork += (if (v.job == "Builder" || v.job == "Miner") 2 else 1) + (if (hasTech("marvels")) 1 else 0)
                     cathTrips++
                     fx.add(Fx("spawn", cathX + 2.5f, cathY + 1.5f, time, 1.0f))
                     if (cathTier() > before) cathTierUp(cathTier())
@@ -2494,12 +2504,12 @@ class CivSim(
                 // the windmill: grain from the farms is ground to flour and baked, so a farm feeds more mouths
                 millGrinds++
                 val farms = count("farm")
-                var got = 3 + rnd.nextInt(3) + min(3, farms / 2) + (if (v.job == "Farmer") 2 else 0) + (if (hasTech("farm")) 1 else 0)
+                var got = 3 + rnd.nextInt(3) + min(3, farms / 2) + (if (v.job == "Farmer") 2 else 0) + (if (hasTech("farm")) 1 else 0) + (if (hasTech("mill2")) 2 else 0)
                 val room = max(0, capFood() - food)
                 var what = "grinds grain at the windmill into $got meals of flour"
                 if (room < got) { goods += 1; what = "grinds the surplus grain at the windmill and sells the flour (+1 goods)"; got = room }
                 food += got; flourMade += got
-                if (millGrinds % 6 == 0) {
+                if (millGrinds % (if (hasTech("feast")) 4 else 6) == 0) {
                     loavesBaked++
                     for (o in villagers) if (hypot(o.x - v.x, o.y - v.y) < 7f) o.happiness = min(100f, o.happiness + 4f)
                     goods += 1
@@ -4950,7 +4960,7 @@ class CivSim(
             }
             val fighters = villagers.filter { isFighter(it) && hypot(it.x - p.x, it.y - p.y) < 2.6f }
             if (fighters.isNotEmpty()) {
-                p.hp -= fighters.size * (6f + 3f * toolBonus()) * (if (p.kind == "wraith") 0.5f else if (p.kind == "golem") 0.6f else 1f) * dt
+                p.hp -= fighters.size * (6f + 3f * toolBonus() + (if (hasTech("blades")) 2.5f else 0f)) * (if (p.kind == "wraith") 0.5f else if (p.kind == "golem") 0.6f else 1f) * dt
                 if (rnd.nextInt(40) == 0) fx.add(Fx("clash", p.x, p.y, time, 0.8f))
             }
             if (p.hp <= 0f) {
@@ -5361,7 +5371,9 @@ class CivSim(
             Deed("omen", "Good Omens", "Read three omens of plenty at the totem.", "+20 food") { omens >= 3 },
             Deed("lore1", "First Discovery", "The scholars made their first discovery.", "+20 food, +10 stone") { techs.size >= 1 },
             Deed("lore4", "Learned Folk", "Four discoveries made in the library.", "+30 wood, +20 stone") { techs.size >= 4 },
-            Deed("lore7", "Age of Wisdom", "Every discovery made. Nothing is left to learn.", "+10 metal, joy for all") { techs.size >= allTechs.size },
+            Deed("lore7", "Age of Wisdom", "The first seven discoveries made.", "+10 metal, joy for all") { techs.size >= 7 },
+            Deed("lore10", "Higher Learning", "Three discoveries of the Town Age scholars.", "+40 wood, +40 stone") { higherTechs() >= 3 },
+            Deed("lore14", "Age of Marvels", "All fourteen discoveries made.", "+15 metal, joy for all") { techs.size >= 14 },
             Deed("siege1", "Siege Engines", "Raised a great ballista.", "+15 wood, +5 stone") { count("ballista") >= 1 },
             Deed("siege10", "Bolt from Afar", "Felled ten foes with ballista bolts.", "+10 metal, +10 stone") { ballistaKills >= 10 },
             Deed("healer", "Mended and Whole", "Tended the hurt at the infirmary twenty times.", "+20 food, +10 stone") { recoveries >= 20 },
@@ -5457,6 +5469,13 @@ class CivSim(
         "herbal" -> food >= 200
         "vault" -> stone >= 200 && wood >= 100
         "siege" -> metal >= 10 && wood >= 100
+        "mill2" -> wood >= 150 && stone >= 40
+        "hives" -> wood >= 120 && food >= 30
+        "roads" -> stone >= 150
+        "blades" -> metal >= 12 && wood >= 100
+        "feast" -> food >= 200 && wood >= 60
+        "scribes" -> wood >= 200 && stone >= 100
+        "marvels" -> stone >= 250 && wood >= 250
         else -> stone >= 250
     }
 
@@ -5468,6 +5487,13 @@ class CivSim(
             "herbal" -> food -= 200
             "vault" -> { stone -= 200; wood -= 100 }
             "siege" -> { metal -= 10; wood -= 100 }
+            "mill2" -> { wood -= 150; stone -= 40 }
+            "hives" -> { wood -= 120; food -= 30 }
+            "roads" -> stone -= 150
+            "blades" -> { metal -= 12; wood -= 100 }
+            "feast" -> { food -= 200; wood -= 60 }
+            "scribes" -> { wood -= 200; stone -= 100 }
+            "marvels" -> { stone -= 250; wood -= 250 }
             else -> stone -= 250
         }
     }
@@ -6228,7 +6254,7 @@ class CivSim(
         s["harvest"] = 0.15f + fLack * 1.6f + (if (seasonIdx() == 2) 0.25f else 0f) - (if (lastPolicy == "harvest") 0.5f else 0f)
         s["works"] = 0.2f + max(wLack, sLack) * 1.2f + (if (villagers.size >= popCap() - 1) 0.3f else 0f) - (if (lastPolicy == "works") 0.5f else 0f)
         s["watch"] = (if (recent) 0.55f else 0.05f) + (if (campUp) 0.3f else 0f) + (if (ad >= 6 && count("tower") == 0) 0.25f else 0f) - (if (lastPolicy == "watch") 0.5f else 0f)
-        s["lore"] = if (count("library") > 0 && techs.size < 7) 0.5f - (if (lastPolicy == "lore") 0.5f else 0f) else 0f
+        s["lore"] = if (count("library") > 0 && nextTech() != null) 0.5f - (if (lastPolicy == "lore") 0.5f else 0f) else 0f
         s["cheer"] = (if (avgHappy() < 70f) (70f - avgHappy()) / 40f + 0.1f else 0.12f) - (if (lastPolicy == "cheer") 0.5f else 0f)
         return s
     }
@@ -6366,7 +6392,7 @@ class CivSim(
             "harvest" -> "food stands at $food"
             "works" -> "the stores hold $wood wood and $stone stone"
             "watch" -> if (time - lastThreatAt < DAY_LEN * 1.5) "beasts came to the village lately" else "the watch must stay sharp"
-            "lore" -> "${techs.size} of 7 discoveries are made"
+            "lore" -> "${techs.size} of ${allTechs.size} discoveries are made"
             else -> "spirits stand at ${avgHappy().toInt()} out of 100"
         }
         event("The council votes ${policyTitle()} ($why): ${policyVotes} of ${policyOf} agree to ${policyBlurb()}.")
@@ -6690,7 +6716,7 @@ class CivSim(
         val dx = tx - v.x
         val dy = ty - v.y
         val dist = hypot(dx, dy)
-        val step = SPEED * dt * webSlow(v)
+        val step = SPEED * dt * webSlow(v) * (if (hasTech("roads")) 1.08f else 1f)
         if (abs(dx) > 0.01f) v.facing = if (dx > 0) 1 else -1
         if (dist <= step) {
             v.x = tx

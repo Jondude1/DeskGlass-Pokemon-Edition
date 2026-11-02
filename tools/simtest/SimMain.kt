@@ -154,7 +154,7 @@ fun main(args: Array<String>) {
     }
     println("COUNCIL held=${sim.councilsHeld} seats=${sim.councilSeats} policies=${sim.policyKinds} steered=${sim.policyActs} won=${sim.policiesWon} lost=${sim.policiesLost} now=${sim.policy} on=${sim.councilOn}")
     run { val tv = sim.buildings.count { it.type == "tavern" }; println("TAVERN built=$tv visits=${sim.tavernVisits}") }
-    run { println("RESEARCH studies=${sim.studyCount} points=${sim.research} libs=${sim.buildings.count { it.type == "library" }} techs=${sim.techs.size}/${sim.allTechs.size} list=${sim.techs.joinToString(",")}") }
+    run { println("RESEARCH studies=${sim.studyCount} points=${sim.research} libs=${sim.buildings.count { it.type == "library" }} techs=${sim.techs.size}/${sim.allTechs.size} higher=${sim.higherTechs()} age=${sim.age} list=${sim.techs.joinToString(",")}") }
     println("DEEDS ${sim.deeds.size}/${sim.allDeeds.size} renown=${sim.renownTitle()} ${sim.deeds}")
     run {
         val keys = perP.keys.sorted()
