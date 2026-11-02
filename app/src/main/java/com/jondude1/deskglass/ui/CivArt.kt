@@ -319,6 +319,10 @@ class CivArt {
         'k' to 0xFF1E1A16.toInt(), 'o' to 0xFFD08A2A.toInt(), 'B' to 0xFF8C5A2B.toInt(), 'e' to 0xFFE8C547.toInt(),
         'r' to 0xFF2F5F9A.toInt(), 'c' to 0xFF6B4A2B.toInt(), 'a' to 0xFFD8DCE4.toInt(), 'A' to 0xFF9A9EA8.toInt(),
     ))
+    val troll = sprite(TROLL, mapOf(
+        'g' to 0xFF6E8F4E.toInt(), 'G' to 0xFF4F6B38.toInt(), 'e' to 0xFFFFD84A.toInt(), 'k' to 0xFF2A2A22.toInt(),
+        'w' to 0xFFF2EAD0.toInt(), 'm' to 0xFF7A5A3A.toInt(),
+    ))
     val hornet = sprite(HORNET, mapOf(
         'y' to 0xFFF2C830.toInt(), 'k' to 0xFF1E1A16.toInt(), 'w' to 0xFFD8F0FF.toInt(), 'r' to 0xFFD04A2A.toInt(),
     ))
@@ -1159,6 +1163,21 @@ class CivArt {
             "...rrrrr.c.",
             "...rr.rr...",
             "..kkk.kkk..",
+        )
+        val TROLL = listOf(
+            "....gggg....",
+            "...gGGGGg...",
+            "..gGeGGeGg..",
+            "..gGGGGGGg..",
+            "..gwkkkkwg..",
+            "gg.gggggg.gg",
+            "GGggGggGggGG",
+            "GGmmmmmmmmGG",
+            "GG.mmmmmm.GG",
+            "gg.gggggg.gg",
+            "...gg..gg...",
+            "..ggg..ggg..",
+            ".kkkk..kkkk.",
         )
         val HORNET = listOf(
             "ww....ww",

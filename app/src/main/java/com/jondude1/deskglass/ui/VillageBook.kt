@@ -137,7 +137,7 @@ private fun recordsPage(sim: CivSim) {
     val cw = sim.critters
     val rows = listOf(
         "Village" to "${sim.ageName()} · day ${sim.day()} · ${sim.villagers.size}/${sim.popCap()} villagers · ${sim.babiesBorn} babies born · ${sim.weds} weddings",
-        "War" to "${sim.raidsRepelled} raids beaten · ${sim.ogresSlain} ogres · ${sim.bossesSlain} bosses · ${sim.warlordsSlain} warlords · ${sim.golemsSlain} golems · ${sim.lichesSlain} liches · ${sim.reaversSlain} sea reavers · ${sim.shipsSeized} longships burned",
+        "War" to "${sim.raidsRepelled} raids beaten · ${sim.ogresSlain} ogres · ${sim.bossesSlain} bosses · ${sim.warlordsSlain} warlords · ${sim.golemsSlain} golems · ${sim.lichesSlain} liches · ${sim.reaversSlain} sea reavers · ${sim.trollsSlain} trolls slain · ${sim.trollsStoned} turned to stone · ${sim.shipsSeized} longships burned",
         "Fetes" to "${sim.fetesHeld} held · ${sim.feteRevels} dances · ${sim.feteKinds.size} of 4 kinds seen" + (if (sim.feteOn) " · the ${sim.feteTitle()} is on now" else ""),
         "Fallen stars" to "${sim.starsFallen} fell · ${sim.starShardsGot} starmetal shards gathered" + (if (sim.starReady()) " · ${sim.starShards} shards still glitter in a crater" else ""),
         "Bandit camps" to "${sim.campsRazed} razed · ${sim.campHits} blows struck · ${sim.campSorties} raids sent" + (if (sim.campUp) " · a camp stands, ${(sim.campHp / sim.campMax * 100).toInt()}% strength" else ""),
