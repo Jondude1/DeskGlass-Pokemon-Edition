@@ -137,6 +137,12 @@ fun main(args: Array<String>) {
     println("SEASONFUN snowmen=${sim.snowmenBuilt} leafPiles=${sim.leafPilesRaked} kites=${sim.kitesFlown} propsNow=${sim.seasonProps.map { it.kind }} total=${sim.snowmenBuilt + sim.leafPilesRaked + sim.kitesFlown}")
     println("PETS dogs=${sim.pets.size} adopted=${sim.dogsAdopted} walks=${sim.dogWalks} barks=${sim.dogBarks} onMap=${sim.fauna.animals.count { it.kind == "dog" }} names=${sim.pets.map { it.name + ":" + it.bond }}")
     println("FETE held=${sim.fetesHeld} revels=${sim.feteRevels} kinds=${sim.feteKinds} on=${sim.feteOn}")
+    run {
+        val adults = sim.villagers.filter { !sim.isChild(it) }
+        val lvls = adults.flatMap { v -> listOf("wood","stone","farm","fish","build","combat","lore","craft","hunt").map { sim.skillLevel(v, it) } }
+        val best = adults.maxOfOrNull { v -> listOf("wood","stone","farm","fish","build","combat","lore","craft","hunt").maxOf { sim.skillLevel(v, it) } } ?: 0
+        println("SKILLS ups=${sim.skillUps} masters=${sim.skillMasters} bonusLoads=${sim.skillBonusLoads} skilledPairs(lv>=3)=${lvls.count { it >= 3 }} lv5+=${lvls.count { it >= 5 }} best=$best titles=${sim.villagers.sumOf { it.titles.size }}")
+    }
     println("COUNCIL held=${sim.councilsHeld} seats=${sim.councilSeats} policies=${sim.policyKinds} steered=${sim.policyActs} won=${sim.policiesWon} lost=${sim.policiesLost} now=${sim.policy} on=${sim.councilOn}")
     run { val tv = sim.buildings.count { it.type == "tavern" }; println("TAVERN built=$tv visits=${sim.tavernVisits}") }
     run { println("RESEARCH studies=${sim.studyCount} points=${sim.research} libs=${sim.buildings.count { it.type == "library" }} techs=${sim.techs.size}/${sim.allTechs.size} list=${sim.techs.joinToString(",")}") }

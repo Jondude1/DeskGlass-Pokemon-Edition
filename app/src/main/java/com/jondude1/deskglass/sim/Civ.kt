@@ -615,7 +615,7 @@ class CivSim(
         lastBirth = time
         hides = 0
         goods = 0
-        visitor = null; nextVisitAt = time + DAY_LEN * 1.2; visitStats.clear(); raidsRepelled = 0; ogresSlain = 0; bossesSlain = 0; warlordsSlain = 0; golemsSlain = 0; shamansSlain = 0; frostPacksBroken = 0; pilfersFoiled = 0; pilfersLost = 0; swarmsBroken = 0; hornetsSwatted = 0; lichesSlain = 0; bonesRaised = 0; lastLichAt = -999.0; reaversSlain = 0; trollsSlain = 0; trollsStoned = 0; trollBoulders = 0; lastTrollAt = -999.0; trollRocks.clear(); shipsSeized = 0; landings = 0; lastLandingAt = -999.0; shipUp = false; shipT = 0f; foeStats.clear(); lastWarlordAt = -999.0; goldenAt = -1.0; deeds.clear(); babiesBorn = 0; weds = 0; feudsStarted = 0; feudsEnded = 0; bffs.clear(); feudEnds.clear(); courting.clear(); weddingAt = -999.0; nextRelAt = 0.0; deedBannerAt = -999.0; nextDeedAt = 0.0; titlesEarned = 0; dreamsDone = 0; lastThreatAt = 0.0
+        visitor = null; nextVisitAt = time + DAY_LEN * 1.2; visitStats.clear(); raidsRepelled = 0; ogresSlain = 0; bossesSlain = 0; warlordsSlain = 0; golemsSlain = 0; shamansSlain = 0; frostPacksBroken = 0; pilfersFoiled = 0; pilfersLost = 0; swarmsBroken = 0; hornetsSwatted = 0; lichesSlain = 0; bonesRaised = 0; lastLichAt = -999.0; reaversSlain = 0; trollsSlain = 0; trollsStoned = 0; trollBoulders = 0; skillUps = 0; skillBonusLoads = 0; skillMasters = 0; lastTrollAt = -999.0; trollRocks.clear(); shipsSeized = 0; landings = 0; lastLandingAt = -999.0; shipUp = false; shipT = 0f; foeStats.clear(); lastWarlordAt = -999.0; goldenAt = -1.0; deeds.clear(); babiesBorn = 0; weds = 0; feudsStarted = 0; feudsEnded = 0; bffs.clear(); feudEnds.clear(); courting.clear(); weddingAt = -999.0; nextRelAt = 0.0; deedBannerAt = -999.0; nextDeedAt = 0.0; titlesEarned = 0; dreamsDone = 0; lastThreatAt = 0.0
         riftState = 0; party.clear(); expeditions = 0; expWins = 0; expRetreats = 0; roomsCleared = 0; relics = 0; deepestRoom = 0; wardensSlain = 0; nextRiftAt = time + DAY_LEN
         campUp = false; campsRazed = 0; campHits = 0; campSorties = 0; campRazedAt = -999.0; campHitAt = -999.0; campNextAt = time + DAY_LEN * 1.5
         nextThreatAt = DAY_LEN * 1.4; lastBossAt = -999.0
@@ -1520,6 +1520,95 @@ class CivSim(
         return false
     }
 
+    // ---- Villager skills: practice at a trade raises its level, which speeds work and enlarges gathered loads.
+    var skillUps = 0
+    var skillBonusLoads = 0
+    var skillMasters = 0
+    private val SKILL_NAMES = mapOf("wood" to "Woodcutting", "stone" to "Mining", "farm" to "Farming", "fish" to "Fishing", "build" to "Building", "combat" to "Fighting", "lore" to "Scholarship", "craft" to "Smithing", "hunt" to "Hunting")
+    private val MASTER_TITLES = mapOf("wood" to "the Master Woodcutter", "stone" to "the Master Miner", "farm" to "the Master Farmer", "fish" to "the Master Fisher", "build" to "the Master Mason", "combat" to "the Master-at-Arms", "lore" to "the Sage", "craft" to "the Master Smith", "hunt" to "the Master Hunter")
+
+    fun skillOf(action: String): String? = when {
+        action == "gather_wood" -> "wood"
+        action == "gather_stone" || action == "mine_ore" || action == "quarry" -> "stone"
+        action == "gather_food" || action == "tend_farm" || action == "grind" || action == "tend_bees" || action == "tend_flock" -> "farm"
+        action == "fish" || action == "sail" -> "fish"
+        action.startsWith("build_") || action == "raise_cathedral" -> "build"
+        action == "attack" || action == "drill" || action == "assault_camp" -> "combat"
+        action == "study" -> "lore"
+        action == "smelt" || action == "craft" -> "craft"
+        action == "hunt" -> "hunt"
+        else -> null
+    }
+
+    fun skillLevel(v: Villager, k: String): Int = kotlin.math.sqrt(v.stat("xp_$k") / 5.0).toInt().coerceAtMost(10)
+
+    fun skillRank(lv: Int): String = when {
+        lv <= 0 -> "Novice"
+        lv <= 2 -> "Apprentice"
+        lv <= 5 -> "Skilled"
+        lv <= 8 -> "Expert"
+        lv == 9 -> "Veteran"
+        else -> "Master"
+    }
+
+    /** Progress to the next level, 0..1 (1 at the cap). */
+    fun skillProgress(v: Villager, k: String): Float {
+        val lv = skillLevel(v, k)
+        if (lv >= 10) return 1f
+        val lo = lv * lv * 5f
+        val hi = (lv + 1) * (lv + 1) * 5f
+        return ((v.stat("xp_$k") - lo) / (hi - lo)).coerceIn(0f, 1f)
+    }
+
+    /** The villager's best skills for the hero view: label, level, progress. Top three with any practice. */
+    fun skillLines(v: Villager): List<Triple<String, Int, Float>> =
+        SKILL_NAMES.keys.filter { v.stat("xp_$it") > 0 }.sortedByDescending { v.stat("xp_$it") }.take(3)
+            .map { Triple(SKILL_NAMES[it] ?: it, skillLevel(v, it), skillProgress(v, it)) }
+
+    private fun skillSpeed(v: Villager): Float {
+        val k = skillOf(v.action) ?: return 1f
+        return 1f + 0.03f * skillLevel(v, k)
+    }
+
+    private fun skillYield(v: Villager): Int {
+        val k = skillOf(v.action) ?: return 0
+        val lv = skillLevel(v, k)
+        val b = if (lv >= 9) 2 else if (lv >= 5) 1 else 0
+        if (b > 0 && (v.action.startsWith("gather_") || v.action == "mine_ore")) skillBonusLoads += b
+        return b
+    }
+
+    private fun skillGain(v: Villager) {
+        if (isChild(v)) return
+        val k = skillOf(v.action) ?: return
+        val before = skillLevel(v, k)
+        v.bump("xp_$k")
+        val after = skillLevel(v, k)
+        if (after <= before) return
+        skillUps++
+        val nm = SKILL_NAMES[k] ?: k
+        fx.add(Fx("levelup", v.x, v.y, time, 1.6f))
+        v.happiness = min(100f, v.happiness + 3f)
+        v.addDiary("$nm level $after: now ${skillRank(after).lowercase()}.")
+        if (after == 5 || after == 9) {
+            addLog("${v.name} grows ${skillRank(after).lowercase()} at $nm (level $after) and now brings back bigger loads.")
+            v.remember("reached level $after in $nm")
+        }
+        if (after >= 10) {
+            val t = MASTER_TITLES[k]
+            skillMasters++
+            if (t != null && t !in v.titles) {
+                v.titles.add(t)
+                titlesEarned++
+                deedBannerAt = time; deedBannerTag = "MASTER"; deedBannerName = "${v.name} $t"; deedBannerSub = "Mastered $nm"
+                addLog("${v.name} masters $nm and is named $t.")
+                mark("${v.name} became $t.")
+                v.remember("mastered $nm and was named $t")
+                v.happiness = min(100f, v.happiness + 10f)
+            }
+        }
+    }
+
     private class TitleDef(val stat: String, val need: Int, val title: String, val why: String)
     private val TITLE_DEFS = listOf(
         TitleDef("slain", 6, "the Wolfbane", "helped slay 6 foes"),
@@ -1888,16 +1977,18 @@ class CivSim(
             critters.onWork(v)
             return
         }
-        v.workLeft -= dt
+        v.workLeft -= dt * skillSpeed(v)
         if (v.workLeft > 0f) return
         v.bump("a_" + v.action)
+        val sb = skillYield(v)
+        skillGain(v)
         when (v.action) {
             "gather_wood", "gather_stone", "gather_food", "mine_ore" -> {
                 val i = v.targetTile
                 if (i >= 0 && amt[i] > 0) {
                     amt[i]--
                     v.gathered++
-                    val y = 1 + toolBonus() + (if ((v.action == "gather_wood" && hasTech("saws")) || ((v.action == "gather_stone" || v.action == "mine_ore") && hasTech("quarry"))) 1 else 0)
+                    val y = 1 + sb + toolBonus() + (if ((v.action == "gather_wood" && hasTech("saws")) || ((v.action == "gather_stone" || v.action == "mine_ore") && hasTech("quarry"))) 1 else 0)
                     if ((v.action == "gather_wood" && wood >= capWood()) || (v.action == "gather_stone" && stone >= capStone()) ||
                         (v.action == "gather_food" && food >= capFood())
                     ) wastedGathers++
@@ -1905,7 +1996,7 @@ class CivSim(
                         "gather_wood" -> wood += y
                         "gather_stone" -> stone += y
                         "mine_ore" -> ore += y
-                        else -> food += 2 + toolBonus() + (if (time < totemBlessUntil) 1 else 0) + (if (hasTech("farm")) 1 else 0)
+                        else -> food += 2 + sb + toolBonus() + (if (time < totemBlessUntil) 1 else 0) + (if (hasTech("farm")) 1 else 0)
                     }
                     if (amt[i] == 0 && tiles[i] != T.BUSH) tiles[i] = T.GRASS
                 }
@@ -6030,7 +6121,7 @@ class CivSim(
             o.put("nextId", nextId)
             o.put("hides", hides)
             o.put("goods", goods)
-            o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("campUp", if (campUp) 1 else 0).put("campX", campX.toDouble()).put("campY", campY.toDouble()).put("campHp", campHp.toDouble()).put("campMax", campMax.toDouble()).put("campR", campsRazed).put("campH", campHits).put("campS", campSorties).put("expN", expeditions).put("expW", expWins).put("expR", expRetreats).put("expRooms", roomsCleared).put("relics", relics).put("expDeep", deepestRoom).put("wardens", wardensSlain).put("golems", golemsSlain).put("frostPacks", frostPacksBroken).put("pilfF", pilfersFoiled).put("pilfL", pilfersLost).put("swarms", swarmsBroken).put("hornets", hornetsSwatted).put("liches", lichesSlain).put("bones", bonesRaised).put("reavers", reaversSlain).put("trollS", trollsSlain).put("trollR", trollsStoned).put("trollB", trollBoulders).put("trollRocks", trollRocks.joinToString(",") { "${it[0].toInt()}:${it[1].toInt()}" }).put("ships", shipsSeized).put("landings", landings).put("shamans", shamansSlain).put("golden", goldenAt).put("visits", visitStats.entries.joinToString(",") { "${it.key}:${it.value}" }).put("deeds", deeds.joinToString(",")).put("tavern", tavernVisits).put("pets", pets.joinToString(",") { "${it.name}:${it.owner}:${it.bond}" }).put("dogA", dogsAdopted).put("dogW", dogWalks).put("dogB", dogBarks).put("fetes", fetesHeld).put("feteR", feteRevels).put("feteL", lastFeteSeason).put("feteK", feteKinds.joinToString(",")).put("snowmen", snowmenBuilt).put("leafR", leafPilesRaked).put("starsF", starsFallen).put("starG", starShardsGot).put("kites", kitesFlown).put("sprops", seasonProps.joinToString(",") { "${it.kind}:${it.x.toInt()}:${it.y.toInt()}" }).put("statues", statues.joinToString(";") { "${it.name}|${it.title}|${it.kind}|${it.x.toInt()}|${it.y.toInt()}|${it.tier}" }).put("statueC", statueCheers).put("graves", graves.joinToString(";") { "${it.name}|${it.job}|${it.x.toInt()}|${it.y.toInt()}|${it.ageYears}|${it.cause}|${it.day}" }).put("graveX", graveX).put("graveY", graveY).put("buried", buried).put("mournN", mournVisits).put("totemV", totemVisits).put("raised", raised).put("omens", omens).put("recov", recoveries).put("balS", ballistaShots).put("balK", ballistaKills).put("ranchV", ranchVisits).put("pastV", pastureVisits).put("sailN", sailTrips).put("millN", millGrinds).put("millF", flourMade).put("millL", loavesBaked).put("quarryN", quarryHauls).put("quarryS", quarryStone).put("quarryV", quarryVeins).put("vigN", vigils).put("vigP", vigilPoints).put("legCalls", legendCalls).put("dockC", dockCatch).put("bottles", bottlesFound).put("flockS", flockSheep).put("flockH", flockHens).put("eggsG", eggsGathered).put("fleece", fleeces).put("techs", techs.joinToString(",")).put("research", research).put("studyN", studyCount).put("babies", babiesBorn).put("dreams", dreamsDone).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" }).put("wallN", wallsRaised).put("wallX", wallCx).put("wallY", wallCy).put("wallD", if (wallDone) 1 else 0).put("wallH", wallHoldSecs.toDouble()).put("lessons", lessonsGiven).put("appMade", apprenticesMade).put("apprentice", apprentice.entries.joinToString(";") { "${it.key}:${it.value}" }).put("cathX", cathX).put("cathY", cathY).put("cathW", cathWork).put("cathT", cathTrips).put("cathB", cathBells).put("jubU", jubileeUntil).put("honeyN", honeyHarvests).put("honeyJ", honeyJars).put("honeyS", beeStings).put("honeyM", meadFeasts).put("honeyT", honeyMark).put("councN", councilsHeld).put("councS", councilSeats).put("councNext", councilNextAt).put("policy", policy).put("policyU", policyUntil).put("policyS", policyStart).put("policyB", policyBase.toDouble()).put("policyV", policyVotes).put("policyO", policyOf).put("policyA", policyActs).put("policyW", policiesWon).put("policyL", policiesLost).put("policyK", policyKinds.joinToString(","))
+            o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("campUp", if (campUp) 1 else 0).put("campX", campX.toDouble()).put("campY", campY.toDouble()).put("campHp", campHp.toDouble()).put("campMax", campMax.toDouble()).put("campR", campsRazed).put("campH", campHits).put("campS", campSorties).put("expN", expeditions).put("expW", expWins).put("expR", expRetreats).put("expRooms", roomsCleared).put("relics", relics).put("expDeep", deepestRoom).put("wardens", wardensSlain).put("golems", golemsSlain).put("frostPacks", frostPacksBroken).put("pilfF", pilfersFoiled).put("pilfL", pilfersLost).put("swarms", swarmsBroken).put("hornets", hornetsSwatted).put("liches", lichesSlain).put("bones", bonesRaised).put("reavers", reaversSlain).put("trollS", trollsSlain).put("trollR", trollsStoned).put("trollB", trollBoulders).put("trollRocks", trollRocks.joinToString(",") { "${it[0].toInt()}:${it[1].toInt()}" }).put("ships", shipsSeized).put("landings", landings).put("shamans", shamansSlain).put("golden", goldenAt).put("visits", visitStats.entries.joinToString(",") { "${it.key}:${it.value}" }).put("deeds", deeds.joinToString(",")).put("tavern", tavernVisits).put("pets", pets.joinToString(",") { "${it.name}:${it.owner}:${it.bond}" }).put("dogA", dogsAdopted).put("dogW", dogWalks).put("dogB", dogBarks).put("fetes", fetesHeld).put("feteR", feteRevels).put("feteL", lastFeteSeason).put("feteK", feteKinds.joinToString(",")).put("snowmen", snowmenBuilt).put("leafR", leafPilesRaked).put("starsF", starsFallen).put("starG", starShardsGot).put("kites", kitesFlown).put("sprops", seasonProps.joinToString(",") { "${it.kind}:${it.x.toInt()}:${it.y.toInt()}" }).put("statues", statues.joinToString(";") { "${it.name}|${it.title}|${it.kind}|${it.x.toInt()}|${it.y.toInt()}|${it.tier}" }).put("statueC", statueCheers).put("graves", graves.joinToString(";") { "${it.name}|${it.job}|${it.x.toInt()}|${it.y.toInt()}|${it.ageYears}|${it.cause}|${it.day}" }).put("graveX", graveX).put("graveY", graveY).put("buried", buried).put("mournN", mournVisits).put("totemV", totemVisits).put("raised", raised).put("omens", omens).put("recov", recoveries).put("balS", ballistaShots).put("balK", ballistaKills).put("ranchV", ranchVisits).put("pastV", pastureVisits).put("sailN", sailTrips).put("millN", millGrinds).put("millF", flourMade).put("millL", loavesBaked).put("quarryN", quarryHauls).put("quarryS", quarryStone).put("quarryV", quarryVeins).put("vigN", vigils).put("vigP", vigilPoints).put("legCalls", legendCalls).put("dockC", dockCatch).put("bottles", bottlesFound).put("flockS", flockSheep).put("flockH", flockHens).put("eggsG", eggsGathered).put("fleece", fleeces).put("techs", techs.joinToString(",")).put("research", research).put("studyN", studyCount).put("babies", babiesBorn).put("dreams", dreamsDone).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" }).put("wallN", wallsRaised).put("wallX", wallCx).put("wallY", wallCy).put("wallD", if (wallDone) 1 else 0).put("wallH", wallHoldSecs.toDouble()).put("lessons", lessonsGiven).put("appMade", apprenticesMade).put("apprentice", apprentice.entries.joinToString(";") { "${it.key}:${it.value}" }).put("cathX", cathX).put("cathY", cathY).put("cathW", cathWork).put("cathT", cathTrips).put("cathB", cathBells).put("jubU", jubileeUntil).put("honeyN", honeyHarvests).put("honeyJ", honeyJars).put("honeyS", beeStings).put("honeyM", meadFeasts).put("honeyT", honeyMark).put("councN", councilsHeld).put("councS", councilSeats).put("councNext", councilNextAt).put("policy", policy).put("policyU", policyUntil).put("policyS", policyStart).put("policyB", policyBase.toDouble()).put("policyV", policyVotes).put("policyO", policyOf).put("policyA", policyActs).put("policyW", policiesWon).put("policyL", policiesLost).put("policyK", policyKinds.joinToString(",")).put("skUp", skillUps).put("skB", skillBonusLoads).put("skM", skillMasters)
             o.put("traffic", String(CharArray(traffic.size) { i -> '0' + min(9, (traffic[i] / 4f).toInt()) }))
             val ks = JSONArray()
             kingdoms.forEach {
@@ -6155,7 +6246,7 @@ class CivSim(
             if (lg != null) for (i in 0 until lg.length()) log.add(lg.getString(i))
             hides = o.optInt("hides", 0)
             goods = o.optInt("goods", 0)
-            raidsRepelled = o.optInt("raids", 0); ogresSlain = o.optInt("ogres", 0); bossesSlain = o.optInt("bosses", 0); warlordsSlain = o.optInt("warlords", 0); golemsSlain = o.optInt("golems", 0); shamansSlain = o.optInt("shamans", 0); frostPacksBroken = o.optInt("frostPacks", 0); pilfersFoiled = o.optInt("pilfF", 0); pilfersLost = o.optInt("pilfL", 0); swarmsBroken = o.optInt("swarms", 0); hornetsSwatted = o.optInt("hornets", 0); lichesSlain = o.optInt("liches", 0); bonesRaised = o.optInt("bones", 0); reaversSlain = o.optInt("reavers", 0); trollsSlain = o.optInt("trollS", 0); trollsStoned = o.optInt("trollR", 0); trollBoulders = o.optInt("trollB", 0); trollRocks.clear(); o.optString("trollRocks", "").split(",").filter { it.contains(":") }.forEach { val q = it.split(":"); trollRocks.add(floatArrayOf(q[0].toFloat() + 0.5f, q[1].toFloat() + 0.5f)) }; shipsSeized = o.optInt("ships", 0); landings = o.optInt("landings", 0)
+            skillUps = o.optInt("skUp", 0); skillBonusLoads = o.optInt("skB", 0); skillMasters = o.optInt("skM", 0); raidsRepelled = o.optInt("raids", 0); ogresSlain = o.optInt("ogres", 0); bossesSlain = o.optInt("bosses", 0); warlordsSlain = o.optInt("warlords", 0); golemsSlain = o.optInt("golems", 0); shamansSlain = o.optInt("shamans", 0); frostPacksBroken = o.optInt("frostPacks", 0); pilfersFoiled = o.optInt("pilfF", 0); pilfersLost = o.optInt("pilfL", 0); swarmsBroken = o.optInt("swarms", 0); hornetsSwatted = o.optInt("hornets", 0); lichesSlain = o.optInt("liches", 0); bonesRaised = o.optInt("bones", 0); reaversSlain = o.optInt("reavers", 0); trollsSlain = o.optInt("trollS", 0); trollsStoned = o.optInt("trollR", 0); trollBoulders = o.optInt("trollB", 0); trollRocks.clear(); o.optString("trollRocks", "").split(",").filter { it.contains(":") }.forEach { val q = it.split(":"); trollRocks.add(floatArrayOf(q[0].toFloat() + 0.5f, q[1].toFloat() + 0.5f)) }; shipsSeized = o.optInt("ships", 0); landings = o.optInt("landings", 0)
             visitStats.clear()
             for (e in o.optString("visits", "").split(",")) { val kv = e.split(":"); if (kv.size == 2) visitStats[kv[0]] = kv[1].toIntOrNull() ?: 0 }
             goldenAt = o.optDouble("golden", -1.0)

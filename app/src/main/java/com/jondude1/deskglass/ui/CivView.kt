@@ -1195,6 +1195,19 @@ private fun DrawScope.drawWorld(
                     )
                 }
             }
+            "levelup" -> {
+                // a gold ring and rising chevrons: a skill just went up a level
+                drawCircle(Color(0xFFFFD84A).copy(alpha = 0.5f * (1f - p)), radius = ts * (0.2f + p * 1.1f), center = Offset(cx, cy - ts * 0.5f))
+                for (k in 0 until 3) {
+                    val q = ((p * 1.4f) - k * 0.18f).coerceIn(0f, 1f)
+                    val yy = cy - ts * (0.6f + q * 1.6f)
+                    val aa = (1f - q) * 0.95f
+                    val c = Color(0xFFFFF2A0).copy(alpha = aa)
+                    drawRect(c, Offset(cx - ps * 0.5f, yy - ps * 2f), Size(ps * 1f, ps * 2.4f))
+                    drawRect(c, Offset(cx - ps * 1.5f, yy - ps * 1f), Size(ps * 1f, ps * 1f))
+                    drawRect(c, Offset(cx + ps * 0.5f, yy - ps * 1f), Size(ps * 1f, ps * 1f))
+                }
+            }
             "spawn" -> {
                 drawCircle(Color.White.copy(alpha = 0.7f * (1f - p)), radius = ts * (0.3f + p * 1.8f), center = Offset(cx, cy))
                 drawRect(

@@ -68,6 +68,14 @@ fun VillagerPanel(sim: CivSim, id: Int, tick: Long, modifier: Modifier = Modifie
             sim.nextTitleText(v)?.let { Text(it, color = Glass.InkFaint, fontSize = 11.sp) }
         }
 
+        val skills = sim.skillLines(v)
+        if (skills.isNotEmpty()) {
+            Text("SKILLS", color = Glass.InkFaint, fontSize = 11.sp, letterSpacing = 2.sp, modifier = Modifier.padding(top = 6.dp))
+            for ((nm, lv, prog) in skills) {
+                Text("$nm  Lv $lv · ${sim.skillRank(lv)}" + (if (lv < 10) "  (${(prog * 100).toInt()}%)" else ""), color = Glass.InkDim, fontSize = 12.sp)
+            }
+        }
+
         Text("SUMMONING", color = Glass.InkFaint, fontSize = 11.sp, letterSpacing = 2.sp, modifier = Modifier.padding(top = 6.dp))
         when {
             !mage.revealed -> Text("Too young for the gift test.", color = Glass.InkDim, fontSize = 12.sp)

@@ -77,6 +77,10 @@ fun RpgHud(sim: CivSim, id: Int, tick: Long, modifier: Modifier = Modifier) {
                     color = Color(0xFFF2A6C4), fontSize = 11.sp, maxLines = 2,
                 )
             }
+            for ((nm, lv, prog) in sim.skillLines(v)) {
+                StatBar("L$lv", if (lv >= 10) 1f else prog, Color(0xFF8AD08A))
+                Text(nm + " · " + sim.skillRank(lv), color = Glass.InkFaint, fontSize = 10.sp)
+            }
             val career = sim.careerLines(v)
             if (career.isNotEmpty()) Text(career.take(4).joinToString(" · "), color = Glass.InkFaint, fontSize = 10.sp, maxLines = 2)
         }
