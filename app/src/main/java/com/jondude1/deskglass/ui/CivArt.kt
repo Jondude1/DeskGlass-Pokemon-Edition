@@ -394,6 +394,10 @@ class CivArt {
         'b' to 0xFF3A2A44.toInt(), 'B' to 0xFF5A4468.toInt(), 'r' to 0xFFFF4A3A.toInt(), 'y' to 0xFFD8C040.toInt(),
         'k' to 0xFF1A1220.toInt(), 'g' to 0xFF8CD84A.toInt(),
     ))
+    val harpy = listOf(
+        sprite(HARPY_UP, HARPY_PAL),
+        sprite(HARPY_DOWN, HARPY_PAL),
+    )
     val hornet = sprite(HORNET, mapOf(
         'y' to 0xFFF2C830.toInt(), 'k' to 0xFF1E1A16.toInt(), 'w' to 0xFFD8F0FF.toInt(), 'r' to 0xFFD04A2A.toInt(),
     ))
@@ -1333,6 +1337,34 @@ class CivArt {
             ".k.kbbbbk.k.",
             "k...kbbk...k",
             "....k..k....",
+        )
+        val HARPY_PAL = mapOf(
+            'f' to 0xFF8A5A3A.toInt(), 'F' to 0xFFB98A5A.toInt(), 'p' to 0xFFE8C9A0.toInt(), 'k' to 0xFF2A1E16.toInt(),
+            'y' to 0xFFE8B830.toInt(), 'r' to 0xFFD04A3A.toInt(), 'w' to 0xFFF4EEDC.toInt(),
+        )
+        val HARPY_UP = listOf(
+            "f..........f",
+            "ff........ff",
+            "fFf......fFf",
+            "fFFf.kk.fFFf",
+            ".fFFfpppfFf.",
+            "..fFfpkpfF..",
+            "...fFpppFf..",
+            "....fyyf....",
+            ".....yy.....",
+            "....y..y....",
+        )
+        val HARPY_DOWN = listOf(
+            "............",
+            "............",
+            "......kk....",
+            "....ffpppf..",
+            "..fFfFpkpFff",
+            ".fFFFfpppfFFf",
+            "fFFf.fFFf.fFf",
+            "ff..fyyf...ff",
+            "f....yy....f.",
+            ".....y..y...",
         )
         val HORNET = listOf(
             "ww....ww",
