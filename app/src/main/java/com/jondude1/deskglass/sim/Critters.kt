@@ -377,6 +377,38 @@ object Dex {
         (when (sp.rarity) { 1 -> 0.55f; 2 -> 0.4f; 3 -> 0.28f; else -> 0.18f } - 0.02f * level).coerceIn(0.1f, 0.8f)
 }
 
+/** A critter's temperament: nudges one or two battle stats. Derived from the critter's id, so nothing needs saving. */
+class Nature(val name: String, val up: Int, val down: Int, val flavour: String) {
+    /** up/down: 0 attack, 1 defence, 2 speed, -1 none. */
+    fun mult(stat: Int): Float = if (stat == up && up >= 0) (if (down >= 0) 1.10f else 1.06f) else if (stat == down) 0.92f else 1f
+    val text: String get() {
+        val n = listOf("Atk", "Def", "Spd")
+        return when {
+            up < 0 -> "balanced"
+            down < 0 -> "+${n[up]}"
+            else -> "+${n[up]} −${n[down]}"
+        }
+    }
+    companion object {
+        val ALL = listOf(
+            Nature("Bold", 1, 0, "stubborn and steady"),
+            Nature("Brave", 0, 2, "charges in first"),
+            Nature("Timid", 2, 0, "quick to dart away"),
+            Nature("Hasty", 2, 1, "never sits still"),
+            Nature("Fierce", 0, 1, "fights without a guard"),
+            Nature("Calm", 1, 2, "slow and unshakeable"),
+            Nature("Proud", 0, -1, "stands tall"),
+            Nature("Sturdy", 1, -1, "hard to knock down"),
+            Nature("Swift", 2, -1, "light on its feet"),
+            Nature("Mellow", -1, -1, "easygoing"),
+            Nature("Plain", -1, -1, "no airs"),
+            Nature("Quiet", -1, -1, "keeps to itself"),
+        )
+        val NEUTRAL = Nature("Plain", -1, -1, "no airs")
+        fun of(uid: Int): Nature = if (uid < 0) NEUTRAL else ALL[(uid * 7 + 3) % ALL.size]
+    }
+}
+
 /** One creature, wild or kept. */
 class Critter(val uid: Int, var sp: Int, var level: Int) {
     var nick = ""
@@ -392,12 +424,15 @@ class Critter(val uid: Int, var sp: Int, var level: Int) {
     var cycle = 0
     /** A rare recoloured critter: a little tougher and always sparkling. */
     var shiny = false
+    /** Copy of another critter's nature (battle doubles have no id of their own); -1 means derive it from the id. */
+    var natureIdx = -1
+    val nature: Nature get() = if (natureIdx in Nature.ALL.indices) Nature.ALL[natureIdx] else Nature.of(uid)
 
     val species: Species get() = Dex.byId(sp)
     val maxHp: Int get() = Dex.maxHp(species, level).let { if (shiny) it * 108 / 100 else it }
-    val atk: Int get() = Dex.atk(species, level).let { if (shiny) it * 108 / 100 else it }
-    val def: Int get() = Dex.def(species, level).let { if (shiny) it * 108 / 100 else it }
-    val spd: Int get() = Dex.spd(species, level).let { if (shiny) it * 108 / 100 else it }
+    val atk: Int get() = Dex.atk(species, level).let { (if (shiny) it * 108 / 100 else it) }.let { (it * nature.mult(0)).toInt() }
+    val def: Int get() = Dex.def(species, level).let { (if (shiny) it * 108 / 100 else it) }.let { (it * nature.mult(1)).toInt() }
+    val spd: Int get() = Dex.spd(species, level).let { (if (shiny) it * 108 / 100 else it) }.let { (it * nature.mult(2)).toInt() }
     val moves: List<Move> get() = Dex.movesAt(species, level)
     val name: String get() = nick.ifBlank { species.name }
     /** "Ember the Cindrel" once named, plain species name before. */

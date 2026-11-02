@@ -1547,6 +1547,7 @@ class CritterWorld(private val sim: CivSim) {
     private fun dupe(c: Critter): Critter {
         val d = Critter(-1, c.sp, c.level)
         d.nick = c.nick
+        d.natureIdx = Nature.ALL.indexOf(c.nature)
         d.heal()
         return d
     }

@@ -166,6 +166,13 @@ fun main(args: Array<String>) {
     println("TITLES earned=${sim.titlesEarned} villagersTitled=${sim.villagers.count { it.titles.isNotEmpty() }} list=${sim.villagers.filter { it.titles.isNotEmpty() }.joinToString { it.name + ":" + it.titles.joinToString("/") }} bonds=${sim.villagers.count { sim.bondsOf(it).isNotEmpty() }} career=${sim.villagers.count { sim.careerLines(it).isNotEmpty() }}")
     println("STATUS inflicted(burn,poison,stun,chill,fright)=${Battle.inflictedCount.drop(1)} ticks=${Battle.count.drop(1)} tickDamage=${Battle.tickTotal}")
     println("FIELD fights none/rain/sun/snow/night/storm=${Battle.fieldFights.toList()} boosted hits=${Battle.fieldBoosts} dulled hits=${Battle.fieldWeakens}")
+    run {
+        val byN = cw.critters.groupingBy { it.nature.name }.eachCount().toSortedMap()
+        val sp = cw.critters.groupBy { it.sp to it.level }.filter { it.value.size > 1 }.values
+        val spread = if (sp.isEmpty()) 0 else sp.maxOf { g -> g.maxOf { it.atk + it.def + it.spd } - g.minOf { it.atk + it.def + it.spd } }
+        val distinct = cw.critters.map { Triple(it.atk, it.def, it.spd) }.distinct().size
+        println("NATURE kept=${cw.critters.size} kinds=${byN.size} $byN distinctStatLines=$distinct sameSpeciesSpread=$spread")
+    }
     println("ABIL talents fired=${Battle.abilCount.values.sum()} kinds=${Battle.abilCount.size} ${Battle.abilCount.toSortedMap()}")
     sim.log.filter { it.contains("aider") || it.contains("ogre") || it.contains("wraith") || it.contains("drake") || it.contains("warlord") || it.contains("golem") || it.contains("shaman") || it.contains("Golden") }.takeLast(8).forEach { println("  LOG $it") }
     println("LEGENDS wild=$legSeen enc=$legEnc maxCompLv=${sim.critters.critters.maxOfOrNull{it.level}}")

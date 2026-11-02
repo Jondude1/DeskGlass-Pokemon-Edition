@@ -105,7 +105,7 @@ fun VillagerPanel(sim: CivSim, id: Int, tick: Long, modifier: Modifier = Modifie
                         color = Glass.Ink, fontSize = 13.sp, fontWeight = FontWeight.Medium,
                     )
                     Text(
-                        c.species.typeText + (if (c.companion) " · out" else " · infused") + (if (cw.isTired(c)) " · resting" else ""),
+                        c.species.typeText + " · " + c.nature.name + (if (c.companion) " · out" else " · infused") + (if (cw.isTired(c)) " · resting" else ""),
                         color = Glass.InkDim, fontSize = 11.sp,
                     )
                     Text(

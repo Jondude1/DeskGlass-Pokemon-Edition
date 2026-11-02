@@ -88,6 +88,10 @@ fun CritterDexScreen(sim: CivSim, onBack: () -> Unit) {
                             color = Glass.InkFaint, fontSize = 12.sp,
                         )
                         Text(
+                            "Nature: ${c.nature.name} (${c.nature.text}), ${c.nature.flavour}",
+                            color = Glass.InkFaint, fontSize = 12.sp,
+                        )
+                        Text(
                             if (c.level >= Abil.LEVEL) "Talent: ${Abil.name(c.species.t1)}, ${Abil.text(c.species.t1)}" else "Learns its ${c.species.t1.label} talent at level ${Abil.LEVEL}",
                             color = Glass.InkFaint, fontSize = 12.sp,
                         )
