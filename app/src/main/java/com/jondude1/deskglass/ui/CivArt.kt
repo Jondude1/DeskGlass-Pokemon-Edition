@@ -279,6 +279,10 @@ class CivArt {
         'W' to 0xFF8E6A3A.toInt(), 'g' to 0xFF5E9B45.toInt(), 'p' to 0xFFE06A9A.toInt(), 'y' to 0xFFF5D76E.toInt(),
         'v' to 0xFF9A6AD6.toInt(),
     ))
+    val orchard = sprite(ORCHARD, mapOf(
+        'g' to 0xFF4F9E3F.toInt(), 'G' to 0xFF3A7A30.toInt(), 't' to 0xFF7A4E26.toInt(), 'T' to 0xFF4A2D14.toInt(),
+        'w' to 0xFFC9975A.toInt(), 'W' to 0xFF8E6A3A.toInt(), 'y' to 0xFFF2D14E.toInt(),
+    ))
     val dock = sprite(DOCK, mapOf(
         'w' to 0xFFC49A5E.toInt(), 'W' to 0xFF8E6A3A.toInt(), 'p' to 0xFF5A3A20.toInt(), 'y' to 0xFFF5D76E.toInt(),
         'b' to 0xFFB8452F.toInt(), 'B' to 0xFF7A2C1E.toInt(), 's' to 0xFFF4F0E4.toInt(), 'r' to 0xFFD9CBA0.toInt(),
@@ -948,6 +952,18 @@ class CivArt {
             ".wWhhWw.ffffffffffff",
             ".wwwwww.f....f.....f",
             "bbbbbbb.f....f.....f",
+        )
+        val ORCHARD = listOf(
+            ".gg...gg...gg.",
+            "gGgg.gGgg.gGgg",
+            "gggG.gggG.gggG",
+            "gGgg.gGgg.gGgg",
+            ".gg...gg...gg.",
+            ".tT...tT...tT.",
+            ".tt...tt...tt.",
+            "wwwwwwwwwwwwww",
+            "W..W..W..W..W.",
+            "GyGGGyGGGyGGGy",
         )
         val APIARY = listOf(
             "......ss......",

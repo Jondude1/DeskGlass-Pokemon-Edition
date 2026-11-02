@@ -597,6 +597,7 @@ private fun DrawScope.drawWorld(
                 "ranch" -> art.ranch
                 "pasture" -> art.pasture
                 "apiary" -> art.apiary
+                "orchard" -> art.orchard
                 "dock" -> art.dock
                 "quarry" -> art.quarry
                 "mill" -> art.mill
@@ -875,6 +876,57 @@ private fun DrawScope.drawWorld(
                     }
                 }
                 if (dark > 0.1f) drawCircle(Color(0xFFFFD27A).copy(alpha = min(0.3f, dark * 0.5f)), radius = ts * 0.8f, center = Offset(cx + w * 0.12f, baseY - hh * 0.8f))
+            }
+            if (b.type == "orchard") {
+                // the trees follow the seasons: pink blossom, green summer fruit, orange autumn leaves with red apples, snow caps; pickers shake down fruit
+                val si = sim.seasonIdx()
+                val ripe = sim.fruitReady()
+                val pickers = sim.villagers.count { it.action == "pick_fruit" && it.phase == "working" && kotlin.math.hypot(it.x - (b.x + 0.5f), it.y - (b.y + 0.5f)) < 2.5f }
+                for (k in 0 until 3) {
+                    val tx = cx + (k - 1) * w * 0.36f
+                    val topY = baseY - hh * 0.98f
+                    val cw = w * 0.27f
+                    val chh = hh * 0.5f
+                    when (si) {
+                        0 -> for (j in 0 until 6) {
+                            val px = tx - cw * 0.5f + ((j * 37 + k * 11) % 10) / 10f * cw
+                            val py = topY + ((j * 53 + k * 7) % 10) / 10f * chh
+                            val tw = 0.6f + 0.4f * kotlin.math.sin(t * 2f + j + k)
+                            drawRect(Color(0xFFFFB8D2).copy(alpha = tw), Offset(px, py), Size(ps * 1.3f, ps * 1.3f))
+                        }
+                        1 -> for (j in 0 until min(4, 1 + ripe)) {
+                            val px = tx - cw * 0.45f + ((j * 41 + k * 13) % 10) / 10f * cw * 0.9f
+                            val py = topY + chh * 0.2f + ((j * 29 + k * 5) % 10) / 10f * chh * 0.7f
+                            drawRect(Color(0xFFE2C23A), Offset(px, py), Size(ps * 1.3f, ps * 1.3f))
+                        }
+                        2 -> {
+                            drawRect(Color(0xFFE08A2E).copy(alpha = 0.42f), Offset(tx - cw * 0.5f, topY), Size(cw, chh))
+                            for (j in 0 until 5) {
+                                val px = tx - cw * 0.45f + ((j * 37 + k * 11) % 10) / 10f * cw * 0.9f
+                                val py = topY + chh * 0.15f + ((j * 53 + k * 7) % 10) / 10f * chh * 0.7f
+                                drawRect(Color(0xFFD93A2B), Offset(px, py), Size(ps * 1.4f, ps * 1.4f))
+                            }
+                            for (j in 0 until min(3, ripe)) {
+                                val gl = 0.5f + 0.5f * kotlin.math.sin(t * 3f + j * 2f + k)
+                                drawRect(Color(0xFFFFE9A0).copy(alpha = 0.3f + 0.5f * gl), Offset(tx - cw * 0.3f + j * cw * 0.3f, topY + chh * 0.1f), Size(ps * 0.8f, ps * 0.8f))
+                            }
+                            // fallen fruit in the grass
+                            drawRect(Color(0xFFC83A2A), Offset(tx - cw * 0.4f + k * ps, baseY - ps * 3.2f), Size(ps * 1.3f, ps * 1.3f))
+                        }
+                        else -> {
+                            drawRect(Color(0xFFF4F7FA).copy(alpha = 0.85f), Offset(tx - cw * 0.5f, topY), Size(cw, chh * 0.3f))
+                            drawRect(Color(0xFFF4F7FA).copy(alpha = 0.7f), Offset(tx - cw * 0.35f, topY + chh * 0.3f), Size(cw * 0.7f, chh * 0.18f))
+                        }
+                    }
+                }
+                if (pickers > 0) {
+                    for (k in 0 until 5) {
+                        val ph = (t * 0.9f + k * 0.2f + b.x * 0.1f) % 1f
+                        val fx0 = cx + kotlin.math.sin(k * 2.7f + b.y.toFloat()) * w * 0.4f
+                        val fy0 = baseY - hh * 0.75f + ph * hh * 0.7f
+                        drawRect((if (si == 2) Color(0xFFD93A2B) else Color(0xFFE2C23A)).copy(alpha = 1f - ph * 0.6f), Offset(fx0, fy0), Size(ps * 1.2f, ps * 1.2f))
+                    }
+                }
             }
             if (b.type == "apiary") {
                 // bees circle the straw hives (more while someone takes honey); ripe honey glints gold on the doorways; a lantern glows at night
