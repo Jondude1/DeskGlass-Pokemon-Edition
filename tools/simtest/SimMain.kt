@@ -111,6 +111,7 @@ fun main(args: Array<String>) {
     println("WONDERS count=${sim.buildings.count { it.type == "wonder" }} kinds=${sim.buildings.filter { it.type == "wonder" }.map { sim.wonderName(it.era) }} wood=${sim.wood} stone=${sim.stone} metal=${sim.metal}")
     println("EGGS laid=${sim.critters.eggsLaid} hatched=${sim.critters.eggsHatched} golden=${sim.critters.goldenHatched} pending=${sim.critters.eggs.count { it.hatchedAt < 0.0 }} critters=${sim.critters.critters.size}")
     println("TOURNEY held=${sim.critters.tourneys} matches=${sim.critters.tourMatches} forfeits=${sim.critters.tourForfeits} champ=${sim.critters.champName} on=${sim.critters.tourOn}")
+    println("DEX species=${com.jondude1.deskglass.sim.Dex.COUNT} caught=${sim.critters.caught.size} seen=${sim.critters.seen.size} newLines(72-80) caught=${sim.critters.caught.filter { it >= 72 }.sorted()} seen=${sim.critters.seen.filter { it >= 72 }.sorted()} kept=${sim.critters.critters.filter { it.species.id >= 72 }.map { it.species.name + it.level }}")
     println("SHINY seen=${sim.critters.shinySeen} hatched=${sim.critters.shinyHatched} kept=${sim.critters.shinyKept()} lvs=${sim.critters.critters.filter { it.shiny }.map { it.species.name + it.level }}")
     println("PASTURE built=${sim.buildings.count { it.type == "pasture" }} visits=${sim.pastureVisits} eggs=${sim.eggsGathered} fleeces=${sim.fleeces} sheep=${sim.sheepNow()} hens=${sim.hensNow()}")
     println("DOCK built=${sim.buildings.count { it.type == "dock" }} sails=${sim.sailTrips} dockCatch=${sim.dockCatch} bottles=${sim.bottlesFound}")

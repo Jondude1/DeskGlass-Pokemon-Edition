@@ -50,7 +50,7 @@ class Species(
 
 object Dex {
     const val DUMMY = 0
-    const val COUNT = 71
+    const val COUNT = 80
     const val MAX_LEVEL = 50
     /** Level at which a critter learns the ultimate of its main type. */
     const val ULTIMATE_LV = 30
@@ -213,6 +213,18 @@ object Dex {
         s(69, "Molekin", CType.STONE, null, 1, 52, 50, 58, 30, 70, 18, 2, "ore", 0, "A shy mole with a pink nose that sniffs out buried ore."),
         s(70, "Tunnelmole", CType.STONE, CType.IRON, 2, 76, 74, 90, 38, 71, 34, 2, "ore", 0, "It wears a steel cap and digs tunnels faster than miners."),
         s(71, "Drillmaw", CType.STONE, CType.IRON, 3, 102, 104, 116, 44, -1, 0, 3, "ore", 0, "A bulky digger with a spinning drill snout that bores through any rock."),
+        // Bee line: a striped grub-bee that grows into a hive queen
+        s(72, "Buzzlet", CType.GALE, CType.LEAF, 1, 42, 48, 40, 62, 73, 18, 2, "meadow", 2, "A round striped bee that hums off-key and loves clover."),
+        s(73, "Honeywing", CType.GALE, CType.LEAF, 2, 62, 70, 56, 84, 74, 34, 2, "meadow", 2, "Its wings drip golden nectar that the farmers collect."),
+        s(74, "Queenbuzz", CType.GLOW, CType.LEAF, 3, 84, 92, 74, 108, -1, 0, 3, "meadow", 2, "A hive queen in a crown of wax. The whole meadow hums when she flies."),
+        // Candle line: a wax stub with a living flame that grows into a beacon spirit
+        s(75, "Wickling", CType.SPIRIT, CType.EMBER, 1, 44, 46, 42, 52, 76, 18, 2, "any", 1, "A candle stub with a shy flame. It only lights up after dark."),
+        s(76, "Waxwraith", CType.SPIRIT, CType.EMBER, 2, 66, 66, 62, 68, 77, 34, 2, "any", 1, "A drooping wax ghost whose flame never gutters, even in a gale."),
+        s(77, "Beaconel", CType.SPIRIT, CType.GLOW, 3, 90, 90, 86, 84, -1, 0, 3, "any", 1, "A tall candle spirit with a flame like a lighthouse. Lost travelers follow it home."),
+        // Coral line: a reef-crabbed shell-walker of the lake
+        s(78, "Coralit", CType.TIDE, CType.STONE, 1, 50, 46, 60, 32, 79, 18, 2, "water", 0, "A little shell-walker with a sprig of pink coral on its head."),
+        s(79, "Reefback", CType.TIDE, CType.STONE, 2, 78, 70, 92, 40, 80, 34, 2, "water", 0, "A reef grows on its back, full of tiny glowing fish."),
+        s(80, "Tidemonarch", CType.TIDE, CType.STONE, 3, 104, 92, 118, 46, -1, 0, 3, "water", 0, "A living reef-king who calls the shoals home with a conch horn."),
     )
 
     private val dummy = Species(
