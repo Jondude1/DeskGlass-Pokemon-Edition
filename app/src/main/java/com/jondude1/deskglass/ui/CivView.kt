@@ -1069,6 +1069,7 @@ private fun DrawScope.drawWorld(
     // wildlife, then villagers
     villageStock(sim, art, geo)
     feteSite(sim, geo)
+    councilSite(sim, geo)
     heroStatues(sim, geo)
     graveyard(sim, geo)
     cathedral(sim, geo)
