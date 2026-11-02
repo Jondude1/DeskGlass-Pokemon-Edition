@@ -599,6 +599,7 @@ private fun DrawScope.drawWorld(
                 "apiary" -> art.apiary
                 "orchard" -> art.orchard
                 "range" -> art.range
+                "belfry" -> art.belfry
                 "bath" -> art.bath
                 "dock" -> art.dock
                 "quarry" -> art.quarry
@@ -895,6 +896,18 @@ private fun DrawScope.drawWorld(
                     drawRect(Color(0xFFF4EEDC), Offset(hx - ps * 1.3f, hy - ps * 1.7f), Size(ps * 2.6f, ps * 0.9f))
                 }
                 if (dark > 0.1f) drawCircle(Color(0xFFFFD27A).copy(alpha = min(0.3f, dark * 0.5f)), radius = ts * 0.8f, center = Offset(cx + w * 0.4f, baseY - hh * 0.2f))
+            }
+            if (b.type == "belfry") {
+                // the bell swings and sound rings spread while somebody is ringing
+                val ringers = sim.villagers.count { it.action == "ring_bell" && it.phase == "working" && kotlin.math.hypot(it.x - (b.x + 0.5f), it.y - (b.y + 0.5f)) < 2.5f }
+                if (ringers > 0) {
+                    val sw = kotlin.math.sin(t * 7f)
+                    drawRect(Color(0xFFF2D14E), Offset(cx + sw * ps * 1.2f - ps * 0.5f, baseY - hh * 0.5f), Size(ps * 2f, ps * 1.6f))
+                    for (k in 0 until 3) {
+                        val ph = (t * 1.2f + k * 0.33f) % 1f
+                        drawCircle(Color(0xFFFFE9A0).copy(alpha = 0.5f * (1f - ph)), radius = ps * (2f + ph * 9f), center = Offset(cx, baseY - hh * 0.5f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = ps * 0.6f))
+                    }
+                }
             }
             if (b.type == "range") {
                 // shooters at the line: an arrow streaks across to the straw targets; a bullseye flashes gold

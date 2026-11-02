@@ -118,6 +118,7 @@ fun main(args: Array<String>) {
     println("SHINY seen=${sim.critters.shinySeen} hatched=${sim.critters.shinyHatched} kept=${sim.critters.shinyKept()} lvs=${sim.critters.critters.filter { it.shiny }.map { it.species.name + it.level }}")
     println("APIARY built=${sim.buildings.count { it.type == "apiary" }} harvests=${sim.honeyHarvests} jars=${sim.honeyJars} stings=${sim.beeStings} mead=${sim.meadFeasts} ripeNow=${sim.honeyReady()}")
     println("BATH built=${sim.buildings.count { it.type == "bath" }} soaks=${sim.soaks} heals=${sim.soakHeals} gossips=${sim.soakGossips} parties=${sim.soakParties}")
+    println("BELL built=${sim.buildings.count { it.type == "belfry" }} rings=${sim.bellRings} alarms=${sim.bellAlarms} reach=${sim.bellReach}")
     println("ARCHERY built=${sim.buildings.count { it.type == "range" }} shots=${sim.shotsFired} bullseyes=${sim.bullseyes} contests=${sim.archeryMatches} best=${sim.archeryBest}")
     println("ORCHARD built=${sim.buildings.count { it.type == "orchard" }} picks=${sim.fruitPicks} baskets=${sim.fruitBaskets} cider=${sim.ciderFeasts} falls=${sim.fruitFalls} ripeNow=${sim.fruitReady()}")
     println("PASTURE built=${sim.buildings.count { it.type == "pasture" }} visits=${sim.pastureVisits} eggs=${sim.eggsGathered} fleeces=${sim.fleeces} sheep=${sim.sheepNow()} hens=${sim.hensNow()}")

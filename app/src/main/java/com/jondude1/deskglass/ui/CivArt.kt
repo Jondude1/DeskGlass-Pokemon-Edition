@@ -287,6 +287,10 @@ class CivArt {
         'r' to 0xFFC9382B.toInt(), 'h' to 0xFFF4EEDC.toInt(), 'y' to 0xFFF2D14E.toInt(), 't' to 0xFF7A4E26.toInt(),
         'g' to 0xFF4F9E3F.toInt(), 'G' to 0xFF3A7A30.toInt(), 'c' to 0xFFC9975A.toInt(), 'W' to 0xFF8E6A3A.toInt(),
     ))
+    val belfry = sprite(BELFRY, mapOf(
+        'r' to 0xFFB8452F.toInt(), 'R' to 0xFF7A2C1E.toInt(), 's' to 0xFF9A9AA2.toInt(), 'S' to 0xFF6C6C76.toInt(),
+        'y' to 0xFFF2D14E.toInt(), 'Y' to 0xFFC9A030.toInt(), 'd' to 0xFF2A2A32.toInt(),
+    ))
     val orchard = sprite(ORCHARD, mapOf(
         'g' to 0xFF4F9E3F.toInt(), 'G' to 0xFF3A7A30.toInt(), 't' to 0xFF7A4E26.toInt(), 'T' to 0xFF4A2D14.toInt(),
         'w' to 0xFFC9975A.toInt(), 'W' to 0xFF8E6A3A.toInt(), 'y' to 0xFFF2D14E.toInt(),
@@ -984,6 +988,18 @@ class CivArt {
             ".W..W..W..W..W",
             "cccccccccccccc",
             "W..W..W..W..W.",
+        )
+        val BELFRY = listOf(
+            "......rr......",
+            ".....rrrr.....",
+            "....rrrRRr....",
+            "...rrrrrrrr...",
+            "...sSddddSs...",
+            "...sSdyydSs...",
+            "...sSdYYdSs...",
+            "...sSddddSs...",
+            "...ssssssss...",
+            "..SSSSSSSSSS..",
         )
         val ORCHARD = listOf(
             ".gg...gg...gg.",
