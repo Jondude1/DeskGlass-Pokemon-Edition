@@ -599,6 +599,7 @@ private fun DrawScope.drawWorld(
                 "apiary" -> art.apiary
                 "orchard" -> art.orchard
                 "range" -> art.range
+                "bath" -> art.bath
                 "dock" -> art.dock
                 "quarry" -> art.quarry
                 "mill" -> art.mill
@@ -877,6 +878,23 @@ private fun DrawScope.drawWorld(
                     }
                 }
                 if (dark > 0.1f) drawCircle(Color(0xFFFFD27A).copy(alpha = min(0.3f, dark * 0.5f)), radius = ts * 0.8f, center = Offset(cx + w * 0.12f, baseY - hh * 0.8f))
+            }
+            if (b.type == "bath") {
+                // rising steam, the heads of bathers with towels, and a warm lantern glow after dark
+                val soakers = sim.villagers.count { it.action == "soak" && it.phase == "working" && kotlin.math.hypot(it.x - (b.x + 0.5f), it.y - (b.y + 0.5f)) < 2.5f }
+                for (k in 0 until 3 + min(3, soakers * 2)) {
+                    val ph = (t * 0.35f + k * 0.29f) % 1f
+                    val sx = cx - w * 0.22f + w * 0.44f * (((k * 37) % 10) / 10f) + kotlin.math.sin(ph * 6f + k) * ps * 1.2f
+                    val sy = baseY - hh * 0.55f - ph * hh * 0.9f
+                    drawCircle(Color.White.copy(alpha = 0.34f * (1f - ph)), radius = ps * (1.4f + ph * 2.2f), center = Offset(sx, sy))
+                }
+                for (k in 0 until min(3, soakers)) {
+                    val hx = cx - w * 0.2f + k * w * 0.2f
+                    val hy = baseY - hh * 0.52f + kotlin.math.sin(t * 2f + k) * ps * 0.25f
+                    drawCircle(Color(0xFFE8B98A), radius = ps * 1.3f, center = Offset(hx, hy))
+                    drawRect(Color(0xFFF4EEDC), Offset(hx - ps * 1.3f, hy - ps * 1.7f), Size(ps * 2.6f, ps * 0.9f))
+                }
+                if (dark > 0.1f) drawCircle(Color(0xFFFFD27A).copy(alpha = min(0.3f, dark * 0.5f)), radius = ts * 0.8f, center = Offset(cx + w * 0.4f, baseY - hh * 0.2f))
             }
             if (b.type == "range") {
                 // shooters at the line: an arrow streaks across to the straw targets; a bullseye flashes gold
