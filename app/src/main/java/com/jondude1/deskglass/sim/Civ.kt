@@ -115,6 +115,7 @@ class Villager(val id: Int, val name: String, var job: String, val personaIdx: I
     var parents = ""
     var harmedBy = ""
     var harmedAt = -999.0
+    var webAt = -999.0
     var x = 0f
     var y = 0f
     var hunger = 20f
@@ -190,7 +191,7 @@ private val ACTIONS = setOf(
 )
 
 /** Foes a few healthy fighters will chase down on their own. */
-private val HUNTABLE_FOES = setOf("boar", "wolf", "bear", "pilferer", "frostwolf", "raider", "skeleton", "shaman", "reaver")
+private val HUNTABLE_FOES = setOf("boar", "wolf", "bear", "pilferer", "frostwolf", "raider", "skeleton", "shaman", "reaver", "spider")
 
 private val DX = intArrayOf(1, -1, 0, 0)
 private val DY = intArrayOf(0, 0, 1, -1)
@@ -235,6 +236,15 @@ class CivSim(
     var reaversSlain = 0
     var trollsSlain = 0
     var trollsStoned = 0
+    var spidersSlain = 0
+    var websSpun = 0
+    var webCatches = 0
+    var spiderBites = 0
+    private var lastSpiderAt = -999.0
+    /** Sticky webs on the ground: x, y, born. They slow whoever walks through and rot away. */
+    val webs = mutableListOf<FloatArray>()
+    /** Villager id -> time the spider venom wears off. */
+    val poisoned = HashMap<Int, Double>()
     var trollBoulders = 0
     private var lastTrollAt = -999.0
     /** Petrified trolls left standing where the dawn caught them: x, y. */
@@ -628,7 +638,7 @@ class CivSim(
         lastBirth = time
         hides = 0
         goods = 0
-        visitor = null; nextVisitAt = time + DAY_LEN * 1.2; visitStats.clear(); raidsRepelled = 0; ogresSlain = 0; bossesSlain = 0; warlordsSlain = 0; golemsSlain = 0; shamansSlain = 0; frostPacksBroken = 0; pilfersFoiled = 0; pilfersLost = 0; swarmsBroken = 0; hornetsSwatted = 0; lichesSlain = 0; bonesRaised = 0; lastLichAt = -999.0; reaversSlain = 0; trollsSlain = 0; trollsStoned = 0; trollBoulders = 0; skillUps = 0; skillBonusLoads = 0; skillMasters = 0; lastTrollAt = -999.0; trollRocks.clear(); shipsSeized = 0; landings = 0; lastLandingAt = -999.0; shipUp = false; shipT = 0f; foeStats.clear(); lastWarlordAt = -999.0; goldenAt = -1.0; deeds.clear(); babiesBorn = 0; weds = 0; feudsStarted = 0; feudsEnded = 0; bffs.clear(); feudEnds.clear(); courting.clear(); weddingAt = -999.0; nextRelAt = 0.0; deedBannerAt = -999.0; nextDeedAt = 0.0; titlesEarned = 0; dreamsDone = 0; lastThreatAt = 0.0
+        visitor = null; nextVisitAt = time + DAY_LEN * 1.2; visitStats.clear(); raidsRepelled = 0; ogresSlain = 0; bossesSlain = 0; warlordsSlain = 0; golemsSlain = 0; shamansSlain = 0; frostPacksBroken = 0; pilfersFoiled = 0; pilfersLost = 0; swarmsBroken = 0; hornetsSwatted = 0; lichesSlain = 0; bonesRaised = 0; lastLichAt = -999.0; reaversSlain = 0; trollsSlain = 0; trollsStoned = 0; trollBoulders = 0; spidersSlain = 0; websSpun = 0; webCatches = 0; spiderBites = 0; lastSpiderAt = -999.0; webs.clear(); poisoned.clear(); skillUps = 0; skillBonusLoads = 0; skillMasters = 0; lastTrollAt = -999.0; trollRocks.clear(); shipsSeized = 0; landings = 0; lastLandingAt = -999.0; shipUp = false; shipT = 0f; foeStats.clear(); lastWarlordAt = -999.0; goldenAt = -1.0; deeds.clear(); babiesBorn = 0; weds = 0; feudsStarted = 0; feudsEnded = 0; bffs.clear(); feudEnds.clear(); courting.clear(); weddingAt = -999.0; nextRelAt = 0.0; deedBannerAt = -999.0; nextDeedAt = 0.0; titlesEarned = 0; dreamsDone = 0; lastThreatAt = 0.0
         riftState = 0; party.clear(); expeditions = 0; expWins = 0; expRetreats = 0; roomsCleared = 0; relics = 0; deepestRoom = 0; wardensSlain = 0; nextRiftAt = time + DAY_LEN
         campUp = false; campsRazed = 0; campHits = 0; campSorties = 0; campRazedAt = -999.0; campHitAt = -999.0; campNextAt = time + DAY_LEN * 1.5
         nextThreatAt = DAY_LEN * 1.4; lastBossAt = -999.0
@@ -3655,6 +3665,7 @@ class CivSim(
             "hornet" -> "an angry hornet swarm is buzzing about"
             "reaver" -> "sea reavers have landed from a longship"
             "troll" -> "a night troll is hurling boulders"
+            "spider" -> "a giant forest spider is spinning webs"
             else -> "wolves are howling"
         }
     }
@@ -4409,7 +4420,7 @@ class CivSim(
                     prey = v
                 }
             }
-            val speed = (when (p.kind) { "bear" -> 1.5f; "boar" -> 2.4f; "raider" -> 2.0f; "ogre" -> 1.3f; "wraith" -> 2.7f; "drake" -> 1.8f; "shaman" -> 1.7f; "warlord" -> 1.7f; "golem" -> 0.9f; "frostwolf" -> 2.9f; "lich" -> 1.3f; "skeleton" -> 1.7f; "pilferer" -> 3.1f; "hornet" -> 3.0f; "reaver" -> 2.2f; "troll" -> 1.25f; else -> 2.1f }) * dt * (if (p.buffUntil > p.life) 1.5f else 1f) * wallSlow(p, dt)
+            val speed = (when (p.kind) { "bear" -> 1.5f; "boar" -> 2.4f; "raider" -> 2.0f; "ogre" -> 1.3f; "wraith" -> 2.7f; "drake" -> 1.8f; "shaman" -> 1.7f; "warlord" -> 1.7f; "golem" -> 0.9f; "frostwolf" -> 2.9f; "lich" -> 1.3f; "skeleton" -> 1.7f; "pilferer" -> 3.1f; "hornet" -> 3.0f; "reaver" -> 2.2f; "troll" -> 1.25f; "spider" -> 2.3f; else -> 2.1f }) * dt * (if (p.buffUntil > p.life) 1.5f else 1f) * wallSlow(p, dt)
             var gone = false
             when (p.kind) {
                 "pilferer" -> {
@@ -4508,6 +4519,18 @@ class CivSim(
                         fx.add(Fx("arrow", prey.x, prey.y, time, 0.7f))
                     }
                 }
+                "spider" -> {
+                    // the spider trails sticky webs behind it as it prowls
+                    p.aux -= dt
+                    if (p.aux <= 0f) {
+                        p.aux = 2.0f + rnd.nextFloat()
+                        if (webs.size >= 16) webs.removeAt(0)
+                        val wx = if (prey != null && best < 5f) (p.x + prey.x) / 2f else p.x
+                        val wy = if (prey != null && best < 5f) (p.y + prey.y) / 2f else p.y
+                        webs.add(floatArrayOf(wx, wy, time.toFloat()))
+                        websSpun++
+                    }
+                }
                 "troll" -> {
                     // a night troll mends itself unless it was struck in the last few seconds, hurls boulders, and turns to stone at dawn
                     if (p.hp < p.aux - 0.01f) p.hurtAt = p.life
@@ -4573,7 +4596,7 @@ class CivSim(
                 if ((p.kind == "shaman" || p.kind == "lich") && d < 4.2f) stepPredator(p, -dx / d * speed * 0.6f, -dy / d * speed * 0.6f)
                 else if (d > 0.8f && !((p.kind == "shaman" || p.kind == "lich") && d < 5f)) stepPredator(p, dx / d * speed, dy / d * speed)
                 else if (p.kind != "shaman" && p.kind != "lich" && p.cool <= 0f) {
-                    val dmg = (when (p.kind) { "bear" -> 22f; "boar" -> 16f; "raider" -> 9f; "ogre" -> 24f; "wraith" -> 11f; "drake" -> 28f; "warlord" -> 18f; "golem" -> 30f; "frostwolf" -> 8f; "skeleton" -> 10f; "hornet" -> 4f; "reaver" -> 14f; "troll" -> 20f; else -> 12f }) * (if (isChild(prey)) 1.5f else 1f)
+                    val dmg = (when (p.kind) { "bear" -> 22f; "boar" -> 16f; "raider" -> 9f; "ogre" -> 24f; "wraith" -> 11f; "drake" -> 28f; "warlord" -> 18f; "golem" -> 30f; "frostwolf" -> 8f; "skeleton" -> 10f; "hornet" -> 4f; "reaver" -> 14f; "troll" -> 20f; "spider" -> 7f; else -> 12f }) * (if (isChild(prey)) 1.5f else 1f)
                     if (p.kind == "raider" || p.kind == "reaver") {
                         // raiders grab whatever they can carry as they strike; reavers carry off the fish
                         val f = min(food, if (p.kind == "reaver") 5 else 3)
@@ -4595,6 +4618,12 @@ class CivSim(
                     prey.sayLeft = 2.5f
                     p.cool = if (p.kind == "frostwolf") 0.9f else if (p.kind == "hornet") 0.8f else 1.4f
                     if (p.kind == "hornet") { prey.say = "Ow, stings!"; prey.sayLeft = 2f }
+                    if (p.kind == "spider") {
+                        spiderBites++
+                        poisoned[prey.id] = time + 9.0
+                        prey.say = "It bit me! My leg burns!"; prey.sayLeft = 2.5f
+                        fx.add(Fx("venom", prey.x, prey.y, time, 1.0f))
+                    }
                     if (p.kind == "frostwolf") prey.happiness = max(0f, prey.happiness - 3f)
                     fx.add(Fx("clash", prey.x, prey.y, time, 1.2f))
                     if (p.kind == "golem") {
@@ -4630,8 +4659,8 @@ class CivSim(
             if (p.hp <= 0f) {
                 predators.remove(p)
                 if (p.byBallista) ballistaKills++
-                val meat = when (p.kind) { "bear" -> 8; "boar" -> 6; "ogre" -> 12; "drake" -> 14; "frostwolf" -> 3; "lich", "skeleton", "raider", "wraith", "shaman", "warlord", "golem", "pilferer", "hornet", "troll" -> 0; else -> 4 }
-                val hide = when (p.kind) { "bear" -> 3; "boar" -> 2; "ogre" -> 5; "drake" -> 8; "frostwolf" -> 3; "lich", "skeleton", "raider", "wraith", "shaman", "warlord", "golem", "pilferer", "hornet", "troll" -> 0; else -> 1 }
+                val meat = when (p.kind) { "bear" -> 8; "boar" -> 6; "ogre" -> 12; "drake" -> 14; "frostwolf" -> 3; "lich", "skeleton", "raider", "wraith", "shaman", "warlord", "golem", "pilferer", "hornet", "troll", "spider" -> 0; else -> 4 }
+                val hide = when (p.kind) { "bear" -> 3; "boar" -> 2; "ogre" -> 5; "drake" -> 8; "frostwolf" -> 3; "lich", "skeleton", "raider", "wraith", "shaman", "warlord", "golem", "pilferer", "hornet", "troll" -> 0; "spider" -> 2; else -> 1 }
                 if (meat + hide > 0) drops.add(Drop(p.kind, p.x, p.y, time, meat, hide))
                 onThreatDown(p)
                 val hero = fighters.maxByOrNull { it.hp }
@@ -4689,6 +4718,17 @@ class CivSim(
                     for (v in villagers) v.happiness = min(100f, v.happiness + 12f)
                     fx.add(Fx("quake", shipX, shipY, time, 1.4f))
                 }
+            }
+            "spider" -> {
+                spidersSlain++
+                goods += 3
+                hides += 2
+                val gone = webs.size
+                webs.clear()
+                event("The giant spider curls up and falls still. The villagers cut the silk free and burn the webs. (+3 goods, +2 hides)")
+                mark("A giant forest spider was slain.")
+                if (gone > 0) fx.add(Fx("quake", p.x, p.y, time, 0.8f))
+                for (v in villagers) v.happiness = min(100f, v.happiness + 6f)
             }
             "troll" -> {
                 trollsSlain++
@@ -4791,6 +4831,31 @@ class CivSim(
 
     /** Real enemies arrive on a schedule that quickens with the age of the village. */
     /** At nightfall a mossy troll sometimes stomps out of the hills; it turns to stone if the dawn finds it. */
+    /** Webs rot away, venom burns for a few seconds, and the spider is worth a hunt. */
+    private fun spiderTick(dt: Float) {
+        if (webs.isNotEmpty()) webs.removeAll { time - it[2] > 80.0 }
+        if (poisoned.isNotEmpty()) {
+            val it = poisoned.entries.iterator()
+            while (it.hasNext()) {
+                val e = it.next()
+                val v = villagers.firstOrNull { x -> x.id == e.key }
+                if (v == null || time > e.value) { it.remove(); continue }
+                v.hp = max(6f, v.hp - 1.2f * dt)
+                v.harmedBy = "spider"; v.harmedAt = time
+            }
+        }
+    }
+
+    /** How much a villager is slowed by sticky webs underfoot. */
+    private fun webSlow(v: Villager): Float {
+        if (webs.isEmpty()) return 1f
+        for (w in webs) if (abs(w[0] - v.x) < 0.9f && abs(w[1] - v.y) < 0.9f) {
+            if (time - v.webAt > 6.0) { webCatches++; v.webAt = time }
+            return 0.45f
+        }
+        return 1f
+    }
+
     private fun trollTick() {
         if (age < 2 || villagers.size < 7 || time - lastTrollAt < DAY_LEN * 3.5) return
         val f = frac()
@@ -4813,6 +4878,7 @@ class CivSim(
             "raiders" to (if (age >= 1 && villagers.size >= 6 && !campUp) 4 else 0),
             "pilferer" to (if (age == 0) 8 else 3),
             "hornets" to (if (age >= 1 && (seasonName() == "summer" || seasonName() == "autumn")) 3 else 0),
+            "spider" to (if (villagers.size >= 6 && time - lastSpiderAt > DAY_LEN * 1.5) 6 else 0),
             "ogre" to (if (age >= 2 && time - lastOgreAt > DAY_LEN * 4) 2 else 0),
             "breach" to (if (age >= 3) 3 else 0),
             "drake" to (if (boss) 3 else 0),
@@ -4830,6 +4896,12 @@ class CivSim(
                 val k = if (n >= 12 && rnd.nextInt(3) == 0) 2 else 1
                 spawnPredators("pilferer", k)
                 event(if (k == 1) "A masked pilferer slinks out of the bushes, eyeing the stores. Catch it before it runs off with the loot!" else "Two masked pilferers slink toward the stores. Catch them before they run off with the loot!")
+            }
+            "spider" -> {
+                lastSpiderAt = time
+                val k = if (n >= 16 && rnd.nextInt(3) == 0) 2 else 1
+                spawnPredators("spider", k)
+                event(if (k == 1) "A giant forest spider has crept out of the trees, spinning sticky webs across the paths. Hunt it down before it poisons someone!" else "Two giant forest spiders have crept out of the trees, spinning webs across the paths!")
             }
             "hornets" -> {
                 val k = min(7, 4 + n / 10)
@@ -4924,6 +4996,8 @@ class CivSim(
             Deed("hornets", "Honey Hunters", "Broke a hornet swarm.", "+25 food") { swarmsBroken >= 1 },
             Deed("frost", "Winter Wardens", "Broke a frost wolf pack.", "+30 wood, +10 food") { frostPacksBroken >= 1 },
             Deed("reaver1", "Shield Wall", "Beat back a sea reaver landing.", "+25 wood, +10 metal") { reaversSlain >= 3 },
+            Deed("spider1", "Webbreaker", "Slew a giant forest spider.", "+20 wood, +10 food") { spidersSlain >= 1 },
+            Deed("spider2", "Silk Merchants", "Slew five giant forest spiders.", "+30 food") { spidersSlain >= 5 },
             Deed("troll1", "Trollbane", "Brought down a night troll before dawn.", "+20 stone, +10 metal") { trollsSlain >= 1 },
             Deed("troll2", "Sunrise Surprise", "Let the dawn turn a night troll to stone.", "+25 stone") { trollsStoned >= 1 },
             Deed("ship1", "Burn the Longship", "Seized and burned a reaver longship.", "+30 food, +10 stone") { shipsSeized >= 1 },
@@ -6127,6 +6201,7 @@ class CivSim(
         planTick()
         threatTick()
         trollTick()
+        spiderTick(dt)
         expeditionTick(dt)
         campTick(dt)
         visitorTick(dt)
@@ -6237,7 +6312,7 @@ class CivSim(
         val dx = tx - v.x
         val dy = ty - v.y
         val dist = hypot(dx, dy)
-        val step = SPEED * dt
+        val step = SPEED * dt * webSlow(v)
         if (abs(dx) > 0.01f) v.facing = if (dx > 0) 1 else -1
         if (dist <= step) {
             v.x = tx
@@ -6264,7 +6339,7 @@ class CivSim(
             o.put("nextId", nextId)
             o.put("hides", hides)
             o.put("goods", goods)
-            o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("campUp", if (campUp) 1 else 0).put("campX", campX.toDouble()).put("campY", campY.toDouble()).put("campHp", campHp.toDouble()).put("campMax", campMax.toDouble()).put("campR", campsRazed).put("campH", campHits).put("campS", campSorties).put("expN", expeditions).put("expW", expWins).put("expR", expRetreats).put("expRooms", roomsCleared).put("relics", relics).put("expDeep", deepestRoom).put("wardens", wardensSlain).put("golems", golemsSlain).put("frostPacks", frostPacksBroken).put("pilfF", pilfersFoiled).put("pilfL", pilfersLost).put("swarms", swarmsBroken).put("hornets", hornetsSwatted).put("liches", lichesSlain).put("bones", bonesRaised).put("reavers", reaversSlain).put("trollS", trollsSlain).put("trollR", trollsStoned).put("trollB", trollBoulders).put("trollRocks", trollRocks.joinToString(",") { "${it[0].toInt()}:${it[1].toInt()}" }).put("ships", shipsSeized).put("landings", landings).put("shamans", shamansSlain).put("golden", goldenAt).put("visits", visitStats.entries.joinToString(",") { "${it.key}:${it.value}" }).put("deeds", deeds.joinToString(",")).put("tavern", tavernVisits).put("pets", pets.joinToString(",") { "${it.name}:${it.owner}:${it.bond}" }).put("dogA", dogsAdopted).put("dogW", dogWalks).put("dogB", dogBarks).put("fetes", fetesHeld).put("feteR", feteRevels).put("feteL", lastFeteSeason).put("feteK", feteKinds.joinToString(",")).put("snowmen", snowmenBuilt).put("leafR", leafPilesRaked).put("starsF", starsFallen).put("starG", starShardsGot).put("kites", kitesFlown).put("sprops", seasonProps.joinToString(",") { "${it.kind}:${it.x.toInt()}:${it.y.toInt()}" }).put("statues", statues.joinToString(";") { "${it.name}|${it.title}|${it.kind}|${it.x.toInt()}|${it.y.toInt()}|${it.tier}" }).put("statueC", statueCheers).put("graves", graves.joinToString(";") { "${it.name}|${it.job}|${it.x.toInt()}|${it.y.toInt()}|${it.ageYears}|${it.cause}|${it.day}" }).put("graveX", graveX).put("graveY", graveY).put("buried", buried).put("mournN", mournVisits).put("totemV", totemVisits).put("raised", raised).put("omens", omens).put("recov", recoveries).put("balS", ballistaShots).put("balK", ballistaKills).put("ranchV", ranchVisits).put("pastV", pastureVisits).put("sailN", sailTrips).put("millN", millGrinds).put("millF", flourMade).put("millL", loavesBaked).put("quarryN", quarryHauls).put("quarryS", quarryStone).put("quarryV", quarryVeins).put("vigN", vigils).put("vigP", vigilPoints).put("legCalls", legendCalls).put("dockC", dockCatch).put("bottles", bottlesFound).put("flockS", flockSheep).put("flockH", flockHens).put("eggsG", eggsGathered).put("fleece", fleeces).put("techs", techs.joinToString(",")).put("research", research).put("studyN", studyCount).put("babies", babiesBorn).put("dreams", dreamsDone).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" }).put("wallN", wallsRaised).put("wallX", wallCx).put("wallY", wallCy).put("wallD", if (wallDone) 1 else 0).put("wallH", wallHoldSecs.toDouble()).put("lessons", lessonsGiven).put("appMade", apprenticesMade).put("apprentice", apprentice.entries.joinToString(";") { "${it.key}:${it.value}" }).put("cathX", cathX).put("cathY", cathY).put("cathW", cathWork).put("cathT", cathTrips).put("cathB", cathBells).put("jubU", jubileeUntil).put("honeyN", honeyHarvests).put("honeyJ", honeyJars).put("honeyS", beeStings).put("honeyM", meadFeasts).put("honeyT", honeyMark).put("councN", councilsHeld).put("councS", councilSeats).put("councNext", councilNextAt).put("policy", policy).put("policyU", policyUntil).put("policyS", policyStart).put("policyB", policyBase.toDouble()).put("policyV", policyVotes).put("policyO", policyOf).put("policyA", policyActs).put("policyW", policiesWon).put("policyL", policiesLost).put("policyK", policyKinds.joinToString(",")).put("skUp", skillUps).put("skB", skillBonusLoads).put("skM", skillMasters).put("fireS", firesStarted).put("fireD", firesDoused).put("fireW", fireDouses).put("fireB", fireBurnedOut).put("fireL", fireLoss)
+            o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("campUp", if (campUp) 1 else 0).put("campX", campX.toDouble()).put("campY", campY.toDouble()).put("campHp", campHp.toDouble()).put("campMax", campMax.toDouble()).put("campR", campsRazed).put("campH", campHits).put("campS", campSorties).put("expN", expeditions).put("expW", expWins).put("expR", expRetreats).put("expRooms", roomsCleared).put("relics", relics).put("expDeep", deepestRoom).put("wardens", wardensSlain).put("golems", golemsSlain).put("frostPacks", frostPacksBroken).put("pilfF", pilfersFoiled).put("pilfL", pilfersLost).put("swarms", swarmsBroken).put("hornets", hornetsSwatted).put("liches", lichesSlain).put("bones", bonesRaised).put("reavers", reaversSlain).put("spiderS", spidersSlain).put("spiderW", websSpun).put("spiderC", webCatches).put("spiderB", spiderBites).put("trollS", trollsSlain).put("trollR", trollsStoned).put("trollB", trollBoulders).put("trollRocks", trollRocks.joinToString(",") { "${it[0].toInt()}:${it[1].toInt()}" }).put("ships", shipsSeized).put("landings", landings).put("shamans", shamansSlain).put("golden", goldenAt).put("visits", visitStats.entries.joinToString(",") { "${it.key}:${it.value}" }).put("deeds", deeds.joinToString(",")).put("tavern", tavernVisits).put("pets", pets.joinToString(",") { "${it.name}:${it.owner}:${it.bond}" }).put("dogA", dogsAdopted).put("dogW", dogWalks).put("dogB", dogBarks).put("fetes", fetesHeld).put("feteR", feteRevels).put("feteL", lastFeteSeason).put("feteK", feteKinds.joinToString(",")).put("snowmen", snowmenBuilt).put("leafR", leafPilesRaked).put("starsF", starsFallen).put("starG", starShardsGot).put("kites", kitesFlown).put("sprops", seasonProps.joinToString(",") { "${it.kind}:${it.x.toInt()}:${it.y.toInt()}" }).put("statues", statues.joinToString(";") { "${it.name}|${it.title}|${it.kind}|${it.x.toInt()}|${it.y.toInt()}|${it.tier}" }).put("statueC", statueCheers).put("graves", graves.joinToString(";") { "${it.name}|${it.job}|${it.x.toInt()}|${it.y.toInt()}|${it.ageYears}|${it.cause}|${it.day}" }).put("graveX", graveX).put("graveY", graveY).put("buried", buried).put("mournN", mournVisits).put("totemV", totemVisits).put("raised", raised).put("omens", omens).put("recov", recoveries).put("balS", ballistaShots).put("balK", ballistaKills).put("ranchV", ranchVisits).put("pastV", pastureVisits).put("sailN", sailTrips).put("millN", millGrinds).put("millF", flourMade).put("millL", loavesBaked).put("quarryN", quarryHauls).put("quarryS", quarryStone).put("quarryV", quarryVeins).put("vigN", vigils).put("vigP", vigilPoints).put("legCalls", legendCalls).put("dockC", dockCatch).put("bottles", bottlesFound).put("flockS", flockSheep).put("flockH", flockHens).put("eggsG", eggsGathered).put("fleece", fleeces).put("techs", techs.joinToString(",")).put("research", research).put("studyN", studyCount).put("babies", babiesBorn).put("dreams", dreamsDone).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" }).put("wallN", wallsRaised).put("wallX", wallCx).put("wallY", wallCy).put("wallD", if (wallDone) 1 else 0).put("wallH", wallHoldSecs.toDouble()).put("lessons", lessonsGiven).put("appMade", apprenticesMade).put("apprentice", apprentice.entries.joinToString(";") { "${it.key}:${it.value}" }).put("cathX", cathX).put("cathY", cathY).put("cathW", cathWork).put("cathT", cathTrips).put("cathB", cathBells).put("jubU", jubileeUntil).put("honeyN", honeyHarvests).put("honeyJ", honeyJars).put("honeyS", beeStings).put("honeyM", meadFeasts).put("honeyT", honeyMark).put("councN", councilsHeld).put("councS", councilSeats).put("councNext", councilNextAt).put("policy", policy).put("policyU", policyUntil).put("policyS", policyStart).put("policyB", policyBase.toDouble()).put("policyV", policyVotes).put("policyO", policyOf).put("policyA", policyActs).put("policyW", policiesWon).put("policyL", policiesLost).put("policyK", policyKinds.joinToString(",")).put("skUp", skillUps).put("skB", skillBonusLoads).put("skM", skillMasters).put("fireS", firesStarted).put("fireD", firesDoused).put("fireW", fireDouses).put("fireB", fireBurnedOut).put("fireL", fireLoss)
             o.put("traffic", String(CharArray(traffic.size) { i -> '0' + min(9, (traffic[i] / 4f).toInt()) }))
             val ks = JSONArray()
             kingdoms.forEach {
@@ -6389,7 +6464,7 @@ class CivSim(
             if (lg != null) for (i in 0 until lg.length()) log.add(lg.getString(i))
             hides = o.optInt("hides", 0)
             goods = o.optInt("goods", 0)
-            skillUps = o.optInt("skUp", 0); skillBonusLoads = o.optInt("skB", 0); skillMasters = o.optInt("skM", 0); firesStarted = o.optInt("fireS", 0); firesDoused = o.optInt("fireD", 0); fireDouses = o.optInt("fireW", 0); fireBurnedOut = o.optInt("fireB", 0); fireLoss = o.optInt("fireL", 0); raidsRepelled = o.optInt("raids", 0); ogresSlain = o.optInt("ogres", 0); bossesSlain = o.optInt("bosses", 0); warlordsSlain = o.optInt("warlords", 0); golemsSlain = o.optInt("golems", 0); shamansSlain = o.optInt("shamans", 0); frostPacksBroken = o.optInt("frostPacks", 0); pilfersFoiled = o.optInt("pilfF", 0); pilfersLost = o.optInt("pilfL", 0); swarmsBroken = o.optInt("swarms", 0); hornetsSwatted = o.optInt("hornets", 0); lichesSlain = o.optInt("liches", 0); bonesRaised = o.optInt("bones", 0); reaversSlain = o.optInt("reavers", 0); trollsSlain = o.optInt("trollS", 0); trollsStoned = o.optInt("trollR", 0); trollBoulders = o.optInt("trollB", 0); trollRocks.clear(); o.optString("trollRocks", "").split(",").filter { it.contains(":") }.forEach { val q = it.split(":"); trollRocks.add(floatArrayOf(q[0].toFloat() + 0.5f, q[1].toFloat() + 0.5f)) }; shipsSeized = o.optInt("ships", 0); landings = o.optInt("landings", 0)
+            skillUps = o.optInt("skUp", 0); skillBonusLoads = o.optInt("skB", 0); skillMasters = o.optInt("skM", 0); firesStarted = o.optInt("fireS", 0); firesDoused = o.optInt("fireD", 0); fireDouses = o.optInt("fireW", 0); fireBurnedOut = o.optInt("fireB", 0); fireLoss = o.optInt("fireL", 0); raidsRepelled = o.optInt("raids", 0); ogresSlain = o.optInt("ogres", 0); bossesSlain = o.optInt("bosses", 0); warlordsSlain = o.optInt("warlords", 0); golemsSlain = o.optInt("golems", 0); shamansSlain = o.optInt("shamans", 0); frostPacksBroken = o.optInt("frostPacks", 0); pilfersFoiled = o.optInt("pilfF", 0); pilfersLost = o.optInt("pilfL", 0); swarmsBroken = o.optInt("swarms", 0); hornetsSwatted = o.optInt("hornets", 0); lichesSlain = o.optInt("liches", 0); bonesRaised = o.optInt("bones", 0); reaversSlain = o.optInt("reavers", 0); spidersSlain = o.optInt("spiderS", 0); websSpun = o.optInt("spiderW", 0); webCatches = o.optInt("spiderC", 0); spiderBites = o.optInt("spiderB", 0); trollsSlain = o.optInt("trollS", 0); trollsStoned = o.optInt("trollR", 0); trollBoulders = o.optInt("trollB", 0); trollRocks.clear(); o.optString("trollRocks", "").split(",").filter { it.contains(":") }.forEach { val q = it.split(":"); trollRocks.add(floatArrayOf(q[0].toFloat() + 0.5f, q[1].toFloat() + 0.5f)) }; shipsSeized = o.optInt("ships", 0); landings = o.optInt("landings", 0)
             visitStats.clear()
             for (e in o.optString("visits", "").split(",")) { val kv = e.split(":"); if (kv.size == 2) visitStats[kv[0]] = kv[1].toIntOrNull() ?: 0 }
             goldenAt = o.optDouble("golden", -1.0)

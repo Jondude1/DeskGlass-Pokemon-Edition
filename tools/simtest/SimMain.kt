@@ -107,6 +107,7 @@ fun main(args: Array<String>) {
     println("THREATS raids=${sim.raidsRepelled} ogres=${sim.ogresSlain} bosses=${sim.bossesSlain} golden=${sim.goldenAt} pop=${sim.villagers.size} legacy=${sim.legacy().count{it.second}}/${sim.legacy().size} legends=${sim.critters.legendsOwned()}")
     println("FOES kinds=${sim.foeStats.size} ${sim.foeStats.toSortedMap()} warlords=${sim.warlordsSlain} golems=${sim.golemsSlain} shamans=${sim.shamansSlain} frostPacks=${sim.frostPacksBroken} pilfersFoiled=${sim.pilfersFoiled} pilfersLost=${sim.pilfersLost} swarms=${sim.swarmsBroken} hornets=${sim.hornetsSwatted} liches=${sim.lichesSlain} bones=${sim.bonesRaised} landings=${sim.landings} reavers=${sim.reaversSlain} ships=${sim.shipsSeized}")
     println("TROLLS slain=${sim.trollsSlain} stoned=${sim.trollsStoned} boulders=${sim.trollBoulders} rocks=${sim.trollRocks.size}")
+    println("SPIDERS slain=${sim.spidersSlain} webs=${sim.websSpun} caught=${sim.webCatches} bites=${sim.spiderBites} websNow=${sim.webs.size} poisonedNow=${sim.poisoned.size}")
     println("WEATHER day=${sim.day()} season=${sim.seasonName()} events=${sim.wxStats.toSortedMap()} distinct=${sim.wxStats.size}")
     println("RELATIONS weddings=${sim.weds} couples=${sim.villagers.count { it.partner >= 0 } / 2} bffs=${sim.bffs.size} feudsStarted=${sim.feudsStarted} feudsEnded=${sim.feudsEnded} activeFeuds=${sim.villagers.count { sim.feudWith(it) != null } / 2} babiesBorn=${sim.babiesBorn}")
     println("VISITORS total=${sim.visitTotal()} ${sim.visitStats.toSortedMap()}")

@@ -1078,6 +1078,7 @@ private fun DrawScope.drawWorld(
     cathedral(sim, geo)
     reaverShip(sim, geo)
     trollRocks(sim, geo)
+    spiderWebs(sim, geo)
     riftSite(sim, geo)
     starCrater(sim, geo)
     wildfires(sim, geo)
@@ -1220,6 +1221,13 @@ private fun DrawScope.drawWorld(
                     Size(ts * 0.6f, ts * 3f),
                 )
             }
+            "venom" -> {
+                for (k in 0 until 5) {
+                    val ang = k * 1.26f + p * 2f
+                    val rr = ts * (0.15f + 0.45f * p)
+                    drawRect(Color(0xFF8CD84A).copy(alpha = 0.9f * (1f - p)), Offset(cx + kotlin.math.cos(ang) * rr, cy - ts * 0.3f - p * ts * 0.6f + kotlin.math.sin(ang) * rr * 0.5f), Size(ps * 1.6f, ps * 1.6f))
+                }
+            }
             "boulder" -> {
                 val q = (p / 0.6f).coerceIn(0f, 1f)
                 if (p < 0.6f) {
@@ -1334,9 +1342,9 @@ private fun DrawScope.drawWorld(
     for (p in sim.predators) {
         val sp = when (p.kind) {
             "bear" -> art.bear; "boar" -> art.boar; "raider" -> art.raider; "ogre" -> art.ogre
-            "wraith" -> art.wraith; "drake" -> art.drake; "shaman" -> art.shaman; "warlord" -> art.warlord; "golem" -> art.golem; "frostwolf" -> art.frostwolf; "lich" -> art.lich; "skeleton" -> art.skeleton; "pilferer" -> art.pilferer; "hornet" -> art.hornet; "reaver" -> art.reaver; "troll" -> art.troll; else -> art.wolf
+            "wraith" -> art.wraith; "drake" -> art.drake; "shaman" -> art.shaman; "warlord" -> art.warlord; "golem" -> art.golem; "frostwolf" -> art.frostwolf; "lich" -> art.lich; "skeleton" -> art.skeleton; "pilferer" -> art.pilferer; "hornet" -> art.hornet; "reaver" -> art.reaver; "troll" -> art.troll; "spider" -> art.spider; else -> art.wolf
         }
-        val sc = when (p.kind) { "bear" -> 1.15f; "boar" -> 0.95f; "ogre" -> 1.5f; "drake" -> 1.7f; "raider" -> 1.1f; "warlord" -> 1.45f; "golem" -> 1.55f; "shaman" -> 1.1f; "lich" -> 1.35f; "skeleton" -> 1.05f; "frostwolf" -> 1.05f; "pilferer" -> 1.05f; "hornet" -> 0.8f; "reaver" -> 1.15f; "troll" -> 1.6f; else -> 1f }
+        val sc = when (p.kind) { "bear" -> 1.15f; "boar" -> 0.95f; "ogre" -> 1.5f; "drake" -> 1.7f; "raider" -> 1.1f; "warlord" -> 1.45f; "golem" -> 1.55f; "shaman" -> 1.1f; "lich" -> 1.35f; "skeleton" -> 1.05f; "frostwolf" -> 1.05f; "pilferer" -> 1.05f; "hornet" -> 0.8f; "reaver" -> 1.15f; "troll" -> 1.6f; "spider" -> 1.25f; else -> 1f }
         val w = sp.lw * ps * sc
         val h = sp.lh * ps * sc
         val feet = oy + (p.y + 0.45f) * ts
@@ -1763,7 +1771,7 @@ private fun ThreatChip(sim: CivSim, tick: Long, modifier: Modifier = Modifier) {
 private fun newsTint(line: String): Color {
     val l = line.lowercase()
     return when {
-        listOf("killed", "war", "wolves", "wolf", "bear", "boar", "raider", "ogre", "wraith", "drake", "shaman", "warlord", "golem", "frost", "lich", "skeleton", "pilferer", "hornet", "reaver", "troll", "longship", "rift", "falls", "plague", "attack", "slain", "mourns").any { l.contains(it) } -> Color(0xFFFF9C8A)
+        listOf("killed", "war", "wolves", "wolf", "bear", "boar", "raider", "ogre", "wraith", "drake", "shaman", "warlord", "golem", "frost", "lich", "skeleton", "pilferer", "hornet", "reaver", "troll", "spider", "longship", "rift", "falls", "plague", "attack", "slain", "mourns").any { l.contains(it) } -> Color(0xFFFF9C8A)
         listOf("built", "palisade", "raise", "born", "feast", "berries", "welcome", "alliance", "trade").any { l.contains(it) } -> Color(0xFFA6E3A1)
         else -> Glass.InkDim
     }

@@ -369,6 +369,10 @@ class CivArt {
         'g' to 0xFF6E8F4E.toInt(), 'G' to 0xFF4F6B38.toInt(), 'e' to 0xFFFFD84A.toInt(), 'k' to 0xFF2A2A22.toInt(),
         'w' to 0xFFF2EAD0.toInt(), 'm' to 0xFF7A5A3A.toInt(),
     ))
+    val spider = sprite(SPIDER, mapOf(
+        'b' to 0xFF3A2A44.toInt(), 'B' to 0xFF5A4468.toInt(), 'r' to 0xFFFF4A3A.toInt(), 'y' to 0xFFD8C040.toInt(),
+        'k' to 0xFF1A1220.toInt(), 'g' to 0xFF8CD84A.toInt(),
+    ))
     val hornet = sprite(HORNET, mapOf(
         'y' to 0xFFF2C830.toInt(), 'k' to 0xFF1E1A16.toInt(), 'w' to 0xFFD8F0FF.toInt(), 'r' to 0xFFD04A2A.toInt(),
     ))
@@ -1236,6 +1240,18 @@ class CivArt {
             "...gg..gg...",
             "..ggg..ggg..",
             ".kkkk..kkkk.",
+        )
+        val SPIDER = listOf(
+            "k..........k",
+            ".k...bb...k.",
+            "..k.bBBb.k..",
+            "k.kbrBBrbk.k",
+            ".kkbBbbBbkk.",
+            "k..bybbyb..k",
+            "..kbbyybbk..",
+            ".k.kbbbbk.k.",
+            "k...kbbk...k",
+            "....k..k....",
         )
         val HORNET = listOf(
             "ww....ww",
