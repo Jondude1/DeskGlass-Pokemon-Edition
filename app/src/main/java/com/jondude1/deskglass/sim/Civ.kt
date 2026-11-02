@@ -422,6 +422,19 @@ class CivSim(
     var riftOpenedAt = -999.0
     var riftResultAt = -999.0
     var riftWon = false
+    // dungeon depth: side chambers between fights, one rally after a lost fight, a two-phase Warden
+    var riftSide = false
+    var riftSideKind = 0 // last side chamber: 1 trap, 2 vault, 3 spring, 4 shrine
+    var riftSideAt = -999.0
+    var riftRallied = false
+    var riftBoost = 0f
+    var riftWardenPhase = 0
+    var sideRooms = 0
+    var sideTraps = 0
+    var sideVaults = 0
+    var sideSprings = 0
+    var sideShrines = 0
+    var riftRallies = 0
     var riftRoomsDone = 0
     val party = ArrayList<Int>()
     private var nextRiftAt = DAY_LEN * 1.0
@@ -666,7 +679,7 @@ class CivSim(
         hides = 0
         goods = 0
         visitor = null; nextVisitAt = time + DAY_LEN * 1.2; visitStats.clear(); raidsRepelled = 0; ogresSlain = 0; bossesSlain = 0; warlordsSlain = 0; golemsSlain = 0; shamansSlain = 0; frostPacksBroken = 0; pilfersFoiled = 0; pilfersLost = 0; swarmsBroken = 0; hornetsSwatted = 0; lichesSlain = 0; bonesRaised = 0; lastLichAt = -999.0; reaversSlain = 0; trollsSlain = 0; trollsStoned = 0; trollBoulders = 0; spidersSlain = 0; websSpun = 0; webCatches = 0; spiderBites = 0; lastSpiderAt = -999.0; webs.clear(); poisoned.clear(); skillUps = 0; skillBonusLoads = 0; skillMasters = 0; lastTrollAt = -999.0; trollRocks.clear(); shipsSeized = 0; landings = 0; lastLandingAt = -999.0; shipUp = false; shipT = 0f; foeStats.clear(); lastWarlordAt = -999.0; goldenAt = -1.0; deeds.clear(); babiesBorn = 0; weds = 0; feudsStarted = 0; feudsEnded = 0; bffs.clear(); feudEnds.clear(); courting.clear(); weddingAt = -999.0; nextRelAt = 0.0; deedBannerAt = -999.0; nextDeedAt = 0.0; titlesEarned = 0; dreamsDone = 0; lastThreatAt = 0.0
-        riftState = 0; party.clear(); expeditions = 0; expWins = 0; expRetreats = 0; roomsCleared = 0; relics = 0; deepestRoom = 0; wardensSlain = 0; nextRiftAt = time + DAY_LEN
+        riftState = 0; party.clear(); expeditions = 0; expWins = 0; expRetreats = 0; roomsCleared = 0; relics = 0; deepestRoom = 0; wardensSlain = 0; sideRooms = 0; sideTraps = 0; sideVaults = 0; sideSprings = 0; sideShrines = 0; riftRallies = 0; riftSide = false; nextRiftAt = time + DAY_LEN
         campUp = false; campsRazed = 0; campHits = 0; campSorties = 0; campRazedAt = -999.0; campHitAt = -999.0; campNextAt = time + DAY_LEN * 1.5
         nextThreatAt = DAY_LEN * 1.4; lastBossAt = -999.0
         traffic.fill(0f)
@@ -5295,6 +5308,8 @@ class CivSim(
             Deed("bell1", "Ring Out", "Rang the bell tower twenty times.", "+8 wood, +4 stone") { bellRings >= 20 },
             Deed("bell2", "Sound the Alarm", "Rang the alarm bell five times while foes were near.", "joy for all") { bellAlarms >= 5 },
             Deed("soak1", "Aching Bones", "Soaked in the hot spring twenty times.", "+8 food, +4 goods") { soaks >= 20 },
+            Deed("rift_side", "Dungeon Delvers", "Explored five side chambers deep in the rifts.", "+20 wood") { sideRooms >= 5 },
+            Deed("rift_rally", "Never Say Die", "A rift party rallied after being thrown back.", "joy for all") { riftRallies >= 1 },
             Deed("soak2", "Steam Gossip", "Shared three steamy hot-spring parties.", "joy for all") { soakParties >= 3 },
             Deed("arch1", "Straight Shooter", "Hit twenty bullseyes at the archery range.", "+10 wood, +4 stone") { bullseyes >= 20 },
             Deed("arch2", "Champion of the Butts", "Held three archery contests.", "joy for all") { archeryMatches >= 3 },
@@ -5655,6 +5670,7 @@ class CivSim(
         riftOpenedAt = time
         riftRoom = 0
         riftRoomsDone = 0
+        riftSide = false; riftSideKind = 0; riftRallied = false; riftBoost = 0f; riftWardenPhase = 0
         fx.add(Fx("spawn", riftX, riftY, time, 1.6f))
         val names = partyMembers().joinToString(", ") { it.name }
         event("A violet rift flickers open beyond the village. $names grab their gear and march in to see what lies beyond.")
@@ -5688,14 +5704,32 @@ class CivSim(
     private fun resolveRoom(ms: List<Villager>) {
         val power = ms.sumOf { delvePower(it).toDouble() }.toFloat() + 0.12f * relics
         val diff = 1.3f + 0.75f * riftRoom + 0.25f * age + (if (riftRoom == 4) 0.8f else 0f)
-        val chance = (0.68f + (power - diff) * 0.22f).coerceIn(0.15f, 0.95f)
+        val chance = (0.68f + (power - diff) * 0.22f + riftBoost).coerceIn(0.15f, 0.95f)
         val foe = when (riftRoom) { 1 -> "gloomwebs in Gloomweb Hollow"; 2 -> "shard crawlers in their nest"; 3 -> "echo wraiths in the Echo Hall"; else -> "the Rift Warden" }
         val win = rnd.nextFloat() < chance
         val hit = ms[rnd.nextInt(ms.size)]
         hit.hp = max(15f, hit.hp - (if (win) 6f + rnd.nextInt(10) else 18f + rnd.nextInt(14)))
         fx.add(Fx("clash", riftX + (rnd.nextFloat() - 0.5f) * 1.6f, riftY + (rnd.nextFloat() - 0.5f), time, 1.0f))
         if (!win) {
-            endRift(false, "${hit.name} and the party were driven out by $foe. They limp home wounded.")
+            val avg = ms.sumOf { it.hp.toDouble() }.toFloat() / ms.size
+            if (!riftRallied && avg >= 40f) {
+                riftRallied = true
+                riftRallies++
+                riftBoost += 0.1f
+                riftRoomT = 3f
+                addLog("${hit.name} is thrown back by $foe, but the party rallies and charges again.")
+                fx.add(Fx("spawn", riftX, riftY, time, 0.8f))
+                return
+            }
+            val spoils = if (riftRoomsDone >= 2) "They retreat with the spoils of $riftRoomsDone rooms." else "They limp home wounded."
+            endRift(false, "${hit.name} and the party were driven out by $foe. $spoils")
+            return
+        }
+        if (riftRoom == 4 && riftWardenPhase == 0) {
+            riftWardenPhase = 1
+            riftRoomT = 4f
+            addLog("The Rift Warden's crystal shell cracks! It rises, burning violet, for a second round.")
+            fx.add(Fx("clash", riftX, riftY, time, 1.4f))
             return
         }
         roomsCleared++
@@ -5716,6 +5750,49 @@ class CivSim(
         }
         riftRoom++
         fx.add(Fx("spawn", riftX, riftY, time, 1.0f))
+        if (rnd.nextInt(100) < 60) { riftSide = true; riftRoomT = 0f }
+    }
+
+    /** A quiet chamber between two fights: a trap, a vault, a healing spring or a shrine. */
+    private fun resolveSide(ms: List<Villager>) {
+        val power = ms.sumOf { delvePower(it).toDouble() }.toFloat()
+        sideRooms++
+        riftSideAt = time
+        when (rnd.nextInt(4)) {
+            0 -> {
+                riftSideKind = 1
+                val v = ms[rnd.nextInt(ms.size)]
+                if (rnd.nextFloat() < (0.45f + power * 0.08f).coerceIn(0.4f, 0.9f)) {
+                    addLog("${v.name} spots a tripwire in the dark and the party steps over it.")
+                } else {
+                    sideTraps++
+                    v.hp = max(15f, v.hp - 14f)
+                    addLog("${v.name} trips a rune trap and is scorched, but fights on.")
+                }
+            }
+            1 -> {
+                riftSideKind = 2
+                sideVaults++
+                val g = 4 + age * 2
+                goods += g
+                if (age >= 2) metal += 2 else stone += 6
+                addLog("The party pries open a dusty vault: $g goods and ${if (age >= 2) "2 metal" else "6 stone"}.")
+            }
+            2 -> {
+                riftSideKind = 3
+                sideSprings++
+                for (m in ms) m.hp = min(100f, m.hp + 22f)
+                addLog("A glowing spring bubbles in the rock; the party drinks and binds its wounds.")
+            }
+            else -> {
+                riftSideKind = 4
+                sideShrines++
+                riftBoost += 0.08f
+                for (m in ms) m.happiness = min(100f, m.happiness + 6f)
+                addLog("A small shrine hums as the party passes; their spirits lift.")
+            }
+        }
+        fx.add(Fx("spawn", riftX, riftY, time, 0.7f))
     }
 
     // ---- bandit camp ----
@@ -5840,6 +5917,13 @@ class CivSim(
         val inside = ms.filter { it.phase == "working" }
         if (inside.size < 2) { endRift(false, "The rift party was scattered and fled home."); return }
         riftRoomT += dt
+        if (riftSide) {
+            if (riftRoomT < 7f) return
+            riftRoomT = 0f
+            riftSide = false
+            resolveSide(inside)
+            return
+        }
         if (riftRoomT < 11f) return
         riftRoomT = 0f
         resolveRoom(inside)
@@ -6616,7 +6700,7 @@ class CivSim(
             o.put("nextId", nextId)
             o.put("hides", hides)
             o.put("goods", goods)
-            o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("campUp", if (campUp) 1 else 0).put("campX", campX.toDouble()).put("campY", campY.toDouble()).put("campHp", campHp.toDouble()).put("campMax", campMax.toDouble()).put("campR", campsRazed).put("campH", campHits).put("campS", campSorties).put("expN", expeditions).put("expW", expWins).put("expR", expRetreats).put("expRooms", roomsCleared).put("relics", relics).put("expDeep", deepestRoom).put("wardens", wardensSlain).put("golems", golemsSlain).put("frostPacks", frostPacksBroken).put("pilfF", pilfersFoiled).put("pilfL", pilfersLost).put("swarms", swarmsBroken).put("hornets", hornetsSwatted).put("liches", lichesSlain).put("bones", bonesRaised).put("reavers", reaversSlain).put("spiderS", spidersSlain).put("spiderW", websSpun).put("spiderC", webCatches).put("spiderB", spiderBites).put("trollS", trollsSlain).put("trollR", trollsStoned).put("trollB", trollBoulders).put("trollRocks", trollRocks.joinToString(",") { "${it[0].toInt()}:${it[1].toInt()}" }).put("ships", shipsSeized).put("landings", landings).put("shamans", shamansSlain).put("golden", goldenAt).put("visits", visitStats.entries.joinToString(",") { "${it.key}:${it.value}" }).put("deeds", deeds.joinToString(",")).put("tavern", tavernVisits).put("pets", pets.joinToString(",") { "${it.name}:${it.owner}:${it.bond}" }).put("dogA", dogsAdopted).put("dogW", dogWalks).put("dogB", dogBarks).put("fetes", fetesHeld).put("feteR", feteRevels).put("feteL", lastFeteSeason).put("feteK", feteKinds.joinToString(",")).put("snowmen", snowmenBuilt).put("leafR", leafPilesRaked).put("starsF", starsFallen).put("starG", starShardsGot).put("kites", kitesFlown).put("sprops", seasonProps.joinToString(",") { "${it.kind}:${it.x.toInt()}:${it.y.toInt()}" }).put("statues", statues.joinToString(";") { "${it.name}|${it.title}|${it.kind}|${it.x.toInt()}|${it.y.toInt()}|${it.tier}" }).put("statueC", statueCheers).put("graves", graves.joinToString(";") { "${it.name}|${it.job}|${it.x.toInt()}|${it.y.toInt()}|${it.ageYears}|${it.cause}|${it.day}" }).put("graveX", graveX).put("graveY", graveY).put("buried", buried).put("mournN", mournVisits).put("totemV", totemVisits).put("raised", raised).put("omens", omens).put("recov", recoveries).put("balS", ballistaShots).put("balK", ballistaKills).put("ranchV", ranchVisits).put("pastV", pastureVisits).put("sailN", sailTrips).put("millN", millGrinds).put("millF", flourMade).put("millL", loavesBaked).put("quarryN", quarryHauls).put("quarryS", quarryStone).put("quarryV", quarryVeins).put("vigN", vigils).put("vigP", vigilPoints).put("legCalls", legendCalls).put("dockC", dockCatch).put("bottles", bottlesFound).put("flockS", flockSheep).put("flockH", flockHens).put("eggsG", eggsGathered).put("fleece", fleeces).put("techs", techs.joinToString(",")).put("research", research).put("studyN", studyCount).put("babies", babiesBorn).put("dreams", dreamsDone).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" }).put("wallN", wallsRaised).put("wallX", wallCx).put("wallY", wallCy).put("wallD", if (wallDone) 1 else 0).put("wallH", wallHoldSecs.toDouble()).put("lessons", lessonsGiven).put("appMade", apprenticesMade).put("apprentice", apprentice.entries.joinToString(";") { "${it.key}:${it.value}" }).put("cathX", cathX).put("cathY", cathY).put("cathW", cathWork).put("cathT", cathTrips).put("cathB", cathBells).put("jubU", jubileeUntil).put("honeyN", honeyHarvests).put("honeyJ", honeyJars).put("honeyS", beeStings).put("honeyM", meadFeasts).put("honeyT", honeyMark).put("soakN", soaks).put("soakH", soakHeals).put("soakP", soakParties).put("soakG", soakGossips).put("shotN", shotsFired).put("shotB", bullseyes).put("shotM", archeryMatches).put("shotBest", archeryBest).put("fruitN", fruitPicks).put("fruitB", fruitBaskets).put("fruitC", ciderFeasts).put("fruitF", fruitFalls).put("fruitT", fruitMark).put("councN", councilsHeld).put("councS", councilSeats).put("councNext", councilNextAt).put("policy", policy).put("policyU", policyUntil).put("policyS", policyStart).put("policyB", policyBase.toDouble()).put("policyV", policyVotes).put("policyO", policyOf).put("policyA", policyActs).put("policyW", policiesWon).put("policyL", policiesLost).put("policyK", policyKinds.joinToString(",")).put("skUp", skillUps).put("skB", skillBonusLoads).put("skM", skillMasters).put("fireS", firesStarted).put("fireD", firesDoused).put("fireW", fireDouses).put("fireB", fireBurnedOut).put("fireL", fireLoss)
+            o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("campUp", if (campUp) 1 else 0).put("campX", campX.toDouble()).put("campY", campY.toDouble()).put("campHp", campHp.toDouble()).put("campMax", campMax.toDouble()).put("campR", campsRazed).put("campH", campHits).put("campS", campSorties).put("expN", expeditions).put("expW", expWins).put("expR", expRetreats).put("expRooms", roomsCleared).put("relics", relics).put("expDeep", deepestRoom).put("wardens", wardensSlain).put("golems", golemsSlain).put("frostPacks", frostPacksBroken).put("pilfF", pilfersFoiled).put("pilfL", pilfersLost).put("swarms", swarmsBroken).put("hornets", hornetsSwatted).put("liches", lichesSlain).put("bones", bonesRaised).put("reavers", reaversSlain).put("spiderS", spidersSlain).put("spiderW", websSpun).put("spiderC", webCatches).put("spiderB", spiderBites).put("trollS", trollsSlain).put("trollR", trollsStoned).put("trollB", trollBoulders).put("trollRocks", trollRocks.joinToString(",") { "${it[0].toInt()}:${it[1].toInt()}" }).put("ships", shipsSeized).put("landings", landings).put("shamans", shamansSlain).put("golden", goldenAt).put("visits", visitStats.entries.joinToString(",") { "${it.key}:${it.value}" }).put("deeds", deeds.joinToString(",")).put("tavern", tavernVisits).put("pets", pets.joinToString(",") { "${it.name}:${it.owner}:${it.bond}" }).put("dogA", dogsAdopted).put("dogW", dogWalks).put("dogB", dogBarks).put("fetes", fetesHeld).put("feteR", feteRevels).put("feteL", lastFeteSeason).put("feteK", feteKinds.joinToString(",")).put("snowmen", snowmenBuilt).put("leafR", leafPilesRaked).put("starsF", starsFallen).put("starG", starShardsGot).put("kites", kitesFlown).put("sprops", seasonProps.joinToString(",") { "${it.kind}:${it.x.toInt()}:${it.y.toInt()}" }).put("statues", statues.joinToString(";") { "${it.name}|${it.title}|${it.kind}|${it.x.toInt()}|${it.y.toInt()}|${it.tier}" }).put("statueC", statueCheers).put("graves", graves.joinToString(";") { "${it.name}|${it.job}|${it.x.toInt()}|${it.y.toInt()}|${it.ageYears}|${it.cause}|${it.day}" }).put("graveX", graveX).put("graveY", graveY).put("buried", buried).put("mournN", mournVisits).put("totemV", totemVisits).put("raised", raised).put("omens", omens).put("recov", recoveries).put("balS", ballistaShots).put("balK", ballistaKills).put("ranchV", ranchVisits).put("pastV", pastureVisits).put("sailN", sailTrips).put("millN", millGrinds).put("millF", flourMade).put("millL", loavesBaked).put("quarryN", quarryHauls).put("quarryS", quarryStone).put("quarryV", quarryVeins).put("vigN", vigils).put("vigP", vigilPoints).put("legCalls", legendCalls).put("dockC", dockCatch).put("bottles", bottlesFound).put("flockS", flockSheep).put("flockH", flockHens).put("eggsG", eggsGathered).put("fleece", fleeces).put("techs", techs.joinToString(",")).put("research", research).put("studyN", studyCount).put("babies", babiesBorn).put("dreams", dreamsDone).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" }).put("wallN", wallsRaised).put("wallX", wallCx).put("wallY", wallCy).put("wallD", if (wallDone) 1 else 0).put("wallH", wallHoldSecs.toDouble()).put("lessons", lessonsGiven).put("appMade", apprenticesMade).put("apprentice", apprentice.entries.joinToString(";") { "${it.key}:${it.value}" }).put("cathX", cathX).put("cathY", cathY).put("cathW", cathWork).put("cathT", cathTrips).put("cathB", cathBells).put("jubU", jubileeUntil).put("honeyN", honeyHarvests).put("honeyJ", honeyJars).put("honeyS", beeStings).put("honeyM", meadFeasts).put("honeyT", honeyMark).put("soakN", soaks).put("soakH", soakHeals).put("soakP", soakParties).put("soakG", soakGossips).put("shotN", shotsFired).put("shotB", bullseyes).put("shotM", archeryMatches).put("shotBest", archeryBest).put("fruitN", fruitPicks).put("fruitB", fruitBaskets).put("fruitC", ciderFeasts).put("fruitF", fruitFalls).put("fruitT", fruitMark).put("councN", councilsHeld).put("councS", councilSeats).put("councNext", councilNextAt).put("policy", policy).put("policyU", policyUntil).put("policyS", policyStart).put("policyB", policyBase.toDouble()).put("policyV", policyVotes).put("policyO", policyOf).put("policyA", policyActs).put("policyW", policiesWon).put("policyL", policiesLost).put("policyK", policyKinds.joinToString(",")).put("skUp", skillUps).put("skB", skillBonusLoads).put("skM", skillMasters).put("fireS", firesStarted).put("fireD", firesDoused).put("fireW", fireDouses).put("fireB", fireBurnedOut).put("fireL", fireLoss).put("sideN", sideRooms).put("sideT", sideTraps).put("sideV", sideVaults).put("sideS", sideSprings).put("sideH", sideShrines).put("riftRal", riftRallies)
             o.put("bellR", bellRings).put("bellA", bellAlarms).put("showN", shows).put("showG", grandShows).put("showA", showAudience)
             o.put("traffic", String(CharArray(traffic.size) { i -> '0' + min(9, (traffic[i] / 4f).toInt()) }))
             val ks = JSONArray()
@@ -6748,7 +6832,7 @@ class CivSim(
             goldenAt = o.optDouble("golden", -1.0)
             campUp = o.optInt("campUp", 0) == 1; campX = o.optDouble("campX", 0.0).toFloat(); campY = o.optDouble("campY", 0.0).toFloat(); campMax = o.optDouble("campMax", 100.0).toFloat(); campHp = o.optDouble("campHp", campMax.toDouble()).toFloat(); campsRazed = o.optInt("campR", 0); campHits = o.optInt("campH", 0); campSorties = o.optInt("campS", 0)
             campNextAt = time + DAY_LEN; campSortieAt = time + DAY_LEN * 0.8; campHitAt = -999.0; campRazedAt = -999.0
-            expeditions = o.optInt("expN", 0); expWins = o.optInt("expW", 0); expRetreats = o.optInt("expR", 0); roomsCleared = o.optInt("expRooms", 0); relics = o.optInt("relics", 0); deepestRoom = o.optInt("expDeep", 0); wardensSlain = o.optInt("wardens", 0)
+            expeditions = o.optInt("expN", 0); expWins = o.optInt("expW", 0); expRetreats = o.optInt("expR", 0); roomsCleared = o.optInt("expRooms", 0); relics = o.optInt("relics", 0); deepestRoom = o.optInt("expDeep", 0); wardensSlain = o.optInt("wardens", 0); sideRooms = o.optInt("sideN", 0); sideTraps = o.optInt("sideT", 0); sideVaults = o.optInt("sideV", 0); sideSprings = o.optInt("sideS", 0); sideShrines = o.optInt("sideH", 0); riftRallies = o.optInt("riftRal", 0)
             deeds.clear(); o.optString("deeds", "").split(",").filter { it.isNotBlank() }.forEach { deeds.add(it) }
             babiesBorn = o.optInt("babies", 0); dreamsDone = o.optInt("dreams", 0)
             fetesHeld = o.optInt("fetes", 0); feteRevels = o.optInt("feteR", 0); lastFeteSeason = o.optInt("feteL", -1); feteKinds.clear(); o.optString("feteK", "").split(",").filter { it.isNotBlank() }.forEach { feteKinds.add(it) }; snowmenBuilt = o.optInt("snowmen", 0); leafPilesRaked = o.optInt("leafR", 0); starsFallen = o.optInt("starsF", 0); starShardsGot = o.optInt("starG", 0); kitesFlown = o.optInt("kites", 0); wallsRaised = o.optInt("wallN", 0); wallCx = o.optInt("wallX", -1); wallCy = o.optInt("wallY", -1); wallDone = o.optInt("wallD", 0) == 1; wallHoldSecs = o.optDouble("wallH", 0.0).toFloat(); wallPlan.clear()

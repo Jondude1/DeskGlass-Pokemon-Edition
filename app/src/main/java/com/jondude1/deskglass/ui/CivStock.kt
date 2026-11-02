@@ -266,6 +266,12 @@ fun DrawScope.riftSite(sim: CivSim, g: Geo) {
             val c = if (on) Color(0xFF7FD6A8) else if (cur) Color(0xFFFFE08A).copy(alpha = pulse) else Color(0xFF5A5470)
             drawRect(c, Offset(cx + (k - 2.5f) * u * 4f, cy - hh * 1.9f - u * 5f), Size(u * 3f, u * 3f))
         }
+        if (sim.riftSideKind != 0 && sim.time - sim.riftSideAt < 25.0) {
+            val sc = when (sim.riftSideKind) { 1 -> Color(0xFFE06A4A); 2 -> Color(0xFFFFD35A); 3 -> Color(0xFF6AC8FF); else -> Color(0xFFFF9AD0) }
+            val rise = ((sim.time - sim.riftSideAt).toFloat() / 25f).coerceIn(0f, 1f)
+            drawCircle(sc.copy(alpha = 0.9f * (1f - rise)), radius = u * 2.2f, center = Offset(cx, cy - hh * 1.9f - u * 11f - rise * u * 8f))
+            drawCircle(Color.White.copy(alpha = 0.7f * (1f - rise)), radius = u * 0.9f, center = Offset(cx, cy - hh * 1.9f - u * 11f - rise * u * 8f))
+        }
     }
 }
 
