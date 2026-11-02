@@ -3217,7 +3217,7 @@ class CivSim(
             "tend_flock" to (if (count("pasture") > 0 && !isChild(v)) 4 else 0),
             "tend_bees" to (if (beesOk(v)) 5 else 0),
             "pick_fruit" to (if (fruitOk(v)) 5 else 0),
-            "soak" to (if (soakOk(v)) (if (v.hp < 75f) 9 else if (v.energy < 40f) 6 else if (seasonIdx() == 3) 5 else 2) else 0),
+            "soak" to (if (soakOk(v)) (if (v.hp < 75f) 9 else if (v.energy < 40f) 6 else if (seasonIdx() == 3) 5 else if (v.happiness >= 90f) 1 else 2) else 0),
             "show" to (if (showOk(v)) (if (v.happiness < 70f) 6 else 3) else 0),
             "ring_bell" to (if (bellOk(v)) (if (alert()) 8 else 4) else 0),
             "shoot" to (if (shootOk(v)) (if (isFighter(v) || v.job == "Hunter") 6 else 3) else 0),
@@ -3227,8 +3227,8 @@ class CivSim(
             "quarry" to (if (quarryOk(v)) (if (stone < 60 + adults() * 8) 7 else 2) else 0),
             "assault_camp" to (if (campAssaultOk(v)) (if (isFighter(v)) 8 else 3) else 0),
             "tend_critters" to (if (count("ranch") > 0 && ranchResidents() > 0 && !isChild(v)) 4 else 0),
-            "study" to (if (count("library") > 0) 3 else 0), "drill" to (if (count("barracks") > 0 && isFighter(v)) 3 else 0),
-            "dance" to (if (count("campfire") > 0) 2 else 0), "tell_story" to 2, "talk" to 2, "patrol" to (if (isFighter(v)) 2 else 0),
+            "study" to studyW(v, 3), "drill" to (if (count("barracks") > 0 && isFighter(v)) 3 else 0),
+            "dance" to (if (count("campfire") > 0) danceNeed(v, 2) else 0), "tell_story" to 2, "talk" to 2, "patrol" to (if (isFighter(v)) 2 else 0),
             "wander" to 1,
         )
     }
@@ -3497,6 +3497,22 @@ class CivSim(
     }
     private fun festival() = time < festivalUntil
 
+    /** Reading only pays while there are discoveries left and the reading room has seats (4 adults at once). */
+    private fun studyW(v: Villager, base: Int): Int {
+        if (count("library") == 0) return 0
+        if (isChild(v)) return base
+        if (nextTech() == null) return 0
+        if (v.action != "study" && villagers.count { it.action == "study" && !isChild(it) } >= 4) return 0
+        return base
+    }
+
+    /** Dancing is a mood tonic: the happier a villager already is, the less they want it (so work and hobbies fill the day). */
+    private fun danceNeed(v: Villager, base: Int): Int = when {
+        v.happiness >= 90f -> 0
+        v.happiness >= 75f -> if (rnd.nextInt(3) == 0) base else 0
+        else -> base * 2
+    }
+
     /** The villager's current "quest" line for the follow view. */
     fun questLine(v: Villager): String {
         if (v.phase == "sleeping") return "Sleeping"
@@ -3694,8 +3710,9 @@ class CivSim(
         if (storm() && !starving && !isFighter(v) && rnd.nextInt(10) == 0) return "huddle" to ""
         if (feteOk() && !starving && rnd.nextInt(2) == 0) return "revel" to ""
         if (councilOk() && !starving && v.id !in councilGuestIds && v.hp > 35f && rnd.nextInt(3) != 0) return "council" to ""
-        if (festival()) {
-            return when (pick("dance" to 4, "talk" to chat, "tell_story" to (if (v.job == "Storyteller") 4 else 0))) {
+        // a festival draws people to the fire, but only part of the village at a time, and the cheerful keep to their work
+        if (festival() && (v.happiness < 92f || rnd.nextInt(4) == 0)) {
+            return when (pick("dance" to (if (v.happiness < 85f) 4 else 2), "talk" to chat, "tell_story" to (if (v.job == "Storyteller") 4 else 0))) {
                 "talk" -> "talk" to (friendFor(v)?.name ?: "")
                 "tell_story" -> "tell_story" to ""
                 else -> "dance" to ""
@@ -3728,7 +3745,7 @@ class CivSim(
         if (wood >= 10 && canBuild("orchard") && (builder || v.job == "Farmer" || rnd.nextInt(6) == 0)) return "build_orchard" to ""
         if (fruitOk(v) && !starving && rnd.nextInt(if (v.job == "Farmer" || v.job == "Forager") 3 else 6) == 0) return "pick_fruit" to ""
         if (wood >= 10 && stone >= 6 && canBuild("bath") && (builder || rnd.nextInt(6) == 0)) return "build_bath" to ""
-        if (soakOk(v) && !starving && rnd.nextInt(if (v.hp < 75f) 2 else if (seasonIdx() == 3) 4 else 9) == 0) return "soak" to ""
+        if (soakOk(v) && !starving && rnd.nextInt(if (v.hp < 75f) 2 else if (seasonIdx() == 3) 4 else if (v.happiness >= 90f && v.energy > 60f) 24 else 9) == 0) return "soak" to ""
         if (wood >= 14 && stone >= 10 && canBuild("belfry") && (builder || rnd.nextInt(6) == 0)) return "build_belfry" to ""
         if (bellOk(v) && v.hunger < 70f && rnd.nextInt(if (alert()) 3 else 4) == 0) return "ring_bell" to ""
         if (wood >= 16 && stone >= 4 && canBuild("stage") && (builder || rnd.nextInt(6) == 0)) return "build_stage" to ""
@@ -3768,7 +3785,7 @@ class CivSim(
         if (part == "evening") {
             if (count("tavern") > 0 && food >= 3 && !isChild(v) && rnd.nextInt(3) == 0) return "tavern" to ""
             if (v.job == "Storyteller") return "tell_story" to ""
-            if (count("campfire") > 0 && rnd.nextInt(4) == 0) return "dance" to ""
+            if (count("campfire") > 0 && v.happiness < 88f && rnd.nextInt(4) == 0) return "dance" to ""
             if (chat == 1 && others.isNotEmpty() && rnd.nextInt(6) == 0) return "talk" to (friendFor(v)?.name ?: "")
         }
         if (starReady() && !alert() && !starving && v.hunger < 55f && (rnd.nextInt(3) == 0 || villagers.count { it.action == "gather_star" } == 0)) return "gather_star" to ""
@@ -3822,7 +3839,7 @@ class CivSim(
             )
             "Builder" -> pick(
                 "gather_wood" to (if (lowWood) 6 else 3), "gather_stone" to (if (lowStone) 4 else 1),
-                "craft" to (if (shop) 3 else 0), "study" to (if (library) 1 else 0), "talk" to chat, "wander" to 1,
+                "craft" to (if (shop) 3 else 0), "study" to studyW(v, 1), "talk" to chat, "wander" to 1,
             )
             "Bronzesmith", "Blacksmith" ->
                 if (count("smelter") > 0) pick(
@@ -3835,8 +3852,8 @@ class CivSim(
             "Scout" -> pick("explore" to 3, "patrol" to 3, "drill" to (if (barracks) 2 else 0), "gather_food" to 2, "talk" to chat, "wander" to 1)
             else -> pick(
                 "talk" to chat, "gather_food" to 2, "tell_story" to (if (v.energy > 40f) 2 else 0), "wander" to 1,
-                "study" to (if (library) 4 else 0), "tavern" to (if (count("tavern") > 0 && food >= 3) 2 else 0),
-                "dance" to (if (count("campfire") > 0) 1 else 0), "fetch_water" to (if (well) 2 else 0),
+                "study" to studyW(v, 4), "tavern" to (if (count("tavern") > 0 && food >= 3) 2 else 0),
+                "dance" to (if (count("campfire") > 0) danceNeed(v, 1) else 0), "fetch_water" to (if (well) 2 else 0),
                 "trade" to (if (market) 2 else 0), "craft" to (if (shop) 2 else 0),
             )
         }
