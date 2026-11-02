@@ -593,6 +593,7 @@ private fun DrawScope.drawWorld(
                 "infirmary" -> art.infirmary
                 "ranch" -> art.ranch
                 "pasture" -> art.pasture
+                "apiary" -> art.apiary
                 "dock" -> art.dock
                 "quarry" -> art.quarry
                 "mill" -> art.mill
@@ -871,6 +872,35 @@ private fun DrawScope.drawWorld(
                     }
                 }
                 if (dark > 0.1f) drawCircle(Color(0xFFFFD27A).copy(alpha = min(0.3f, dark * 0.5f)), radius = ts * 0.8f, center = Offset(cx + w * 0.12f, baseY - hh * 0.8f))
+            }
+            if (b.type == "apiary") {
+                // bees circle the straw hives (more while someone takes honey); ripe honey glints gold on the doorways; a lantern glows at night
+                val ripe = sim.honeyReady()
+                val keepers = sim.villagers.count { it.action == "tend_bees" && it.phase == "working" && kotlin.math.hypot(it.x - (b.x + 0.5f), it.y - (b.y + 0.5f)) < 2.5f }
+                val beeCount = if (sim.seasonIdx() == 3) 0 else 4 + min(4, ripe) + keepers * 3
+                for (k in 0 until beeCount) {
+                    val sd = k * 1.9f + b.x * 0.6f
+                    val bx = cx + kotlin.math.sin(t * (1.1f + (k % 3) * 0.4f) + sd) * w * 0.55f
+                    val by = baseY - hh * (0.35f + 0.25f * (k % 3)) + kotlin.math.cos(t * (1.7f + (k % 2) * 0.5f) + sd * 1.3f) * hh * 0.28f
+                    drawRect(Color(0xFF2B2418), Offset(bx, by), Size(ps * 1.5f, ps * 1.1f))
+                    drawRect(Color(0xFFF2C230), Offset(bx + ps * 0.4f, by), Size(ps * 0.6f, ps * 1.1f))
+                    val wing = if ((t * 14f + k).toInt() % 2 == 0) -ps * 0.9f else -ps * 0.4f
+                    drawRect(Color.White.copy(alpha = 0.75f), Offset(bx + ps * 0.3f, by + wing), Size(ps * 0.9f, ps * 0.6f))
+                }
+                for (k in 0 until min(3, ripe)) {
+                    val gx = cx + (k - 1) * w * 0.36f + ps * 0.4f
+                    val tw = 0.5f + 0.5f * kotlin.math.sin(t * 3f + k * 2f)
+                    drawRect(Color(0xFFFFD34D).copy(alpha = 0.55f + 0.4f * tw), Offset(gx, baseY - hh * 0.5f), Size(ps * 1.1f, ps * 1.5f + ps * tw))
+                }
+                if (keepers > 0) {
+                    for (k in 0 until 4) {
+                        val ph = (t * 0.7f + k * 0.25f + b.x * 0.1f) % 1f
+                        val sx = cx + kotlin.math.sin(t * 1.4f + k * 2.2f) * w * 0.3f
+                        val sy = baseY - hh * 0.6f - ph * ts * 1.0f
+                        drawCircle(Color(0xFFD7D2C6).copy(alpha = 0.5f * (1f - ph)), radius = ps * (1.0f + 1.8f * ph), center = Offset(sx, sy))
+                    }
+                }
+                if (dark > 0.1f) drawCircle(Color(0xFFFFC870).copy(alpha = min(0.25f, dark * 0.45f)), radius = ts * 0.7f, center = Offset(cx + w * 0.36f, baseY - hh * 0.4f))
             }
             if (b.type == "mill") {
                 // four sail arms turn on the hub (faster while someone grinds); flour dust puffs; lit window at night
