@@ -1077,6 +1077,7 @@ private fun DrawScope.drawWorld(
     trollRocks(sim, geo)
     riftSite(sim, geo)
     starCrater(sim, geo)
+    wildfires(sim, geo)
     lessonScenes(sim, geo)
     campSite(sim, geo)
     lifeCritters(sim, art, geo)
