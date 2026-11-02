@@ -187,7 +187,7 @@ private val ACTIONS = setOf(
     "build_well", "build_workshop", "build_market", "build_lamp",
     "fetch_water", "craft", "trade", "dance", "patrol", "play",
     "build_granary", "build_barracks", "build_library", "build_wonder", "haul", "drill", "study", "attack",
-    "forage_herbs", "swim", "stargaze", "carve", "pick_flowers", "delve", "build_tavern", "tavern", "build_infirmary", "recover", "build_totem", "honor", "mourn", "build_ranch", "tend_critters", "build_pasture", "tend_flock", "build_dock", "sail", "snowman", "rake_leaves", "fly_kite", "walk_dog", "assault_camp", "gather_star", "build_quarry", "quarry", "build_mill", "grind", "build_shrine", "vigil", "revel", "teach", "raise_cathedral", "build_apiary", "tend_bees", "build_orchard", "pick_fruit", "council", "douse", "build_range", "shoot", "build_bath", "build_belfry", "build_stage", "show", "soak",
+    "forage_herbs", "swim", "stargaze", "carve", "pick_flowers", "delve", "build_tavern", "tavern", "build_infirmary", "recover", "build_totem", "honor", "mourn", "build_ranch", "tend_critters", "build_pasture", "tend_flock", "build_dock", "sail", "snowman", "rake_leaves", "fly_kite", "walk_dog", "assault_camp", "gather_star", "build_quarry", "quarry", "build_mill", "grind", "build_shrine", "vigil", "revel", "teach", "raise_cathedral", "build_apiary", "tend_bees", "build_orchard", "pick_fruit", "council", "douse", "build_range", "shoot", "build_bath", "build_belfry", "build_stage", "show", "soak", "build_kiln", "fire_pots",
 )
 
 /** Foes a few healthy fighters will chase down on their own. */
@@ -567,6 +567,11 @@ class CivSim(
     var grandShows = 0
     var showAudience = 0
     private var lastShowAt = -999.0
+    /** The potter's kiln: wood and clay become pots and goods; every fifth firing is a glazed masterwork. */
+    var kilnFires = 0
+    var kilnGlazed = 0
+    var kilnCheers = 0
+    private var lastKilnAt = -999.0
     private var lastBellAt = -999.0
     var bullseyes = 0
     var archeryMatches = 0
@@ -954,7 +959,7 @@ class CivSim(
                 else -> need()
             }
             "build" -> {
-                val kinds = listOf("hut", "farm", "campfire", "totem", "ranch", "pasture", "apiary", "orchard", "range", "bath", "belfry", "stage", "dock", "quarry", "mill", "smelter", "well", "workshop", "granary", "market", "library", "tavern", "infirmary", "barracks", "shrine", "wonder", "lamp")
+                val kinds = listOf("hut", "farm", "campfire", "totem", "ranch", "pasture", "apiary", "orchard", "range", "bath", "belfry", "stage", "kiln", "dock", "quarry", "mill", "smelter", "well", "workshop", "granary", "market", "library", "tavern", "infirmary", "barracks", "shrine", "wonder", "lamp")
                 val t = kinds.firstOrNull { canBuild(it) && affordable(it) }
                 if (t != null && (v.job == "Builder" || rnd.nextInt(3) == 0)) "build_$t" to "" else if (v.job == "Builder" || rnd.nextBoolean()) (if (wood < stone * 2) "gather_wood" else "gather_stone") to "" else need()
             }
@@ -981,6 +986,7 @@ class CivSim(
         "bath" -> wood >= 10 && stone >= 6
         "belfry" -> wood >= 14 && stone >= 10
         "stage" -> wood >= 16 && stone >= 4
+        "kiln" -> wood >= 12 && stone >= 6
         "dock" -> wood >= 8
         "quarry" -> wood >= 16
         "mill" -> wood >= 14 && stone >= 4
@@ -1118,6 +1124,7 @@ class CivSim(
             "bath" -> if (n < 6) 0 else min(2, 1 + n / 20)
             "belfry" -> if (n < 8 || age < 2) 0 else 1
             "stage" -> if (n < 8 || age < 1) 0 else 1
+            "kiln" -> if (n < 7 || age < 1) 0 else 1
             "dock" -> if (n < 4 || dockSite() < 0) 0 else min(2, 1 + n / 14)
             "quarry" -> if (age < 2 || n < 8) 0 else min(2, 1 + n / 16)
             "shrine" -> if (age < 3 || n < 12) 0 else 1
@@ -1142,10 +1149,10 @@ class CivSim(
     /** Homes, farms, workshops and the like all together: a small village cannot have a sprawl. */
     private fun totalCap() = 4 + n() * 2
     private fun n() = villagers.size
-    private fun civicCount() = buildings.count { it.type != "hall" && it.type != "tower" && it.type != "palisade" && it.type != "wall" && it.type != "gate" && it.type != "totem" && it.type != "ranch" && it.type != "pasture" && it.type != "apiary" && it.type != "orchard" && it.type != "range" && it.type != "bath" && it.type != "belfry" && it.type != "stage" && it.type != "dock" && it.type != "quarry" && it.type != "mill" && it.type != "shrine" && it.type != "ballista" && it.type != "lamp" } +
+    private fun civicCount() = buildings.count { it.type != "hall" && it.type != "tower" && it.type != "palisade" && it.type != "wall" && it.type != "gate" && it.type != "totem" && it.type != "ranch" && it.type != "pasture" && it.type != "apiary" && it.type != "orchard" && it.type != "range" && it.type != "bath" && it.type != "belfry" && it.type != "stage" && it.type != "kiln" && it.type != "dock" && it.type != "quarry" && it.type != "mill" && it.type != "shrine" && it.type != "ballista" && it.type != "lamp" } +
         villagers.count { it.action.startsWith("build_") && it.action != "build_lamp" }
 
-    private fun canBuild(type: String) = counting(type) < capFor(type) && (type == "ranch" || type == "pasture" || type == "apiary" || type == "orchard" || type == "range" || type == "bath" || type == "belfry" || type == "stage" || type == "dock" || type == "quarry" || type == "mill" || type == "shrine" || civicCount() < totalCap()) &&
+    private fun canBuild(type: String) = counting(type) < capFor(type) && (type == "ranch" || type == "pasture" || type == "apiary" || type == "orchard" || type == "range" || type == "bath" || type == "belfry" || type == "stage" || type == "kiln" || type == "dock" || type == "quarry" || type == "mill" || type == "shrine" || civicCount() < totalCap()) &&
         (type == "wonder" || type == "shrine" || type == "hut" || type == "farm" || !wonderSaving())
 
     /** City Age: the village puts spare stone aside for its next great wonder instead of spending it on small things. */
@@ -1155,7 +1162,7 @@ class CivSim(
     /** A short "what is built and what could be" line for the panels. */
     fun buildSummary(): String {
         val parts = ArrayList<String>()
-        for (t in listOf("hut", "farm", "campfire", "totem", "ranch", "pasture", "apiary", "orchard", "range", "bath", "belfry", "stage", "smelter", "well", "workshop", "market", "granary", "barracks", "library", "tavern", "infirmary", "ballista", "shrine", "wonder", "lamp")) {
+        for (t in listOf("hut", "farm", "campfire", "totem", "ranch", "pasture", "apiary", "orchard", "range", "bath", "belfry", "stage", "kiln", "smelter", "well", "workshop", "market", "granary", "barracks", "library", "tavern", "infirmary", "ballista", "shrine", "wonder", "lamp")) {
             val c = capFor(t)
             if (c > 0) parts.add("$t ${count(t)}/$c")
         }
@@ -1272,7 +1279,7 @@ class CivSim(
                 if (i < 0) return false
                 return go(v, action, i)
             }
-            "build_hut", "build_farm", "build_campfire", "build_smelter", "build_well", "build_workshop", "build_market", "build_lamp", "build_granary", "build_barracks", "build_library", "build_wonder", "build_tavern", "build_infirmary", "build_totem", "build_ranch", "build_pasture", "build_apiary", "build_orchard", "build_range", "build_bath", "build_belfry", "build_stage", "build_dock", "build_quarry", "build_mill", "build_shrine" -> {
+            "build_hut", "build_farm", "build_campfire", "build_smelter", "build_well", "build_workshop", "build_market", "build_lamp", "build_granary", "build_barracks", "build_library", "build_wonder", "build_tavern", "build_infirmary", "build_totem", "build_ranch", "build_pasture", "build_apiary", "build_orchard", "build_range", "build_bath", "build_belfry", "build_stage", "build_kiln", "build_dock", "build_quarry", "build_mill", "build_shrine" -> {
                 val type = action.removePrefix("build_")
                 if (!canBuild(type)) return false
                 val ok = when (action) {
@@ -1297,6 +1304,7 @@ class CivSim(
                     "build_bath" -> wood >= 10 && stone >= 6
                     "build_belfry" -> wood >= 14 && stone >= 10
                     "build_stage" -> wood >= 16 && stone >= 4
+                    "build_kiln" -> wood >= 12 && stone >= 6
                     "build_dock" -> wood >= 8
                     "build_quarry" -> wood >= 16
                     "build_mill" -> wood >= 14 && stone >= 4
@@ -1329,6 +1337,7 @@ class CivSim(
                     "build_bath" -> { wood -= 10; stone -= 6 }
                     "build_belfry" -> { wood -= 14; stone -= 10 }
                     "build_stage" -> { wood -= 16; stone -= 4 }
+                    "build_kiln" -> { wood -= 12; stone -= 6 }
                     "build_dock" -> wood -= 8
                     "build_quarry" -> wood -= 16
                     "build_mill" -> { wood -= 14; stone -= 4 }
@@ -1367,6 +1376,11 @@ class CivSim(
                 if (!bellOk(v)) return false
                 val b = nearestBuilding(v, "belfry") ?: return false
                 return go(v, "ring_bell", b.y * GW + b.x)
+            }
+            "fire_pots" -> {
+                if (!kilnOk(v)) return false
+                val b = nearestBuilding(v, "kiln") ?: return false
+                return go(v, "fire_pots", b.y * GW + b.x)
             }
             "show" -> {
                 if (!showOk(v)) return false
@@ -2016,6 +2030,7 @@ class CivSim(
             v.action == "soak" -> { v.phase = "working"; v.workLeft = 8f }
             v.action == "ring_bell" -> { v.phase = "working"; v.workLeft = 5f }
             v.action == "show" -> { v.phase = "working"; v.workLeft = 9f }
+            v.action == "fire_pots" -> { v.phase = "working"; v.workLeft = 8f }
             v.action == "sail" -> { v.phase = "working"; v.workLeft = 8f }
             v.action == "quarry" -> { v.phase = "working"; v.workLeft = 7f }
             v.action == "grind" -> { v.phase = "working"; v.workLeft = 7f }
@@ -2139,11 +2154,11 @@ class CivSim(
                     finish(v)
                 } else v.workLeft = 3f
             }
-            "build_hut", "build_farm", "build_campfire", "build_smelter", "build_well", "build_workshop", "build_market", "build_lamp", "build_granary", "build_barracks", "build_library", "build_wonder", "build_tavern", "build_infirmary", "build_totem", "build_ranch", "build_pasture", "build_apiary", "build_orchard", "build_range", "build_bath", "build_belfry", "build_stage", "build_dock", "build_quarry", "build_mill", "build_shrine" -> {
+            "build_hut", "build_farm", "build_campfire", "build_smelter", "build_well", "build_workshop", "build_market", "build_lamp", "build_granary", "build_barracks", "build_library", "build_wonder", "build_tavern", "build_infirmary", "build_totem", "build_ranch", "build_pasture", "build_apiary", "build_orchard", "build_range", "build_bath", "build_belfry", "build_stage", "build_kiln", "build_dock", "build_quarry", "build_mill", "build_shrine" -> {
                 val i = v.targetTile
                 reserved.remove(i)
                 val type = v.action.removePrefix("build_")
-                val label = if (type == "hut" && age == 0) "tent" else if (type == "smelter") "forge" else if (type == "lamp") "lantern post" else if (type == "totem") "totem pole" else if (type == "ranch") "critter ranch" else if (type == "pasture") "pasture" else if (type == "apiary") "apiary" else if (type == "range") "archery range" else if (type == "bath") "hot spring" else if (type == "belfry") "bell tower" else if (type == "stage") "puppet theatre" else if (type == "orchard") "orchard" else if (type == "dock") "fishing dock" else if (type == "quarry") "stone quarry" else if (type == "mill") "windmill" else if (type == "shrine") "legend shrine" else type
+                val label = if (type == "hut" && age == 0) "tent" else if (type == "smelter") "forge" else if (type == "lamp") "lantern post" else if (type == "totem") "totem pole" else if (type == "ranch") "critter ranch" else if (type == "pasture") "pasture" else if (type == "apiary") "apiary" else if (type == "range") "archery range" else if (type == "bath") "hot spring" else if (type == "belfry") "bell tower" else if (type == "stage") "puppet theatre" else if (type == "kiln") "potter's kiln" else if (type == "orchard") "orchard" else if (type == "dock") "fishing dock" else if (type == "quarry") "stone quarry" else if (type == "mill") "windmill" else if (type == "shrine") "legend shrine" else type
                 if (type == "wonder" && i >= 0 && !occupied[i] && tiles[i] == T.GRASS) {
                     val kind = (0..2).firstOrNull { k -> buildings.none { it.type == "wonder" && it.era == k } } ?: 0
                     addBuilding("wonder", i % GW, i / GW, kind)
@@ -2329,6 +2344,29 @@ class CivSim(
                 } else if (before < 60f && soakHeals % 3 == 1) addLog("${v.name} eases aching bones in the hot spring.")
                 else if (winter && soaks % 7 == 0) addLog("${v.name} soaks in the hot spring while snow falls.")
                 v.remember(if (before < 60f) "healed in the hot spring" else "soaked in the hot spring")
+                finish(v)
+            }
+            "fire_pots" -> {
+                // the potter's kiln: wood fires clay into pots; every fifth firing is a glazed masterwork that cheers the neighbours
+                val kb = nearestBuilding(v, "kiln")
+                lastKilnAt = time
+                if (wood >= 2) wood -= 2
+                kilnFires++
+                val glazed = kilnFires % 5 == 0
+                goods += if (glazed) 4 else 1
+                v.gathered = 0
+                if (kb != null) {
+                    fx.add(Fx("spawn", kb.x + 0.5f, kb.y + 0.3f, time, 1.0f))
+                    if (glazed) {
+                        kilnGlazed++
+                        var seen = 0
+                        for (o in villagers) if (o !== v && hypot(o.x - kb.x, o.y - kb.y) < 9f) { seen++; o.happiness = min(100f, o.happiness + 4f) }
+                        kilnCheers += seen
+                        addLog("${v.name} draws a glazed pot from the kiln; the neighbours admire it ($seen came to look).")
+                    } else if (kilnFires % 7 == 1) addLog("${v.name} fires a batch of pots in the kiln.")
+                }
+                v.happiness = min(100f, v.happiness + 2f)
+                v.remember(if (glazed) "glazed a fine pot" else "fired pots in the kiln")
                 finish(v)
             }
             "show" -> {
@@ -3234,6 +3272,7 @@ class CivSim(
             "pick_fruit" to (if (fruitOk(v)) 5 else 0),
             "soak" to (if (soakOk(v)) (if (v.hp < 75f) 9 else if (v.energy < 40f) 6 else if (seasonIdx() == 3) 5 else if (v.happiness >= 90f) 1 else 2) else 0),
             "show" to (if (showOk(v)) (if (v.happiness < 70f) 6 else 3) else 0),
+            "fire_pots" to (if (kilnOk(v)) (if (goods < 6) 6 else 3) else 0),
             "ring_bell" to (if (bellOk(v)) (if (alert()) 8 else 4) else 0),
             "shoot" to (if (shootOk(v)) (if (isFighter(v) || v.job == "Hunter") 6 else 3) else 0),
             "sail" to (if (count("dock") > 0 && !isChild(v) && sailOk()) 5 else 0),
@@ -3357,6 +3396,8 @@ class CivSim(
     /** Shows are given in daylight or at dusk in fair weather, one at a time. */
     private fun showOk(v: Villager) = count("stage") > 0 && !isChild(v) && !alert() && !raining() && v.hp > 30f && time - lastShowAt > 45.0 &&
         (!isNight() || partOfDay() == "evening")
+    /** Pots are fired by day while there is wood to spare, one batch at a time. */
+    private fun kilnOk(v: Villager) = count("kiln") > 0 && !isChild(v) && !isNight() && !alert() && wood >= 6 && v.hp > 30f && time - lastKilnAt > 30.0
     private fun soakOk(v: Villager) = count("bath") > 0 && !isChild(v) && !alert() && v.hunger < 85f
     private fun shootOk(v: Villager) = count("range") > 0 && !isChild(v) && !isNight() && !alert() && !raining() && v.hp > 30f
     private fun fruitOk(v: Villager) = count("orchard") > 0 && !isChild(v) && !isNight() && !alert() && !raining() && fruitReady() >= 1
@@ -3764,6 +3805,8 @@ class CivSim(
         if (wood >= 14 && stone >= 10 && canBuild("belfry") && (builder || rnd.nextInt(6) == 0)) return "build_belfry" to ""
         if (bellOk(v) && v.hunger < 70f && rnd.nextInt(if (alert()) 3 else 4) == 0) return "ring_bell" to ""
         if (wood >= 16 && stone >= 4 && canBuild("stage") && (builder || rnd.nextInt(6) == 0)) return "build_stage" to ""
+        if (wood >= 12 && stone >= 6 && canBuild("kiln") && (builder || rnd.nextInt(6) == 0)) return "build_kiln" to ""
+        if (kilnOk(v) && !starving && v.hunger < 70f && rnd.nextInt(if (goods < 6) 3 else 7) == 0) return "fire_pots" to ""
         if (showOk(v) && !starving && v.hunger < 70f && rnd.nextInt(if (v.happiness < 70f) 3 else 8) == 0) return "show" to ""
         if (wood >= 12 && stone >= 2 && canBuild("range") && (builder || isFighter(v) || v.job == "Hunter" || rnd.nextInt(6) == 0)) return "build_range" to ""
         if (shootOk(v) && !starving && rnd.nextInt(if (isFighter(v) || v.job == "Hunter") 3 else 8) == 0) return "shoot" to ""
@@ -4020,6 +4063,8 @@ class CivSim(
         "soak" -> "soaking in the hot spring"
         "ring_bell" -> "ringing the bell tower"
         "show" -> "putting on a puppet show"
+        "fire_pots" -> "firing pots in the potter's kiln"
+        "build_kiln" -> "building a potter's kiln"
         "build_stage" -> "building a puppet theatre"
         "build_belfry" -> "building a bell tower"
         "build_bath" -> "building a hot spring"
@@ -4116,6 +4161,8 @@ class CivSim(
         if (canBuild("belfry") && wood >= 14 && stone >= 10) a.add("build_belfry")
         if (count("belfry") > 0 && (alert() || (!isNight() && !raining()))) a.add("ring_bell")
         if (canBuild("stage") && wood >= 16 && stone >= 4) a.add("build_stage")
+        if (canBuild("kiln") && wood >= 12 && stone >= 6) a.add("build_kiln")
+        if (count("kiln") > 0 && !isNight() && !alert() && wood >= 6) a.add("fire_pots")
         if (count("stage") > 0 && !alert() && !raining() && (!isNight() || partOfDay() == "evening")) a.add("show")
         if (canBuild("dock") && wood >= 8) a.add("build_dock")
         if (canBuild("quarry") && wood >= 16) a.add("build_quarry")
@@ -4174,7 +4221,7 @@ class CivSim(
         if (age >= 1) sb.append("${count("farm")} farms, ")
         if (age >= 2) sb.append("${count("smelter")} forges, ")
         sb.append("${count("campfire")} campfires")
-        for ((t, nm) in listOf("well" to "wells", "workshop" to "workshops", "market" to "markets", "granary" to "granaries", "barracks" to "barracks", "library" to "libraries", "tavern" to "taverns", "ranch" to "critter ranches", "pasture" to "pastures", "apiary" to "apiaries", "orchard" to "orchards", "range" to "archery ranges", "bath" to "hot springs", "belfry" to "bell towers", "stage" to "puppet theatres", "dock" to "fishing docks", "quarry" to "stone quarries", "mill" to "windmills", "shrine" to "legend shrines", "totem" to "totem poles", "infirmary" to "infirmaries", "wonder" to "great wonders")) if (count(t) > 0) sb.append(", ${count(t)} $nm")
+        for ((t, nm) in listOf("well" to "wells", "workshop" to "workshops", "market" to "markets", "granary" to "granaries", "barracks" to "barracks", "library" to "libraries", "tavern" to "taverns", "ranch" to "critter ranches", "pasture" to "pastures", "apiary" to "apiaries", "orchard" to "orchards", "range" to "archery ranges", "bath" to "hot springs", "belfry" to "bell towers", "stage" to "puppet theatres", "kiln" to "potter's kilns", "dock" to "fishing docks", "quarry" to "stone quarries", "mill" to "windmills", "shrine" to "legend shrines", "totem" to "totem poles", "infirmary" to "infirmaries", "wonder" to "great wonders")) if (count(t) > 0) sb.append(", ${count(t)} $nm")
         if (cathX >= 0 && cathTier() > 0) sb.append(", a great cathedral at tier ${cathTier()} of 5")
         if (goods > 0) sb.append(", $goods goods to sell")
         sb.append(". ${villagers.size} villagers (${villagers.count { isChild(it) }} children).\n")
@@ -5379,6 +5426,8 @@ class CivSim(
             Deed("cath5", "Hallowed Halls", "Finished the Great Cathedral, spire and bell.", "joy for all") { cathTier() >= 5 },
             Deed("bee1", "Honey Hands", "Took honey from the apiary twelve times.", "+12 food, +6 goods") { honeyHarvests >= 12 },
             Deed("show1", "Curtain Up", "Put on a puppet show twenty times.", "+8 wood, +4 goods") { shows >= 20 },
+            Deed("kiln1", "Fired Clay", "Fired pots in the kiln twenty times.", "+6 wood, +4 stone") { kilnFires >= 20 },
+            Deed("kiln2", "Glaze Master", "Drew five glazed masterworks from the kiln.", "joy for all") { kilnGlazed >= 5 },
             Deed("show2", "Standing Ovation", "Gave three grand puppet shows.", "joy for all") { grandShows >= 3 },
             Deed("bell1", "Ring Out", "Rang the bell tower twenty times.", "+8 wood, +4 stone") { bellRings >= 20 },
             Deed("bell2", "Sound the Alarm", "Rang the alarm bell five times while foes were near.", "joy for all") { bellAlarms >= 5 },
@@ -6792,7 +6841,7 @@ class CivSim(
             o.put("hides", hides)
             o.put("goods", goods)
             o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("campUp", if (campUp) 1 else 0).put("campX", campX.toDouble()).put("campY", campY.toDouble()).put("campHp", campHp.toDouble()).put("campMax", campMax.toDouble()).put("campR", campsRazed).put("campH", campHits).put("campS", campSorties).put("expN", expeditions).put("expW", expWins).put("expR", expRetreats).put("expRooms", roomsCleared).put("relics", relics).put("expDeep", deepestRoom).put("wardens", wardensSlain).put("golems", golemsSlain).put("frostPacks", frostPacksBroken).put("pilfF", pilfersFoiled).put("pilfL", pilfersLost).put("swarms", swarmsBroken).put("hornets", hornetsSwatted).put("liches", lichesSlain).put("bones", bonesRaised).put("reavers", reaversSlain).put("spiderS", spidersSlain).put("harpyS", harpiesSlain).put("harpyF", flocksScattered).put("harpyD", harpyDives).put("harpyL", harpyLoot).put("spiderW", websSpun).put("spiderC", webCatches).put("spiderB", spiderBites).put("trollS", trollsSlain).put("trollR", trollsStoned).put("trollB", trollBoulders).put("trollRocks", trollRocks.joinToString(",") { "${it[0].toInt()}:${it[1].toInt()}" }).put("ships", shipsSeized).put("landings", landings).put("shamans", shamansSlain).put("golden", goldenAt).put("visits", visitStats.entries.joinToString(",") { "${it.key}:${it.value}" }).put("deeds", deeds.joinToString(",")).put("tavern", tavernVisits).put("pets", pets.joinToString(",") { "${it.name}:${it.owner}:${it.bond}" }).put("dogA", dogsAdopted).put("dogW", dogWalks).put("dogB", dogBarks).put("fetes", fetesHeld).put("feteR", feteRevels).put("feteL", lastFeteSeason).put("feteK", feteKinds.joinToString(",")).put("snowmen", snowmenBuilt).put("leafR", leafPilesRaked).put("starsF", starsFallen).put("starG", starShardsGot).put("kites", kitesFlown).put("sprops", seasonProps.joinToString(",") { "${it.kind}:${it.x.toInt()}:${it.y.toInt()}" }).put("statues", statues.joinToString(";") { "${it.name}|${it.title}|${it.kind}|${it.x.toInt()}|${it.y.toInt()}|${it.tier}" }).put("statueC", statueCheers).put("graves", graves.joinToString(";") { "${it.name}|${it.job}|${it.x.toInt()}|${it.y.toInt()}|${it.ageYears}|${it.cause}|${it.day}" }).put("graveX", graveX).put("graveY", graveY).put("buried", buried).put("mournN", mournVisits).put("totemV", totemVisits).put("raised", raised).put("omens", omens).put("recov", recoveries).put("balS", ballistaShots).put("balK", ballistaKills).put("ranchV", ranchVisits).put("pastV", pastureVisits).put("sailN", sailTrips).put("millN", millGrinds).put("millF", flourMade).put("millL", loavesBaked).put("quarryN", quarryHauls).put("quarryS", quarryStone).put("quarryV", quarryVeins).put("vigN", vigils).put("vigP", vigilPoints).put("legCalls", legendCalls).put("dockC", dockCatch).put("bottles", bottlesFound).put("flockS", flockSheep).put("flockH", flockHens).put("eggsG", eggsGathered).put("fleece", fleeces).put("techs", techs.joinToString(",")).put("research", research).put("studyN", studyCount).put("babies", babiesBorn).put("dreams", dreamsDone).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" }).put("wallN", wallsRaised).put("wallX", wallCx).put("wallY", wallCy).put("wallD", if (wallDone) 1 else 0).put("wallH", wallHoldSecs.toDouble()).put("lessons", lessonsGiven).put("appMade", apprenticesMade).put("apprentice", apprentice.entries.joinToString(";") { "${it.key}:${it.value}" }).put("cathX", cathX).put("cathY", cathY).put("cathW", cathWork).put("cathT", cathTrips).put("cathB", cathBells).put("jubU", jubileeUntil).put("honeyN", honeyHarvests).put("honeyJ", honeyJars).put("honeyS", beeStings).put("honeyM", meadFeasts).put("honeyT", honeyMark).put("soakN", soaks).put("soakH", soakHeals).put("soakP", soakParties).put("soakG", soakGossips).put("shotN", shotsFired).put("shotB", bullseyes).put("shotM", archeryMatches).put("shotBest", archeryBest).put("fruitN", fruitPicks).put("fruitB", fruitBaskets).put("fruitC", ciderFeasts).put("fruitF", fruitFalls).put("fruitT", fruitMark).put("councN", councilsHeld).put("councS", councilSeats).put("councNext", councilNextAt).put("policy", policy).put("policyU", policyUntil).put("policyS", policyStart).put("policyB", policyBase.toDouble()).put("policyV", policyVotes).put("policyO", policyOf).put("policyA", policyActs).put("policyW", policiesWon).put("policyL", policiesLost).put("policyK", policyKinds.joinToString(",")).put("skUp", skillUps).put("skB", skillBonusLoads).put("skM", skillMasters).put("fireS", firesStarted).put("fireD", firesDoused).put("fireW", fireDouses).put("fireB", fireBurnedOut).put("fireL", fireLoss).put("sideN", sideRooms).put("sideT", sideTraps).put("sideV", sideVaults).put("sideS", sideSprings).put("sideH", sideShrines).put("riftRal", riftRallies)
-            o.put("bellR", bellRings).put("bellA", bellAlarms).put("showN", shows).put("showG", grandShows).put("showA", showAudience)
+            o.put("bellR", bellRings).put("bellA", bellAlarms).put("showN", shows).put("showG", grandShows).put("showA", showAudience).put("kilnN", kilnFires).put("kilnG", kilnGlazed).put("kilnC", kilnCheers)
             o.put("traffic", String(CharArray(traffic.size) { i -> '0' + min(9, (traffic[i] / 4f).toInt()) }))
             val ks = JSONArray()
             kingdoms.forEach {
@@ -6938,7 +6987,7 @@ class CivSim(
             pets.clear()
             for (e in o.optString("pets", "").split(",")) { val kv = e.split(":"); if (kv.size == 3 && kv[0].isNotBlank()) pets.add(Pet(kv[0], kv[1].toIntOrNull() ?: -1, kv[2].toIntOrNull() ?: 0, false)) }
              totemVisits = o.optInt("totemV", 0); raised = o.optInt("raised", 0); omens = o.optInt("omens", 0); recoveries = o.optInt("recov", 0); ballistaShots = o.optInt("balS", 0); ballistaKills = o.optInt("balK", 0); ranchVisits = o.optInt("ranchV", 0); pastureVisits = o.optInt("pastV", 0); sailTrips = o.optInt("sailN", 0); millGrinds = o.optInt("millN", 0); flourMade = o.optInt("millF", 0); loavesBaked = o.optInt("millL", 0); quarryHauls = o.optInt("quarryN", 0); quarryStone = o.optInt("quarryS", 0); quarryVeins = o.optInt("quarryV", 0); vigils = o.optInt("vigN", 0); vigilPoints = o.optInt("vigP", 0); legendCalls = o.optInt("legCalls", 0); dockCatch = o.optInt("dockC", 0); bottlesFound = o.optInt("bottles", 0); flockSheep = o.optInt("flockS", 0); flockHens = o.optInt("flockH", 0); eggsGathered = o.optInt("eggsG", 0); fleeces = o.optInt("fleece", 0); honeyHarvests = o.optInt("honeyN", 0); honeyJars = o.optInt("honeyJ", 0); beeStings = o.optInt("honeyS", 0); meadFeasts = o.optInt("honeyM", 0); honeyMark = o.optDouble("honeyT", 0.0); shotsFired = o.optInt("shotN", 0); soaks = o.optInt("soakN", 0); soakHeals = o.optInt("soakH", 0); soakParties = o.optInt("soakP", 0); soakGossips = o.optInt("soakG", 0); bullseyes = o.optInt("shotB", 0); archeryMatches = o.optInt("shotM", 0); archeryBest = o.optString("shotBest", ""); fruitPicks = o.optInt("fruitN", 0); fruitBaskets = o.optInt("fruitB", 0); ciderFeasts = o.optInt("fruitC", 0); fruitFalls = o.optInt("fruitF", 0); fruitMark = o.optDouble("fruitT", 0.0); councilsHeld = o.optInt("councN", 0); councilSeats = o.optInt("councS", 0); councilNextAt = o.optDouble("councNext", 0.0); policy = o.optString("policy", ""); policyUntil = o.optDouble("policyU", 0.0); policyStart = o.optDouble("policyS", 0.0); policyBase = o.optDouble("policyB", 0.0).toFloat(); policyVotes = o.optInt("policyV", 0); policyOf = o.optInt("policyO", 0); policyActs = o.optInt("policyA", 0); policiesWon = o.optInt("policyW", 0); policiesLost = o.optInt("policyL", 0); policyKinds.clear(); o.optString("policyK", "").split(",").filter { it.isNotBlank() }.forEach { policyKinds.add(it) }
-            bellRings = o.optInt("bellR", 0); bellAlarms = o.optInt("bellA", 0); shows = o.optInt("showN", 0); grandShows = o.optInt("showG", 0); showAudience = o.optInt("showA", 0)
+            bellRings = o.optInt("bellR", 0); bellAlarms = o.optInt("bellA", 0); shows = o.optInt("showN", 0); grandShows = o.optInt("showG", 0); showAudience = o.optInt("showA", 0); kilnFires = o.optInt("kilnN", 0); kilnGlazed = o.optInt("kilnG", 0); kilnCheers = o.optInt("kilnC", 0)
             techs.clear(); o.optString("techs", "").split(",").filter { it.isNotBlank() }.forEach { techs.add(it) }
             research = o.optInt("research", 0); studyCount = o.optInt("studyN", 0)
             weds = o.optInt("weds", 0); feudsStarted = o.optInt("feudsS", 0); feudsEnded = o.optInt("feudsE", 0)
@@ -6963,7 +7012,7 @@ class CivSim(
     companion object {
         private const val SYSTEM = """You play one villager in a small pixel-art village, as a distinct character with a job, a personality, a way of speaking and a dream. Reply with ONLY a JSON object, no other text:
 {"thought": "<your private thought, first person, under 14 words, in your voice>", "action": "<one action>", "target": "<villager name, only for talk>", "say": "<one short sentence you say aloud in your own voice, or empty>"}
-Actions: gather_wood, gather_stone, gather_food (berries), fish (at the lake), hunt (game in the forest, hunter-gatherers' best food), tend_farm (needs a farm, Farming Age on), explore (scouting far away), delve (join the rift expedition, only while a rift is open), tell_story (at the fire, lifts everyone's spirits), huddle (stay by the fire), build_hut (6 wood + 2 stone), build_farm (4 wood, Farming Age on), build_campfire (3 stone), mine_ore (Bronze Age on), smelt (2 ore + 1 wood at a forge, Bronze Age on), build_smelter (4 wood + 6 stone, Bronze Age on), build_well (4 wood + 6 stone), build_workshop (10 wood + 4 stone), build_market (12 wood + 6 stone), build_lamp (2 wood + 2 stone), fetch_water (at a well, waters the farms), craft (at a workshop), trade (goods for food at a market), dance (at the fire), build_granary (14 wood + 6 stone), build_barracks (16 wood, 14 stone, 2 metal), build_library (18 wood + 12 stone), build_totem (12 wood + 4 stone, carve a totem pole), honor (bow and dance at the totem pole, lifts mood, may bring an omen of plenty), build_ranch (18 wood + 6 stone, a fenced critter ranch once the village keeps critters), tend_critters (feed and groom the village critters at the ranch: heals them, makes them stronger and fonder of us, needs a ranch), build_pasture (10 wood, a fenced pasture for sheep and hens, needs 5 villagers), tend_flock (gather eggs and shear sheep at the pasture: brings food and hides, needs a pasture), build_apiary (8 wood, straw beehives, needs 6 villagers), build_orchard (10 wood, fruit trees, needs 7 villagers), soak (rest in the hot spring if one stands: heals wounds and tiredness, cheers you), build_belfry (raise a bell tower), build_stage (16 wood + 4 stone, a puppet theatre, needs 8 villagers and Hut Age), show (put on a puppet show at the theatre in fair daytime or at dusk: the onlookers laugh and cheer, every sixth show is a grand one, needs a theatre), ring_bell (ring the bell tower at dawn, dusk or when foes come: cheers the village or rallies the fighters), shoot (practise archery at the archery range in dry daytime; sharpens Fighting, bullseyes cheer you, contests every few bullseyes; needs a range), pick_fruit (pick ripe fruit at the orchard in daytime dry weather, summer and especially autumn, brings food and goods, needs an orchard with fruit ready), tend_bees (take ripe honey from the apiary in fair daytime weather outside winter: brings food and goods, needs an apiary with honey ready), council (take a seat at the village council while it meets at the hall or fire; adults only, the village votes its next priority), build_shrine (20 wood + 30 stone, City Age on, a Legend Shrine; once enough vigils are kept a legendary critter answers), vigil (kneel and keep a quiet vigil at the shrine in daytime, needs a shrine), build_mill (14 wood + 4 stone, a windmill beside the farms), grind (grind grain at the windmill into food and now and then bake bread, needs a windmill and a farm), build_quarry (16 wood, Village Age on, a stone quarry pit that supplies stone), quarry (cut blocks of stone at the quarry: brings plenty of stone, needs a quarry), build_dock (8 wood, a fishing pier at the lake, needs 4 villagers and a lake shore), sail (row a boat out from the dock for a big catch, daytime and fair weather only, needs a dock), teach (a grown-up shows a nearby child their trade in daytime: the child may follow it on growing up, needs a child in the village), raise_cathedral (City Age, 16+ villagers: haul spare wood and stone to raise the great cathedral in five tiers; the last tier starts a Jubilee), revel (join the seasonal fete on the green while one is on: dance round the maypole, midsummer bonfire, harvest table or midwinter lantern tree, lifts everyone's mood), build_tavern (20 wood + 10 stone, Town Age on), tavern (eat and chat with friends at the tavern, needs food, lifts mood), build_infirmary (16 wood + 8 stone, Town Age on), recover (rest and be bandaged at the infirmary: use when hurt, heals a lot), build_wonder (City Age, 50 wood + 40 stone + 5 metal: a great wonder that blesses the whole village), haul (fill the granary), drill (train at the barracks), study (read at the library; scholars earn lore that unlocks discoveries), attack (charge the enemy), patrol (walk the edge of the village and watch), play (children), carve (whittle wooden toys at the fire from spare wood; the children cheer up), pick_flowers (gather wildflowers and give them to a friend), forage_herbs (pick healing herbs: mends you and hurt people nearby, use when hurt or when others are hurt), swim (summer days at the lake, lifts mood), snowman (winter days, build a snowman near the fire, cheers the children), rake_leaves (autumn days, rake a pile of leaves the children jump in), fly_kite (spring days, fly a kite in the breeze), walk_dog (play fetch with your dog, only if you have one), assault_camp (storm the bandit camp beyond the hills, only while it stands; for the healthy and brave, it stops its raids when razed), stargaze (clear evenings at the fire, lifts mood), gather_star (gather shining starmetal from a fallen star's crater, only while the facts say a star fell; gives metal), douse (put out the forest fire with water, only while the facts say a wildfire burns; a bit dangerous, protects the woods and huts), eat (needs food in stock), sleep, talk (set target and say), wander. Use only the actions listed as available to you in the message.
+Actions: gather_wood, gather_stone, gather_food (berries), fish (at the lake), hunt (game in the forest, hunter-gatherers' best food), tend_farm (needs a farm, Farming Age on), explore (scouting far away), delve (join the rift expedition, only while a rift is open), tell_story (at the fire, lifts everyone's spirits), huddle (stay by the fire), build_hut (6 wood + 2 stone), build_farm (4 wood, Farming Age on), build_campfire (3 stone), mine_ore (Bronze Age on), smelt (2 ore + 1 wood at a forge, Bronze Age on), build_smelter (4 wood + 6 stone, Bronze Age on), build_well (4 wood + 6 stone), build_workshop (10 wood + 4 stone), build_market (12 wood + 6 stone), build_lamp (2 wood + 2 stone), fetch_water (at a well, waters the farms), craft (at a workshop), trade (goods for food at a market), dance (at the fire), build_granary (14 wood + 6 stone), build_barracks (16 wood, 14 stone, 2 metal), build_library (18 wood + 12 stone), build_totem (12 wood + 4 stone, carve a totem pole), honor (bow and dance at the totem pole, lifts mood, may bring an omen of plenty), build_ranch (18 wood + 6 stone, a fenced critter ranch once the village keeps critters), tend_critters (feed and groom the village critters at the ranch: heals them, makes them stronger and fonder of us, needs a ranch), build_pasture (10 wood, a fenced pasture for sheep and hens, needs 5 villagers), tend_flock (gather eggs and shear sheep at the pasture: brings food and hides, needs a pasture), build_apiary (8 wood, straw beehives, needs 6 villagers), build_orchard (10 wood, fruit trees, needs 7 villagers), soak (rest in the hot spring if one stands: heals wounds and tiredness, cheers you), build_belfry (raise a bell tower), build_stage (16 wood + 4 stone, a puppet theatre, needs 8 villagers and Hut Age), build_kiln (12 wood + 6 stone, a potter's kiln, needs 7 villagers and Hut Age), fire_pots (fire clay pots in the kiln by day, uses 2 wood; makes goods, every fifth pot is a glazed masterwork that neighbours admire; needs a kiln), show (put on a puppet show at the theatre in fair daytime or at dusk: the onlookers laugh and cheer, every sixth show is a grand one, needs a theatre), ring_bell (ring the bell tower at dawn, dusk or when foes come: cheers the village or rallies the fighters), shoot (practise archery at the archery range in dry daytime; sharpens Fighting, bullseyes cheer you, contests every few bullseyes; needs a range), pick_fruit (pick ripe fruit at the orchard in daytime dry weather, summer and especially autumn, brings food and goods, needs an orchard with fruit ready), tend_bees (take ripe honey from the apiary in fair daytime weather outside winter: brings food and goods, needs an apiary with honey ready), council (take a seat at the village council while it meets at the hall or fire; adults only, the village votes its next priority), build_shrine (20 wood + 30 stone, City Age on, a Legend Shrine; once enough vigils are kept a legendary critter answers), vigil (kneel and keep a quiet vigil at the shrine in daytime, needs a shrine), build_mill (14 wood + 4 stone, a windmill beside the farms), grind (grind grain at the windmill into food and now and then bake bread, needs a windmill and a farm), build_quarry (16 wood, Village Age on, a stone quarry pit that supplies stone), quarry (cut blocks of stone at the quarry: brings plenty of stone, needs a quarry), build_dock (8 wood, a fishing pier at the lake, needs 4 villagers and a lake shore), sail (row a boat out from the dock for a big catch, daytime and fair weather only, needs a dock), teach (a grown-up shows a nearby child their trade in daytime: the child may follow it on growing up, needs a child in the village), raise_cathedral (City Age, 16+ villagers: haul spare wood and stone to raise the great cathedral in five tiers; the last tier starts a Jubilee), revel (join the seasonal fete on the green while one is on: dance round the maypole, midsummer bonfire, harvest table or midwinter lantern tree, lifts everyone's mood), build_tavern (20 wood + 10 stone, Town Age on), tavern (eat and chat with friends at the tavern, needs food, lifts mood), build_infirmary (16 wood + 8 stone, Town Age on), recover (rest and be bandaged at the infirmary: use when hurt, heals a lot), build_wonder (City Age, 50 wood + 40 stone + 5 metal: a great wonder that blesses the whole village), haul (fill the granary), drill (train at the barracks), study (read at the library; scholars earn lore that unlocks discoveries), attack (charge the enemy), patrol (walk the edge of the village and watch), play (children), carve (whittle wooden toys at the fire from spare wood; the children cheer up), pick_flowers (gather wildflowers and give them to a friend), forage_herbs (pick healing herbs: mends you and hurt people nearby, use when hurt or when others are hurt), swim (summer days at the lake, lifts mood), snowman (winter days, build a snowman near the fire, cheers the children), rake_leaves (autumn days, rake a pile of leaves the children jump in), fly_kite (spring days, fly a kite in the breeze), walk_dog (play fetch with your dog, only if you have one), assault_camp (storm the bandit camp beyond the hills, only while it stands; for the healthy and brave, it stops its raids when razed), stargaze (clear evenings at the fire, lifts mood), gather_star (gather shining starmetal from a fallen star's crater, only while the facts say a star fell; gives metal), douse (put out the forest fire with water, only while the facts say a wildfire burns; a bit dangerous, protects the woods and huts), eat (needs food in stock), sleep, talk (set target and say), wander. Use only the actions listed as available to you in the message.
 Mostly do the work of your job, but react to your needs, the weather, wolves, news and what others say. Talk about what you have seen, feel or remember, with opinions and feelings. Never repeat a line or an action you just did, and vary your sentences. Stay alive: eat when hungry, sleep when tired or at night.
 Speak only about facts given in the message: your needs, the stock, the weather, people nearby and what they said, family, village history and news. Never invent buildings, people, resources or events. Answer what others actually said to you. If you are a child, use very short, simple words."""
         private const val SYSTEM_SHORT = """Reply with ONLY a JSON object: {"thought": "", "action": "<one allowed action>", "target": "", "say": "<one short sentence using only the facts given, or empty>"}"""

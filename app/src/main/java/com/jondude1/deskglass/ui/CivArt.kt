@@ -292,6 +292,12 @@ class CivArt {
         'B' to 0xFF2E4A82.toInt(), 't' to 0xFFB98A4E.toInt(), 'W' to 0xFF6E4A24.toInt(),
         'g' to 0xFF4F9E3F.toInt(), 'G' to 0xFF3A7A30.toInt(),
     ))
+    val kiln = sprite(KILN, mapOf(
+        'c' to 0xFFC8714A.toInt(), 'C' to 0xFF8E4A2E.toInt(), 'd' to 0xFF2A1E1A.toInt(), 'o' to 0xFFF29A38.toInt(),
+        's' to 0xFF9A9AA2.toInt(), 'S' to 0xFF6C6C76.toInt(), 't' to 0xFFB98A4E.toInt(), 'W' to 0xFF6E4A24.toInt(),
+        'p' to 0xFFD9A066.toInt(), 'b' to 0xFF4A82B5.toInt(),
+        'g' to 0xFF4F9E3F.toInt(), 'G' to 0xFF3A7A30.toInt(),
+    ))
     val belfry = sprite(BELFRY, mapOf(
         'r' to 0xFFB8452F.toInt(), 'R' to 0xFF7A2C1E.toInt(), 's' to 0xFF9A9AA2.toInt(), 'S' to 0xFF6C6C76.toInt(),
         'y' to 0xFFF2D14E.toInt(), 'Y' to 0xFFC9A030.toInt(), 'd' to 0xFF2A2A32.toInt(),
@@ -1008,6 +1014,18 @@ class CivArt {
             ".tttttttttttt.",
             ".tWtWtWtWtWtW.",
             ".W..........W.",
+            "gGggGgggGggGgg",
+        )
+        val KILN = listOf(
+            "......sS......",
+            "......sS......",
+            ".....cCCc.....",
+            "....cCccCc....",
+            "...cCccccCc...",
+            "..cCcddddcCc..",
+            "..cCcdooDcCc..".replace("D","d"),
+            "..cCcddddcCc..",
+            ".ttpbtpWtpbtt.",
             "gGggGgggGggGgg",
         )
         val BELFRY = listOf(

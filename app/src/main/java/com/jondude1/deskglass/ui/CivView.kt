@@ -602,6 +602,7 @@ private fun DrawScope.drawWorld(
                 "belfry" -> art.belfry
                 "stage" -> art.stage
                 "bath" -> art.bath
+                "kiln" -> art.kiln
                 "dock" -> art.dock
                 "quarry" -> art.quarry
                 "mill" -> art.mill
@@ -931,6 +932,23 @@ private fun DrawScope.drawWorld(
                     }
                 }
                 if (dark > 0.1f) drawCircle(Color(0xFFFFD27A).copy(alpha = min(0.3f, dark * 0.5f) + (if (acts > 0) 0.12f else 0f)), radius = ts * 0.8f, center = Offset(cx, baseY - hh * 0.5f))
+            }
+            if (b.type == "kiln") {
+                // fire glows in the mouth, smoke climbs the chimney (thick while pots are firing), sparks jump, warm glow at night
+                val potters = sim.villagers.count { it.action == "fire_pots" && it.phase == "working" && kotlin.math.hypot(it.x - (b.x + 0.5f), it.y - (b.y + 0.5f)) < 2.5f }
+                val flick = 0.55f + 0.25f * kotlin.math.sin(t * 9f) + (if (potters > 0) 0.2f else 0f)
+                drawCircle(Color(0xFFFF9A38).copy(alpha = min(0.9f, flick)), radius = ps * 2.2f, center = Offset(cx, baseY - hh * 0.4f))
+                for (k in 0 until 3 + potters * 2) {
+                    val ph = (t * 0.3f + k * 0.31f) % 1f
+                    val sx = cx + w * 0.02f + kotlin.math.sin(ph * 5f + k) * ps * 1.4f
+                    val sy = baseY - hh * 0.95f - ph * hh * 0.9f
+                    drawCircle(Color(0xFF8A8A92).copy(alpha = 0.4f * (1f - ph)), radius = ps * (1.2f + ph * 2.4f), center = Offset(sx, sy))
+                }
+                if (potters > 0) for (k in 0 until 3) {
+                    val ph = (t * 1.3f + k * 0.37f) % 1f
+                    drawCircle(Color(0xFFFFC857).copy(alpha = 0.9f * (1f - ph)), radius = ps * 0.5f, center = Offset(cx + (k - 1) * ps * 1.5f, baseY - hh * 0.45f - ph * hh * 0.5f))
+                }
+                if (dark > 0.1f) drawCircle(Color(0xFFFFB45A).copy(alpha = min(0.34f, dark * 0.55f)), radius = ts * 0.9f, center = Offset(cx, baseY - hh * 0.4f))
             }
             if (b.type == "belfry") {
                 // the bell swings and sound rings spread while somebody is ringing
