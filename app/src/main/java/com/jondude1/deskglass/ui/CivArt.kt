@@ -279,6 +279,10 @@ class CivArt {
         'W' to 0xFF8E6A3A.toInt(), 'g' to 0xFF5E9B45.toInt(), 'p' to 0xFFE06A9A.toInt(), 'y' to 0xFFF5D76E.toInt(),
         'v' to 0xFF9A6AD6.toInt(),
     ))
+    val range = sprite(RANGE, mapOf(
+        'r' to 0xFFC9382B.toInt(), 'h' to 0xFFF4EEDC.toInt(), 'y' to 0xFFF2D14E.toInt(), 't' to 0xFF7A4E26.toInt(),
+        'g' to 0xFF4F9E3F.toInt(), 'G' to 0xFF3A7A30.toInt(), 'c' to 0xFFC9975A.toInt(), 'W' to 0xFF8E6A3A.toInt(),
+    ))
     val orchard = sprite(ORCHARD, mapOf(
         'g' to 0xFF4F9E3F.toInt(), 'G' to 0xFF3A7A30.toInt(), 't' to 0xFF7A4E26.toInt(), 'T' to 0xFF4A2D14.toInt(),
         'w' to 0xFFC9975A.toInt(), 'W' to 0xFF8E6A3A.toInt(), 'y' to 0xFFF2D14E.toInt(),
@@ -952,6 +956,18 @@ class CivArt {
             ".wWhhWw.ffffffffffff",
             ".wwwwww.f....f.....f",
             "bbbbbbb.f....f.....f",
+        )
+        val RANGE = listOf(
+            ".rr...rr...rr.",
+            "rhhr.rhhr.rhhr",
+            "rhyr.rhyr.rhyr",
+            ".rr...rr...rr.",
+            ".tt...tt...tt.",
+            ".tt...tt...tt.",
+            "gGggGgggGggGgg",
+            ".W..W..W..W..W",
+            "cccccccccccccc",
+            "W..W..W..W..W.",
         )
         val ORCHARD = listOf(
             ".gg...gg...gg.",

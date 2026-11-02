@@ -598,6 +598,7 @@ private fun DrawScope.drawWorld(
                 "pasture" -> art.pasture
                 "apiary" -> art.apiary
                 "orchard" -> art.orchard
+                "range" -> art.range
                 "dock" -> art.dock
                 "quarry" -> art.quarry
                 "mill" -> art.mill
@@ -876,6 +877,25 @@ private fun DrawScope.drawWorld(
                     }
                 }
                 if (dark > 0.1f) drawCircle(Color(0xFFFFD27A).copy(alpha = min(0.3f, dark * 0.5f)), radius = ts * 0.8f, center = Offset(cx + w * 0.12f, baseY - hh * 0.8f))
+            }
+            if (b.type == "range") {
+                // shooters at the line: an arrow streaks across to the straw targets; a bullseye flashes gold
+                val shooters = sim.villagers.count { it.action == "shoot" && it.phase == "working" && kotlin.math.hypot(it.x - (b.x + 0.5f), it.y - (b.y + 0.5f)) < 2.5f }
+                if (shooters > 0) {
+                    for (k in 0 until min(3, shooters + 1)) {
+                        val ph = (t * 1.3f + k * 0.37f) % 1f
+                        val ax = cx - w * 0.3f + w * 0.6f * ph
+                        val ay = baseY - hh * 0.35f - kotlin.math.sin(ph * 3.14159f) * hh * 0.12f
+                        drawLine(Color(0xFFF2E6C8).copy(alpha = 0.9f * (1f - ph * 0.4f)), Offset(ax, ay), Offset(ax + ps * 2.6f, ay - ps * 0.6f), strokeWidth = ps * 0.8f)
+                    }
+                    val gl = 0.5f + 0.5f * kotlin.math.sin(t * 6f)
+                    drawRect(Color(0xFFFFE9A0).copy(alpha = 0.25f + 0.4f * gl), Offset(cx - w * 0.38f, baseY - hh * 0.66f), Size(ps * 1.2f, ps * 1.2f))
+                    drawRect(Color(0xFFFFE9A0).copy(alpha = 0.25f + 0.4f * (1f - gl)), Offset(cx + w * 0.3f, baseY - hh * 0.66f), Size(ps * 1.2f, ps * 1.2f))
+                }
+                // a little pennant on the rail
+                val flap = kotlin.math.sin(t * 3f) * ps * 0.6f
+                drawRect(Color(0xFF5A3A20), Offset(cx + w * 0.42f, baseY - hh * 0.95f), Size(ps * 0.6f, ps * 4f))
+                drawRect(Color(0xFFC9382B), Offset(cx + w * 0.42f + ps * 0.6f, baseY - hh * 0.95f), Size(ps * 2.4f + flap, ps * 1.4f))
             }
             if (b.type == "orchard") {
                 // the trees follow the seasons: pink blossom, green summer fruit, orange autumn leaves with red apples, snow caps; pickers shake down fruit
