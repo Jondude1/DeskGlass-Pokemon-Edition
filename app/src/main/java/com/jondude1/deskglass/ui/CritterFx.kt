@@ -385,6 +385,7 @@ fun DrawScope.drawCritterEffects(sim: CivSim, cart: CritterArt, g: Geo) {
         if (e.state == "walk") continue
         if (e.kind == "spar" && e.tour) arenaFx(e, g)
         if (e.kind != "summon") ring(e, g)
+        if (e.field != 0 && e.kind != "summon") fieldFx(e, g)
         when (e.state) {
             "turn" -> moveFx(e, g)
             "snare" -> bindFx(e, g)
@@ -498,6 +499,68 @@ private fun DrawScope.arenaFx(e: Enc, g: Geo) {
         if (cheer) {
             drawRect(skin, Offset(fx - ps * 2.4f, top - ps * 4.4f), Size(ps * 0.9f, ps * 2.4f))
             drawRect(skin, Offset(fx + ps * 1.5f, top - ps * 4.4f), Size(ps * 0.9f, ps * 2.4f))
+        }
+    }
+}
+
+/** Battlefield weather over the fight: rain streaks, sun shimmer, snowflakes, moon and fireflies, or storm flashes. */
+private fun DrawScope.fieldFx(e: Enc, g: Geo) {
+    val ps = g.ps
+    val ts = g.ts
+    val mx = g.ox + (e.ax + e.bx) / 2f * ts
+    val my = g.oy + ((e.ay + e.by) / 2f + 0.45f) * ts
+    val w = (abs(e.bx - e.ax) / 2f + 2.4f) * ts
+    val top = my - ts * 3.2f
+    val h = ts * 3.6f
+    val x0 = mx - w
+    val fade = min(1f, e.clock / 0.8f)
+    val f = e.field
+    if (f == 4 || f == 5) drawRect(Color(0xFF0A0F2A).copy(alpha = (if (f == 4) 0.22f else 0.16f) * fade), Offset(x0, top), Size(w * 2f, h))
+    if (f == 2) drawRect(Color(0xFFFFE9A0).copy(alpha = 0.10f * fade), Offset(x0, top), Size(w * 2f, h))
+    if (f == 3) drawRect(Color(0xFFDDEEFF).copy(alpha = 0.10f * fade), Offset(x0, top), Size(w * 2f, h))
+    if (f == 1 || f == 5) {
+        val n = if (f == 5) 46 else 32
+        for (k in 0 until n) {
+            val u = (k * 0.6180339f) % 1f
+            val ph = ((g.t * (if (f == 5) 2.6f else 1.9f)) + k * 0.37f) % 1f
+            val px = x0 + u * w * 2f + ph * ps * 6f
+            val py = top + ph * h
+            drawLine(Color(0xFFBFE3FF).copy(alpha = 0.55f * fade), Offset(px, py), Offset(px - ps * 1.2f, py + ps * 4.5f), strokeWidth = ps * 0.7f)
+        }
+    }
+    if (f == 5) {
+        val flash = (sin(g.t * 5.3f) * sin(g.t * 2.1f + 1f)).let { if (it > 0.93f) (it - 0.93f) * 12f else 0f }
+        if (flash > 0f) drawRect(Color.White.copy(alpha = min(0.4f, flash * 0.4f)), Offset(x0, top), Size(w * 2f, h))
+    }
+    if (f == 3) {
+        for (k in 0 until 26) {
+            val u = (k * 0.7548777f) % 1f
+            val ph = ((g.t * 0.35f) + k * 0.211f) % 1f
+            val px = x0 + u * w * 2f + sin(g.t * 1.3f + k) * ps * 3f
+            val py = top + ph * h
+            drawRect(Color.White.copy(alpha = 0.85f * fade), Offset(px, py), Size(ps * 1.3f, ps * 1.3f))
+        }
+    }
+    if (f == 2) {
+        for (k in 0 until 9) {
+            val px = x0 + ((k * 0.381966f) % 1f) * w * 2f
+            val tw = (sin(g.t * 2.2f + k * 1.9f) * 0.5f + 0.5f)
+            drawRect(Color(0xFFFFF3B0).copy(alpha = 0.5f * tw * fade), Offset(px, my + ts * 0.3f - tw * ps * 3f), Size(ps * 1.4f, ps * 1.4f))
+        }
+        val sx = x0 + w * 0.15f
+        drawCircle(Color(0xFFFFE27A).copy(alpha = 0.85f * fade), ps * 5f, Offset(sx, top + ps * 6f))
+        drawCircle(Color(0xFFFFE27A).copy(alpha = 0.22f * fade), ps * 9f, Offset(sx, top + ps * 6f))
+    }
+    if (f == 4) {
+        val cx = x0 + w * 1.7f
+        drawCircle(Color(0xFFEFF2FF).copy(alpha = 0.9f * fade), ps * 4.5f, Offset(cx, top + ps * 6f))
+        drawCircle(Color(0xFF0A0F2A).copy(alpha = 0.9f * fade), ps * 3.6f, Offset(cx + ps * 2.2f, top + ps * 5f))
+        for (k in 0 until 10) {
+            val u = (k * 0.6180339f) % 1f
+            val px = x0 + u * w * 2f + sin(g.t * 0.9f + k * 2.3f) * ps * 5f
+            val py = my - ts * 0.2f - ((k * 0.43f) % 1f) * ts * 1.6f + cos(g.t * 1.1f + k) * ps * 3f
+            val tw = (sin(g.t * 3f + k * 1.7f) * 0.5f + 0.5f)
+            drawRect(Color(0xFFD8FF7A).copy(alpha = (0.35f + 0.55f * tw) * fade), Offset(px, py), Size(ps * 1.3f, ps * 1.3f))
         }
     }
 }

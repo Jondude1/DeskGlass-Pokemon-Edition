@@ -96,6 +96,8 @@ class Enc(val kind: String, val v: Villager) {
     var wx = -1f
     var wy = -1f
 
+    /** The sky over this fight (Field.RAIN etc.). */
+    var field = 0
     var banner = ""
     var bannerT = 0f
     var sub = ""
@@ -1628,6 +1630,13 @@ class CritterWorld(private val sim: CivSim) {
                     e.bannerT = 2.6f
                 } else {
                     e.battle = Battle(e.a!!, e.b!!, rnd)
+                    e.field = if (e.kind == "train") 0 else fieldNow()
+                    e.battle!!.field = e.field
+                    Battle.fieldFights[e.field]++
+                    if (e.field != 0) {
+                        e.sub = "${Field.name(e.field)}: ${Field.favours(e.field)}!"
+                        e.subT = 3.2f
+                    }
                     e.state = "turn"
                     nextTurn(e)
                 }
@@ -1649,6 +1658,16 @@ class CritterWorld(private val sim: CivSim) {
             "snare" -> snareTick(e, dt)
             "result" -> if (e.clock >= e.resultLen) finish(e)
         }
+    }
+
+    /** The weather over the village decides the battlefield sky. */
+    fun fieldNow(): Int = when {
+        sim.storm() -> Field.STORM
+        sim.snowing() -> Field.SNOW
+        sim.raining() -> Field.RAIN
+        sim.isNight() -> Field.NIGHT
+        sim.seasonIdx() == 1 -> Field.SUN
+        else -> Field.NONE
     }
 
     private fun nextTurn(e: Enc) {
@@ -1700,6 +1719,7 @@ class CritterWorld(private val sim: CivSim) {
             else -> 0xFFFFFFFF
         }
         e.pops.add(Pop(tx, ty - 1.1f, (if (t.crit) "${t.damage}!" else "${t.damage}"), col, sim.time))
+        if (t.fieldMul != 1f) e.pops.add(Pop(tx + 0.5f, ty - 1.5f, if (t.fieldMul > 1f) "${Field.name(e.field)} +" else "${Field.name(e.field)} -", if (t.fieldMul > 1f) 0xFF7FD6FF else 0xFF9AA4B8, sim.time))
         if (t.eff > 1f) {
             e.sub = "It's super effective!"
             e.subT = 1.3f

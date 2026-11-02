@@ -486,6 +486,40 @@ object Abil {
     fun has(c: Critter, t: CType): Boolean = c.level >= LEVEL && c.species.t1 == t
 }
 
+/** Battlefield weather: the sky over the fight tilts the odds for some critter types. */
+object Field {
+    const val NONE = 0
+    const val RAIN = 1
+    const val SUN = 2
+    const val SNOW = 3
+    const val NIGHT = 4
+    const val STORM = 5
+
+    fun name(f: Int): String = when (f) {
+        RAIN -> "Rain"; SUN -> "Blazing sun"; SNOW -> "Snowfall"; NIGHT -> "Moonlit night"; STORM -> "Thunderstorm"; else -> ""
+    }
+
+    /** Damage multiplier for a move of type [t] under field [f]. */
+    fun mul(f: Int, t: CType): Float = when (f) {
+        RAIN -> when (t) { CType.TIDE -> 1.25f; CType.EMBER -> 0.75f; CType.SPARK -> 1.1f; else -> 1f }
+        SUN -> when (t) { CType.EMBER -> 1.25f; CType.LEAF -> 1.15f; CType.FROST -> 0.75f; CType.TIDE -> 0.9f; else -> 1f }
+        SNOW -> when (t) { CType.FROST -> 1.25f; CType.EMBER -> 0.8f; CType.LEAF -> 0.85f; else -> 1f }
+        NIGHT -> when (t) { CType.SHADE -> 1.25f; CType.SPIRIT -> 1.2f; CType.GLOW -> 0.85f; else -> 1f }
+        STORM -> when (t) { CType.SPARK -> 1.3f; CType.GALE -> 1.2f; CType.TIDE -> 1.1f; CType.STONE -> 0.9f; else -> 1f }
+        else -> 1f
+    }
+
+    /** Which types the sky favours, for the opening banner. */
+    fun favours(f: Int): String = when (f) {
+        RAIN -> "Tide moves surge, Ember fizzles"
+        SUN -> "Ember and Leaf moves surge, Frost wilts"
+        SNOW -> "Frost moves surge, Ember and Leaf falter"
+        NIGHT -> "Shade and Spirit moves surge, Glow dims"
+        STORM -> "Spark, Gale and Tide moves surge"
+        else -> ""
+    }
+}
+
 /** One attack inside a battle. */
 class Turn(
     val side: Int,
@@ -506,11 +540,16 @@ class Turn(
     /** A talent that fired this turn, e.g. "Blaze!", and the side that owns it (-1 for none). */
     val abil: String = "",
     val abilSide: Int = -1,
+    /** How much the battlefield weather changed this hit (1 = not at all). */
+    val fieldMul: Float = 1f,
 )
 
 /** Turn-by-turn fight between two critters. The caller plays each turn out on screen. */
 class Battle(val a: Critter, val b: Critter, private val rnd: Random) {
     private val queue = ArrayDeque<Int>()
+
+    /** The sky over the fight (Field.RAIN etc.), 0 for none. */
+    var field = 0
 
     /** Hits side 0 can still take at half strength from a shield glyph. */
     var shield = 0
@@ -542,7 +581,7 @@ class Battle(val a: Critter, val b: Critter, private val rnd: Random) {
         var best = ms.first()
         var bestScore = -1f
         for (m in ms) {
-            var score = m.power * (m.acc / 100f) * Dex.effectiveness(m.type, def.species)
+            var score = m.power * (m.acc / 100f) * Dex.effectiveness(m.type, def.species) * Field.mul(field, m.type)
             if (att.species.types.contains(m.type)) score *= 1.3f
             score *= 0.75f + rnd.nextFloat() * 0.5f
             if (score > bestScore) {
@@ -637,6 +676,7 @@ class Battle(val a: Critter, val b: Critter, private val rnd: Random) {
         var eff = 1f
         var crit = false
         var inflicted = 0
+        var fm = 1f
         if (hit) {
             eff = Dex.effectiveness(move.type, def.species)
             crit = rnd.nextInt(100) < 6
@@ -644,6 +684,9 @@ class Battle(val a: Critter, val b: Critter, private val rnd: Random) {
             var d = ((2f * l / 5f + 2f) * move.power * att.atk / max(1, def.def) / 50f + 2f)
             if (att.species.types.contains(move.type)) d *= 1.3f
             d *= eff
+            fm = Field.mul(field, move.type)
+            d *= fm
+            if (fm > 1f) fieldBoosts++ else if (fm < 1f) fieldWeakens++
             if (crit) d *= 1.5f
             if (st == BURN) d *= 0.8f
             if (st == CHILL) d *= 0.85f
@@ -707,7 +750,7 @@ class Battle(val a: Critter, val b: Critter, private val rnd: Random) {
             over = true
             winner = s
         }
-        return Turn(s, move, hit, dmg, eff, crit, fainted, inflicted, tick, st, false, abil, abilSide)
+        return Turn(s, move, hit, dmg, eff, crit, fainted, inflicted, tick, st, false, abil, abilSide, fm)
     }
 
     companion object {
@@ -723,6 +766,11 @@ class Battle(val a: Critter, val b: Critter, private val rnd: Random) {
         val count = IntArray(6)
         val inflictedCount = IntArray(6)
         var tickTotal = 0
+
+        /** Headless-test counters: hits boosted or dulled by the battlefield weather, and fights per field. */
+        var fieldBoosts = 0
+        var fieldWeakens = 0
+        val fieldFights = IntArray(6)
 
         /** Headless-test counter: how often each talent fired. */
         val abilCount = HashMap<String, Int>()
