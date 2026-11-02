@@ -600,6 +600,7 @@ private fun DrawScope.drawWorld(
                 "orchard" -> art.orchard
                 "range" -> art.range
                 "belfry" -> art.belfry
+                "stage" -> art.stage
                 "bath" -> art.bath
                 "dock" -> art.dock
                 "quarry" -> art.quarry
@@ -896,6 +897,25 @@ private fun DrawScope.drawWorld(
                     drawRect(Color(0xFFF4EEDC), Offset(hx - ps * 1.3f, hy - ps * 1.7f), Size(ps * 2.6f, ps * 0.9f))
                 }
                 if (dark > 0.1f) drawCircle(Color(0xFFFFD27A).copy(alpha = min(0.3f, dark * 0.5f)), radius = ts * 0.8f, center = Offset(cx + w * 0.4f, baseY - hh * 0.2f))
+            }
+            if (b.type == "stage") {
+                // puppets bob in the lit window and notes float up while a show is on; a warm spotlight glows after dark
+                val acts = sim.villagers.count { it.action == "show" && it.phase == "working" && kotlin.math.hypot(it.x - (b.x + 0.5f), it.y - (b.y + 0.5f)) < 2.5f }
+                if (acts > 0) {
+                    val bob = kotlin.math.sin(t * 5f) * ps * 0.9f
+                    val bob2 = kotlin.math.sin(t * 5f + 2f) * ps * 0.9f
+                    drawRect(Color(0xFFE8604A), Offset(cx - w * 0.2f, baseY - hh * 0.58f + bob), Size(ps * 1.8f, ps * 2.4f))
+                    drawRect(Color(0xFFF4DDB0), Offset(cx - w * 0.2f + ps * 0.2f, baseY - hh * 0.58f + bob - ps * 1.4f), Size(ps * 1.4f, ps * 1.4f))
+                    drawRect(Color(0xFF58B85C), Offset(cx + w * 0.1f, baseY - hh * 0.58f + bob2), Size(ps * 1.8f, ps * 2.4f))
+                    drawRect(Color(0xFFF4DDB0), Offset(cx + w * 0.1f + ps * 0.2f, baseY - hh * 0.58f + bob2 - ps * 1.4f), Size(ps * 1.4f, ps * 1.4f))
+                    for (k in 0 until 3) {
+                        val ph = (t * 0.6f + k * 0.33f) % 1f
+                        val nx = cx - w * 0.3f + w * 0.6f * (((k * 41) % 10) / 10f) + kotlin.math.sin(ph * 7f + k) * ps
+                        val ny = baseY - hh * 0.8f - ph * hh * 0.8f
+                        drawCircle(Color(0xFFFFE9A0).copy(alpha = 0.85f * (1f - ph)), radius = ps * 0.9f, center = Offset(nx, ny))
+                    }
+                }
+                if (dark > 0.1f) drawCircle(Color(0xFFFFD27A).copy(alpha = min(0.3f, dark * 0.5f) + (if (acts > 0) 0.12f else 0f)), radius = ts * 0.8f, center = Offset(cx, baseY - hh * 0.5f))
             }
             if (b.type == "belfry") {
                 // the bell swings and sound rings spread while somebody is ringing
