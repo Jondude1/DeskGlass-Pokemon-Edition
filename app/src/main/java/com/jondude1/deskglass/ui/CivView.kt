@@ -1640,9 +1640,9 @@ private fun DrawScope.drawWorld(
         if (p.kind == "burrower" && p.aux > 0f) { wormMound(ox + p.x * ts, oy + (p.y + 0.45f) * ts, ps, t, p.x, p.aux < 1.4f); continue }
         val sp = when (p.kind) {
             "bear" -> art.bear; "boar" -> art.boar; "raider" -> art.raider; "ogre" -> art.ogre
-            "wraith" -> art.wraith; "drake" -> art.drake; "shaman" -> art.shaman; "warlord" -> art.warlord; "golem" -> art.golem; "frostwolf" -> art.frostwolf; "lich" -> art.lich; "skeleton" -> art.skeleton; "pilferer" -> art.pilferer; "hornet" -> art.hornet; "reaver" -> art.reaver; "troll" -> art.troll; "spider" -> art.spider; "burrower" -> art.worm; "harpy" -> art.harpy[((t * 7f + p.x) % 2f).toInt().coerceIn(0, 1)]; else -> art.wolf
+            "wraith" -> art.wraith; "drake" -> art.drake; "shaman" -> art.shaman; "warlord" -> art.warlord; "golem" -> art.golem; "frostwolf" -> art.frostwolf; "lich" -> art.lich; "skeleton" -> art.skeleton; "pilferer" -> art.pilferer; "hornet" -> art.hornet; "reaver" -> art.reaver; "troll" -> art.troll; "spider" -> art.spider; "burrower" -> art.worm; "scorpion" -> art.scorpion; "harpy" -> art.harpy[((t * 7f + p.x) % 2f).toInt().coerceIn(0, 1)]; else -> art.wolf
         }
-        val sc = when (p.kind) { "bear" -> 1.15f; "boar" -> 0.95f; "ogre" -> 1.5f; "drake" -> 1.7f; "raider" -> 1.1f; "warlord" -> 1.45f; "golem" -> 1.55f; "shaman" -> 1.1f; "lich" -> 1.35f; "skeleton" -> 1.05f; "frostwolf" -> 1.05f; "pilferer" -> 1.05f; "hornet" -> 0.8f; "reaver" -> 1.15f; "troll" -> 1.6f; "spider" -> 1.25f; "burrower" -> 1.5f; "harpy" -> 1.1f; else -> 1f }
+        val sc = when (p.kind) { "bear" -> 1.15f; "boar" -> 0.95f; "ogre" -> 1.5f; "drake" -> 1.7f; "raider" -> 1.1f; "warlord" -> 1.45f; "golem" -> 1.55f; "shaman" -> 1.1f; "lich" -> 1.35f; "skeleton" -> 1.05f; "frostwolf" -> 1.05f; "pilferer" -> 1.05f; "hornet" -> 0.8f; "reaver" -> 1.15f; "troll" -> 1.6f; "spider" -> 1.25f; "burrower" -> 1.5f; "scorpion" -> 1.15f; "harpy" -> 1.1f; else -> 1f }
         val w = sp.lw * ps * sc
         val h = sp.lh * ps * sc
         val feet = oy + (p.y + 0.45f) * ts
@@ -1651,6 +1651,7 @@ private fun DrawScope.drawWorld(
         val lift = if (p.kind == "harpy") ps * (if (p.aux > 0f) 9f + 2f * kotlin.math.sin(t * 6f + p.x) else 3f) else 0f
         img(sp, ox + p.x * ts - w / 2f, feet - h - lift, w, h)
         val maxHp = com.jondude1.deskglass.sim.predatorMaxHp(p.kind)
+        if (p.kind == "scorpion") scorpionFx(ox + p.x * ts, feet, w, h, ps, t, p.x)
         if (p.kind == "burrower") wormDust(ox + p.x * ts, feet, ps, t, p.x)
         if (p.kind == "harpy") harpyFeathers(ox + p.x * ts, feet - h * 0.5f - lift, ps, t, p.x, p.aux > 0f)
         if (p.kind == "wraith" || p.kind == "drake") {
@@ -2076,7 +2077,7 @@ private fun ThreatChip(sim: CivSim, tick: Long, modifier: Modifier = Modifier) {
 private fun newsTint(line: String): Color {
     val l = line.lowercase()
     return when {
-        listOf("killed", "war", "wolves", "wolf", "bear", "boar", "raider", "ogre", "wraith", "drake", "shaman", "warlord", "golem", "frost", "lich", "skeleton", "pilferer", "hornet", "reaver", "troll", "spider", "harpy", "burrow", "longship", "rift", "falls", "plague", "attack", "slain", "mourns").any { l.contains(it) } -> Color(0xFFFF9C8A)
+        listOf("killed", "war", "wolves", "wolf", "bear", "boar", "raider", "ogre", "wraith", "drake", "shaman", "warlord", "golem", "frost", "lich", "skeleton", "pilferer", "hornet", "reaver", "troll", "spider", "scorpion", "harpy", "burrow", "longship", "rift", "falls", "plague", "attack", "slain", "mourns").any { l.contains(it) } -> Color(0xFFFF9C8A)
         listOf("built", "palisade", "raise", "born", "feast", "berries", "welcome", "alliance", "trade").any { l.contains(it) } -> Color(0xFFA6E3A1)
         else -> Glass.InkDim
     }
