@@ -414,6 +414,10 @@ class CivArt {
         'b' to 0xFF3A2A44.toInt(), 'B' to 0xFF5A4468.toInt(), 'r' to 0xFFFF4A3A.toInt(), 'y' to 0xFFD8C040.toInt(),
         'k' to 0xFF1A1220.toInt(), 'g' to 0xFF8CD84A.toInt(),
     ))
+    val worm = sprite(WORM, mapOf(
+        'p' to 0xFFC08A78.toInt(), 'P' to 0xFF8E5A52.toInt(), 'a' to 0xFF8A8478.toInt(), 'k' to 0xFF2A1418.toInt(),
+        'w' to 0xFFF2EAD0.toInt(), 'd' to 0xFF6B4A2B.toInt(),
+    ))
     val harpy = listOf(
         sprite(HARPY_UP, HARPY_PAL),
         sprite(HARPY_DOWN, HARPY_PAL),
@@ -1431,6 +1435,20 @@ class CivArt {
             ".k.kbbbbk.k.",
             "k...kbbk...k",
             "....k..k....",
+        )
+        val WORM = listOf(
+            "...w.wkkw.w...",
+            "..wkkkkkkkkw..",
+            "..wkkwkkwkkw..",
+            "...pkkkkkkp...",
+            "...aPpppPpa...",
+            "...ppppppPp...",
+            "...aPpppppa...",
+            "...ppPppppp...",
+            "..aPpppppPpa..",
+            "..pppPpppppp..",
+            ".dddpppppppdd.",
+            "dddddddddddddd",
         )
         val HARPY_PAL = mapOf(
             'f' to 0xFF8A5A3A.toInt(), 'F' to 0xFFB98A5A.toInt(), 'p' to 0xFFE8C9A0.toInt(), 'k' to 0xFF2A1E16.toInt(),

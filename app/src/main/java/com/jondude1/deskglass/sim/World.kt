@@ -44,11 +44,11 @@ class Drop(val kind: String, val x: Float, val y: Float, val born: Double, val f
 }
 
 fun predatorMaxHp(kind: String): Float = when (kind) {
-    "bear" -> 90f; "boar" -> 60f; "raider" -> 55f; "ogre" -> 180f; "wraith" -> 70f; "drake" -> 300f; "shaman" -> 42f; "warlord" -> 230f; "golem" -> 280f; "frostwolf" -> 36f; "lich" -> 210f; "skeleton" -> 30f; "pilferer" -> 26f; "hornet" -> 10f; "reaver" -> 64f; "troll" -> 240f; "spider" -> 48f; "harpy" -> 34f; else -> 40f
+    "bear" -> 90f; "boar" -> 60f; "raider" -> 55f; "ogre" -> 180f; "wraith" -> 70f; "drake" -> 300f; "shaman" -> 42f; "warlord" -> 230f; "golem" -> 280f; "frostwolf" -> 36f; "lich" -> 210f; "skeleton" -> 30f; "pilferer" -> 26f; "hornet" -> 10f; "reaver" -> 64f; "troll" -> 240f; "spider" -> 48f; "harpy" -> 34f; "burrower" -> 150f; else -> 40f
 }
 
 /** Human raiders, ogres, rift wraiths and rift drakes are the village's real enemies. */
-fun isThreat(kind: String) = kind == "raider" || kind == "ogre" || kind == "wraith" || kind == "drake" || kind == "shaman" || kind == "warlord" || kind == "golem" || kind == "shaman" || kind == "warlord" || kind == "golem" || kind == "frostwolf" || kind == "lich" || kind == "skeleton" || kind == "pilferer" || kind == "hornet" || kind == "spider" || kind == "harpy" || kind == "reaver" || kind == "troll"
+fun isThreat(kind: String) = kind == "raider" || kind == "ogre" || kind == "wraith" || kind == "drake" || kind == "shaman" || kind == "warlord" || kind == "golem" || kind == "shaman" || kind == "warlord" || kind == "golem" || kind == "frostwolf" || kind == "lich" || kind == "skeleton" || kind == "pilferer" || kind == "hornet" || kind == "spider" || kind == "harpy" || kind == "reaver" || kind == "troll" || kind == "burrower"
 
 /** A wolf, boar or bear hunting near the village. */
 class Predator(val kind: String, var x: Float, var y: Float) {
@@ -57,6 +57,7 @@ class Predator(val kind: String, var x: Float, var y: Float) {
     var life = 0f
     var angle = 0f
     var aux = 0f
+    var phase = 0f
     var buffUntil = 0f
     var lootF = 0
     var lootW = 0
