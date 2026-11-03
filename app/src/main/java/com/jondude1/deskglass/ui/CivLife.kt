@@ -173,17 +173,23 @@ fun DrawScope.lifeUnderlay(sim: CivSim, art: CivArt, g: Geo) {
 // ---------------------------------------------------------------------------------------------
 // Crops that grow with the farm.
 // ---------------------------------------------------------------------------------------------
-fun DrawScope.crops(b: Building, g: Geo, left: Float, top: Float) {
+fun DrawScope.crops(b: Building, g: Geo, left: Float, top: Float, dry: Float = 0f) {
     val u = g.ps
     val prog = (b.ready + (b.timer / 40f).coerceIn(0f, 0.99f)).coerceIn(0f, 3f)
     val ripe = prog / 3f
-    val hp = 0.3f + prog * 0.9f
+    val hp = (0.3f + prog * 0.9f) * (1f - 0.35f * dry)
     val green = Color(0xFF6DBE45)
     val gold = Color(0xFFE8C547)
-    val stalk = Color(
+    val parched = Color(0xFF9C8A4A)
+    val stalk0 = Color(
         green.red + (gold.red - green.red) * ripe,
         green.green + (gold.green - green.green) * ripe,
         green.blue + (gold.blue - green.blue) * ripe,
+    )
+    val stalk = Color(
+        stalk0.red + (parched.red - stalk0.red) * dry * 0.85f,
+        stalk0.green + (parched.green - stalk0.green) * dry * 0.85f,
+        stalk0.blue + (parched.blue - stalk0.blue) * dry * 0.85f,
     )
     for (row in 0 until 4) {
         val baseY = top + (3 + row * 2) * u
@@ -1017,6 +1023,7 @@ fun DrawScope.seasonChip(sim: CivSim, g: Geo, namePaint: android.graphics.Paint)
         sim.raining() -> "rain"
         sim.snowing() -> "snow"
         sim.foggy() -> "fog"
+        sim.drought() -> "drought"
         sim.time < sim.rainbowUntil -> "rainbow"
         else -> "clear"
     }

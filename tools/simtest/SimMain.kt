@@ -167,6 +167,7 @@ fun main(args: Array<String>) {
         val lvls = adults.flatMap { v -> listOf("wood","stone","farm","fish","build","combat","lore","craft","hunt").map { sim.skillLevel(v, it) } }
         val best = adults.maxOfOrNull { v -> listOf("wood","stone","farm","fish","build","combat","lore","craft","hunt").maxOf { sim.skillLevel(v, it) } } ?: 0
         println("FIRE started=${sim.firesStarted} doused=${sim.firesDoused} burnedOut=${sim.fireBurnedOut} douseTrips=${sim.fireDouses} woodLost=${sim.fireLoss} blazesNow=${sim.blazes.size} scorch=${sim.scorches.size}")
+        println("DROUGHT started=${sim.droughts} ended=${sim.droughtsEnded} byRain=${sim.droughtRainEnds} waterings=${sim.droughtWaterings} savedHarvests=${sim.droughtSaved} witheredHarvests=${sim.droughtWithered} wells=${sim.buildings.count { it.type == "well" }} now=${sim.drought()}")
         println("SKILLS ups=${sim.skillUps} masters=${sim.skillMasters} bonusLoads=${sim.skillBonusLoads} skilledPairs(lv>=3)=${lvls.count { it >= 3 }} lv5+=${lvls.count { it >= 5 }} best=$best titles=${sim.villagers.sumOf { it.titles.size }}")
     }
     println("GLORY golden=${sim.goldenAt} legacy=${sim.legacy().count { it.second }}/${sim.legacy().size} decrees=${sim.decrees} kinds=${sim.decreeKinds} gildings=${sim.gildings} now=${sim.decreeKind}")

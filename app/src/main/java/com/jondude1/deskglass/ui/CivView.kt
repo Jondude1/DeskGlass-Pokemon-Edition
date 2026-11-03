@@ -424,6 +424,7 @@ private fun DrawScope.drawWorld(
     }
 
     seasonGround(sim, geo, vx0, vx1, vy0, vy1)
+    droughtGround(sim, geo, vx0, vx1, vy0, vy1)
 
     // kingdom territories: tinted ground and glowing borders
     val pulse = 0.65f + 0.2f * kotlin.math.sin(t * 2f)
@@ -687,7 +688,7 @@ private fun DrawScope.drawWorld(
                     }
                 }
             }
-            if (b.type == "farm") crops(b, geo, cx - w / 2f, baseY - hh)
+            if (b.type == "farm") crops(b, geo, cx - w / 2f, baseY - hh, if (sim.farmsWatered()) 0f else sim.droughtLevel())
             if (b.type == "hall" && b.era >= 3) {
                 banner(cx - ps * 0.4f, baseY - hh + ps * 0.5f, ps * 9f, Color(sim.kingdoms[0].color), ps, t, 7f)
             }
@@ -1826,6 +1827,9 @@ private fun DrawScope.drawWorld(
             )
         }
     }
+
+    // the Long Dry: heat haze and dust
+    droughtSky(sim, ts, ps, t)
 
     // a rainbow after the storm
     if (sim.time < sim.rainbowUntil) {
