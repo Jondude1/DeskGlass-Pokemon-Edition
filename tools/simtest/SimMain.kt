@@ -135,6 +135,7 @@ fun main(args: Array<String>) {
     println("APIARY built=${sim.buildings.count { it.type == "apiary" }} harvests=${sim.honeyHarvests} jars=${sim.honeyJars} stings=${sim.beeStings} mead=${sim.meadFeasts} ripeNow=${sim.honeyReady()}")
     println("BATH built=${sim.buildings.count { it.type == "bath" }} soaks=${sim.soaks} heals=${sim.soakHeals} gossips=${sim.soakGossips} parties=${sim.soakParties}")
     println("STAGE built=${sim.buildings.count { it.type == "stage" }} shows=${sim.shows} grand=${sim.grandShows} audience=${sim.showAudience}")
+    println("FOUNTAIN built=${sim.buildings.count { it.type == "fountain" }} wishes=${sim.fountainWishes} granted=${sim.fountainGranted} tier=${sim.fountainTier} wood=${sim.wood} stone=${sim.stone}")
     println("LOOM built=${sim.buildings.count { it.type == "loom" }} weaves=${sim.loomWeaves} cloaks=${sim.loomCloaks} hides=${sim.hides} adults=${sim.villagers.count { !sim.isChild(it) }}")
     println("YARD built=${sim.buildings.count { it.type == "yard" }} sessions=${sim.yardSessions} trained=${sim.critters.yardTrained} spars=${sim.yardSpars} levelUps=${sim.critters.yardLevelUps} xp=${sim.critters.yardXp}")
     println("KILN built=${sim.buildings.count { it.type == "kiln" }} fires=${sim.kilnFires} glazed=${sim.kilnGlazed} cheers=${sim.kilnCheers}")

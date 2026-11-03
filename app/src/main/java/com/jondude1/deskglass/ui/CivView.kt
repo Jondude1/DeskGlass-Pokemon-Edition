@@ -608,6 +608,7 @@ private fun DrawScope.drawWorld(
                 "kiln" -> art.kiln
                 "yard" -> art.yard
                 "loom" -> art.loom
+                "fountain" -> art.fountain
                 "dock" -> art.dock
                 "quarry" -> art.quarry
                 "mill" -> art.mill
@@ -984,6 +985,26 @@ private fun DrawScope.drawWorld(
                     }
                 }
                 if (dark > 0.1f) drawCircle(Color(0xFFFFD27A).copy(alpha = min(0.3f, dark * 0.5f) + (if (acts > 0) 0.12f else 0f)), radius = ts * 0.8f, center = Offset(cx, baseY - hh * 0.5f))
+            }
+            if (b.type == "fountain") {
+                // jets arc out of the top and splash back; wishers make them leap, a gilded rim and a bright crown mark the higher tiers
+                val tier = sim.fountainTier
+                val wishers = sim.villagers.count { it.action == "toss_coin" && it.phase == "working" && kotlin.math.hypot(it.x - (b.x + 0.5f), it.y - (b.y + 1.0f)) < 2.5f }
+                val jets = 2 + tier + (if (wishers > 0) 2 else 0)
+                for (k in 0 until jets * 2) {
+                    val ph = (t * 0.9f + k * 0.173f) % 1f
+                    val dir = (k % jets) - (jets - 1) / 2f
+                    val dx = cx + dir * ps * 2.6f * ph
+                    val dy = baseY - hh * 0.78f - kotlin.math.sin(ph * 3.14159f) * ps * (4.5f + tier * 1.5f) + ph * ps * 3f
+                    drawCircle(Color(0xFFD6F1FF).copy(alpha = 0.9f * (1f - ph * 0.5f)), radius = ps * 0.6f, center = Offset(dx, dy))
+                }
+                if (tier >= 2) drawRect(Color(0xFFE8C547), Offset(cx - w * 0.44f, baseY - hh * 0.5f), Size(w * 0.88f, ps * 0.8f))
+                if (tier >= 3) {
+                    val tw = 0.6f + 0.4f * kotlin.math.sin(t * 4f)
+                    drawCircle(Color(0xFFFFE9A0).copy(alpha = 0.7f * tw), radius = ps * 1.6f, center = Offset(cx, baseY - hh * 0.95f))
+                    drawRect(Color(0xFFFFFFFF).copy(alpha = tw), Offset(cx - ps * 0.5f, baseY - hh * 1.05f), Size(ps, ps))
+                }
+                if (dark > 0.1f) drawCircle(Color(0xFFBFE3FF).copy(alpha = min(0.26f, dark * 0.4f) + (if (wishers > 0) 0.1f else 0f)), radius = ts * 0.8f, center = Offset(cx, baseY - hh * 0.5f))
             }
             if (b.type == "loom") {
                 // thread flies while somebody weaves: the shuttle slides, wool fluff drifts, a warm lamp glows at night

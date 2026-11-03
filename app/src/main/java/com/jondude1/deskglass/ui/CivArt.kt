@@ -292,6 +292,10 @@ class CivArt {
         'B' to 0xFF2E4A82.toInt(), 't' to 0xFFB98A4E.toInt(), 'W' to 0xFF6E4A24.toInt(),
         'g' to 0xFF4F9E3F.toInt(), 'G' to 0xFF3A7A30.toInt(),
     ))
+    val fountain = sprite(FOUNTAIN, mapOf(
+        's' to 0xFFD2D2D8.toInt(), 'S' to 0xFF8F8F9A.toInt(), 'b' to 0xFF4FA3E0.toInt(), 'h' to 0xFFD6F1FF.toInt(),
+        'g' to 0xFF4F9E3F.toInt(), 'G' to 0xFF3A7A30.toInt(),
+    ))
     val loom = sprite(LOOM, mapOf(
         'r' to 0xFFC8473A.toInt(), 'w' to 0xFFF0EBDD.toInt(), 'W' to 0xFF6E4A24.toInt(), 'y' to 0xFFE8C547.toInt(),
         'b' to 0xFF3F6FB5.toInt(), 'B' to 0xFF2E4F86.toInt(), 'm' to 0xFF7A4B9C.toInt(),
@@ -1066,6 +1070,18 @@ class CivArt {
             ".tttttttttttt.",
             ".tWtWtWtWtWtW.",
             ".W..........W.",
+            "gGggGgggGggGgg",
+        )
+        val FOUNTAIN = listOf(
+            "......hh......",
+            ".....hbbh.....",
+            "......sS......",
+            "......sS......",
+            "...ssssssss...",
+            "..sbhbbbbhbs..",
+            ".sSbbbhbbbbSs.",
+            ".ssssssssssss.",
+            "..SSSSSSSSSS..",
             "gGggGgggGggGgg",
         )
         val LOOM = listOf(
