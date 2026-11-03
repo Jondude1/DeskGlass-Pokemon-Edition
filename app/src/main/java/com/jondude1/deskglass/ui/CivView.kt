@@ -423,6 +423,7 @@ private fun DrawScope.drawWorld(
         }
     }
 
+    waterLife(sim, geo, vx0, vx1, vy0, vy1)
     seasonGround(sim, geo, vx0, vx1, vy0, vy1)
     droughtGround(sim, geo, vx0, vx1, vy0, vy1)
 
