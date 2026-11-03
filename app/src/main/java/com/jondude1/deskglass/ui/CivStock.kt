@@ -190,7 +190,12 @@ fun DrawScope.villageStock(sim: CivSim, art: CivArt, g: Geo) {
     for (sp in sim.seasonProps.toList()) {
         val x = g.ox + sp.x * g.ts
         val y = g.oy + (sp.y + 0.9f) * g.ts
-        if (sp.kind == "snowman") snowman(x, y, u, g.t) else leafPile(x, y, u, g.t)
+        when (sp.kind) {
+            "snowman" -> snowman(x, y, u, g.t)
+            "shroom" -> mushrooms(x, y, u, g.t, false, g.dark)
+            "glowcap" -> mushrooms(x, y, u, g.t, true, g.dark)
+            else -> leafPile(x, y, u, g.t)
+        }
     }
 }
 
@@ -373,4 +378,29 @@ fun DrawScope.campSite(sim: CivSim, g: Geo) {
     drawRect(Color.Black.copy(alpha = 0.6f), Offset(cx - bw / 2f - u * 0.5f, by - u * 0.5f), Size(bw + u, u * 3f))
     drawRect(Color(0xFF5A2020), Offset(cx - bw / 2f, by), Size(bw, u * 2f))
     drawRect(if (frac > 0.5f) Color(0xFFD64545) else Color(0xFFFF9A3C), Offset(cx - bw / 2f, by), Size(bw * frac, u * 2f))
+}
+
+/** A little cluster of toadstools; glowcaps are blue-green and shine more the darker it gets. */
+private fun DrawScope.mushrooms(x: Float, y: Float, u: Float, t: Float, glow: Boolean, dark: Float) {
+    shadowAt(x, y, u * 6f, u)
+    val stem = Color(0xFFF0E6CF)
+    val capA = if (glow) Color(0xFF3FD0C0) else Color(0xFFC0392B)
+    val capB = if (glow) Color(0xFF8CF2E4) else Color(0xFFE05A3A)
+    if (glow) {
+        val pulse = 0.55f + 0.45f * sin(t * 2.2f + x * 0.05f)
+        val a = (0.18f + 0.4f * dark.coerceIn(0f, 1f)) * pulse
+        drawCircle(Color(0xFF7FFFE8).copy(alpha = a), u * 7.5f, Offset(x, y - u * 2.5f))
+        drawCircle(Color(0xFFB9FFF4).copy(alpha = a * 0.8f), u * 3.5f, Offset(x, y - u * 2.5f))
+    }
+    // tall one, short one, tiny one
+    val xs = floatArrayOf(-u * 1.8f, u * 1.6f, u * 0.1f)
+    val hs = floatArrayOf(u * 3.4f, u * 2.4f, u * 1.6f)
+    val ws = floatArrayOf(u * 4.2f, u * 3.4f, u * 2.4f)
+    for (k in 0 until 3) {
+        val cx = x + xs[k]
+        drawRect(stem, Offset(cx - u * 0.5f, y - hs[k]), Size(u * 1.0f, hs[k]))
+        drawOval(capA, Offset(cx - ws[k] / 2f, y - hs[k] - u * 1.2f), Size(ws[k], u * 2.2f))
+        drawOval(capB, Offset(cx - ws[k] / 2f + u * 0.3f, y - hs[k] - u * 1.2f), Size(ws[k] * 0.8f, u * 1.4f))
+        if (!glow) drawRect(Color.White, Offset(cx - u * 0.2f, y - hs[k] - u * 0.6f), Size(u * 0.6f, u * 0.6f))
+    }
 }
