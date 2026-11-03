@@ -25,6 +25,7 @@ fun main(args: Array<String>) {
     var maxOut = 0
     val spellsSeen = HashMap<String, Int>()
     var maxTeam = 0
+    val forkTest = System.getenv("FORKTEST") != null
     var noneOut = 0
     var swaps = 0
     val steps = (hours * 3600 / dt).toInt()
@@ -34,6 +35,7 @@ fun main(args: Array<String>) {
     val t0 = System.currentTimeMillis()
     for (i in 0 until steps) {
         sim.tick(dt)
+        if (forkTest && i % 600 == 0) for (c in cw.critters) if (c.owner >= 0 && com.jondude1.deskglass.sim.Dex.branchOf(c.sp) != null && c.level < 28) { c.level = 28; c.bond = 40 }
         if (sim.age != lastAge) { lastAge = sim.age; ageAt.add("age${sim.age}@%.2fh".format(sim.time / 3600.0)) }
         if (i % 12000 == 0) { val cmds = listOf("gather wood","attack the enemy","defend the village","hold a feast","build more homes","go hunting","everyone hide","study hard","trade at the market","rest now"); sim.whisper(cmds[(i/12000) % cmds.size]) }
         if (i % 40 == 0) { for (w in cw.wilds) if (w.c.species.rarity >= 5) legSeen.merge(w.c.species.name, 1, Int::plus); for (e in cw.encounters) if (e.foe?.species?.rarity ?: 0 >= 5) legEnc.add(e.state + ":" + e.result) }
@@ -123,6 +125,7 @@ fun main(args: Array<String>) {
     println("VISITORS total=${sim.visitTotal()} ${sim.visitStats.toSortedMap()} duels=${sim.knightDuels} toys=${sim.toysGiven} kinds=${sim.visitStats.size}")
     println("WONDERS count=${sim.buildings.count { it.type == "wonder" }} kinds=${sim.buildings.filter { it.type == "wonder" }.map { sim.wonderName(it.era) }} wood=${sim.wood} stone=${sim.stone} metal=${sim.metal}")
     println("EGGS laid=${sim.critters.eggsLaid} hatched=${sim.critters.eggsHatched} golden=${sim.critters.goldenHatched} pending=${sim.critters.eggs.count { it.hatchedAt < 0.0 }} critters=${sim.critters.critters.size}")
+    println("FORK branchEvos=${cw.branchEvos} held=${cw.holdHeld} formsSeen=${cw.caught.filter { it in 90..95 }.sorted()} stage3Caught=${cw.caught.count { com.jondude1.deskglass.sim.Dex.byId(it).stage == 3 }}")
     println("TOURNEY held=${sim.critters.tourneys} matches=${sim.critters.tourMatches} forfeits=${sim.critters.tourForfeits} champ=${sim.critters.champName} on=${sim.critters.tourOn}")
     println("DEX species=${com.jondude1.deskglass.sim.Dex.COUNT} caught=${sim.critters.caught.size} seen=${sim.critters.seen.size} newLines(72-80) caught=${sim.critters.caught.filter { it >= 72 }.sorted()} seen=${sim.critters.seen.filter { it >= 72 }.sorted()} kept=${sim.critters.critters.filter { it.species.id >= 72 }.map { it.species.name + it.level }}")
     println("SHINY seen=${sim.critters.shinySeen} hatched=${sim.critters.shinyHatched} kept=${sim.critters.shinyKept()} lvs=${sim.critters.critters.filter { it.shiny }.map { it.species.name + it.level }}")

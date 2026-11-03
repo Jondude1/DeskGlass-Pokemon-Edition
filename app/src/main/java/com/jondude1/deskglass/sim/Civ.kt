@@ -3737,6 +3737,7 @@ class CivSim(
         critters.companionOf(v)?.let { c ->
             out.add("${c.name} is level ${c.level} now.")
             if (c.species.evolveTo > 0) out.add("${c.name} will change shape once the bond with them reaches ${c.trustNeeded()} (now ${c.bond}).")
+            com.jondude1.deskglass.sim.Dex.branchOf(c.sp)?.let { out.add("${c.name} might take a rarer shape if it changes ${it.hint}.") }
         }
         v.memories.lastOrNull { !it.contains(" said") && !it.contains("told ") && !it.contains("rude") }?.let { out.add("I keep remembering when I ${it.take(50).removePrefix("I ")}.") }
         nearby(v).firstOrNull()?.let { out.add("${it.name} is ${doing(it)} over there.") }
@@ -5651,6 +5652,8 @@ class CivSim(
             Deed("shiny3", "Rainbow Menagerie", "Kept three shiny critters at once.", "+25 food, +12 wood") { critters.shinyKept() >= 3 },
             Deed("egg6", "Cradle of Critters", "Six critter eggs hatched.", "+20 food, +10 wood") { critters.eggsHatched >= 6 },
             Deed("zoo", "Critter Keepers", "Own 10 critters.", "+20 food") { critters.critters.size >= 10 },
+            Deed("fork1", "A Fork in the Road", "A critter took its rare second form.", "+20 food, +10 stone") { critters.caught.any { it in 90..95 } },
+            Deed("fork3", "Both Roads Walked", "Three rare second forms were seen.", "joy for all") { critters.caught.count { it in 90..95 } >= 3 },
             Deed("dex", "Field Naturalists", "Caught 15 species.", "+30 food") { critters.caught.size >= 15 },
             Deed("level", "Trainer's Pride", "A critter reached level 25.", "joy for all") { critters.critters.any { it.level >= 25 } },
             Deed("legend", "Legend Bound", "Bonded with a legendary critter.", "joy for all") { critters.legendsOwned() > 0 },

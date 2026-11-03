@@ -156,6 +156,8 @@ class CritterWorld(private val sim: CivSim) {
     private var bondAcc = 0f
     private var restAcc = 0f
     private var evoClock = 0f
+    var branchEvos = 0
+    var holdHeld = 0
     var yardX = -1f
     var yardY = -1f
     var circleX = -1f
@@ -2086,8 +2088,37 @@ class CritterWorld(private val sim: CivSim) {
 
     // ---- evolution ----
 
+    private fun branchCondMet(cond: String): Boolean = when (cond) {
+        "night" -> sim.isNight()
+        "day" -> !sim.isNight()
+        "winter" -> sim.seasonIdx() == 3
+        "spring" -> sim.seasonIdx() == 0
+        "storm" -> sim.storm()
+        "rain" -> sim.raining()
+        else -> false
+    }
+
+    /** Critters ready to change shape that are holding out for the sky of their second form: uid -> when they began. */
+    private val holdSince = HashMap<Int, Double>()
+
     private fun checkEvolve(c: Critter) {
         if (!c.readyToEvolve() || evolving(c) != null) return
+        var target = c.species.evolveTo
+        val br = Dex.branchOf(c.sp)
+        if (br != null) {
+            if (branchCondMet(br.cond)) target = br.to
+            else if (c.uid % 2 == 0) {
+                val fresh = !holdSince.containsKey(c.uid)
+                val since = holdSince.getOrPut(c.uid) { sim.time }
+                if (sim.time - since < DAY_LEN * 1.5) {
+                    if (fresh && c.owner >= 0) {
+                        holdHeld++
+                        sim.note("${c.name} is restless: it seems to be waiting to change shape ${br.hint}.")
+                    }
+                    return
+                }
+            }
+        }
         val owner = sim.villagers.firstOrNull { it.id == c.owner }
         if (owner != null && mageOf(owner).talent) {
             // evolution is a rite: the summoner must stand beside the critter and pour mana into it
@@ -2100,7 +2131,8 @@ class CritterWorld(private val sim: CivSim) {
             pop(owner.x, owner.y - 0.9f, "-${EVOLVE_COST.toInt()} mana", 0xFFB48CFF)
         }
         val b = bodyFor(c)
-        evolutions.add(EvolveScene(c.uid, c.sp, c.species.evolveTo, b.x, b.y, sim.time))
+        holdSince.remove(c.uid)
+        evolutions.add(EvolveScene(c.uid, c.sp, target, b.x, b.y, sim.time))
     }
 
     private fun evoTick() {
@@ -2119,12 +2151,16 @@ class CritterWorld(private val sim: CivSim) {
             if (!s.flipped && p >= 0.62) {
                 s.flipped = true
                 val from = c.species
-                c.evolve()
+                c.evolve(s.to)
                 val to = c.species
                 caught.add(to.id)
                 seen.add(to.id)
                 val who = if (c.owner >= 0) "${ownerName(c)}'s ${from.name}" else from.name
-                sim.note("$who evolved into ${to.name}, their bond deep enough at last!")
+                val br = Dex.branches.firstOrNull { it.to == to.id }
+                if (br != null) {
+                    branchEvos++
+                    sim.note("$who evolved into ${to.name}: a rare second form, changed ${br.hint}!")
+                } else sim.note("$who evolved into ${to.name}, their bond deep enough at last!")
                 sim.mark("$who evolved into ${to.name}.")
                 sim.villagers.firstOrNull { it.id == c.owner }?.let {
                     it.happiness = min(100f, it.happiness + 15f)

@@ -50,7 +50,7 @@ class Species(
 
 object Dex {
     const val DUMMY = 0
-    const val COUNT = 89
+    const val COUNT = 95
     const val MAX_LEVEL = 50
     /** Level at which a critter learns the ultimate of its main type. */
     const val ULTIMATE_LV = 30
@@ -237,6 +237,13 @@ object Dex {
         s(87, "Emberwhelp", CType.EMBER, CType.STONE, 1, 48, 54, 48, 40, 88, 18, 2, "rock", 0, "A stubby horned whelp that naps on warm rocks."),
         s(88, "Cragwyrm", CType.EMBER, CType.STONE, 2, 70, 80, 72, 50, 89, 34, 2, "rock", 0, "Stone plates grow on its shoulders and glow when it is cross."),
         s(89, "Calderon", CType.EMBER, CType.STONE, 3, 96, 110, 100, 56, -1, 0, 3, "rock", 0, "A volcano-bellied dragon. The ground warms wherever it sleeps."),
+        // Second forms: a bonded critter that changes shape under the right sky takes the other road
+        s(90, "Duskpyre", CType.EMBER, CType.SHADE, 3, 80, 100, 72, 104, -1, 0, 3, "meadow", 0, "A night-born flame fox whose violet fire gives off no smoke and no sound."),
+        s(91, "Frostbrine", CType.TIDE, CType.FROST, 3, 100, 80, 98, 60, -1, 0, 3, "water", 0, "Born in a hard winter, it wears a mantle of snow that never melts."),
+        s(92, "Blossomward", CType.LEAF, CType.GLOW, 3, 102, 78, 98, 54, -1, 0, 3, "forest", 0, "Spring-changed, it blooms from nose to tail and bees follow it about."),
+        s(93, "Stormreef", CType.TIDE, CType.SPARK, 3, 96, 96, 108, 52, -1, 0, 3, "water", 0, "Changed under a thunderhead, its coral crown crackles with yellow light."),
+        s(94, "Sunmantle", CType.GLOW, CType.EMBER, 3, 80, 96, 70, 104, -1, 0, 3, "meadow", 0, "A daylight moth whose golden wings warm the air around it."),
+        s(95, "Tarnwyrm", CType.STONE, CType.TIDE, 3, 104, 96, 112, 46, -1, 0, 3, "rock", 0, "Rain-changed, it rests in the hills like a mossy cairn with spring-water plates."),
     )
 
     private val dummy = Species(
@@ -247,8 +254,23 @@ object Dex {
 
     fun byId(id: Int): Species = if (id in 1..COUNT) list[id - 1] else dummy
 
+    /** A second road for a middle form: it takes the other shape if it changes under this sky. */
+    class Branch(val from: Int, val to: Int, val cond: String, val hint: String)
+
+    val branches: List<Branch> = listOf(
+        Branch(2, 90, "night", "at night"),
+        Branch(5, 91, "winter", "in winter"),
+        Branch(8, 92, "spring", "in spring"),
+        Branch(79, 93, "storm", "in a thunderstorm"),
+        Branch(82, 94, "day", "by day"),
+        Branch(88, 95, "rain", "in the rain"),
+    )
+
+    fun branchOf(id: Int): Branch? = branches.firstOrNull { it.from == id }
+    fun isBranchForm(id: Int): Boolean = branches.any { it.to == id }
+
     /** The species that evolves into this one, or -1. */
-    fun preOf(id: Int): Int = list.firstOrNull { it.evolveTo == id }?.id ?: -1
+    fun preOf(id: Int): Int = list.firstOrNull { it.evolveTo == id }?.id ?: branches.firstOrNull { it.to == id }?.from ?: -1
 
     /** The whole evolution line this species belongs to, first stage first. */
     fun lineOf(id: Int): List<Species> {
@@ -354,6 +376,7 @@ object Dex {
             if (sp.stage == 3 && age < 4) x = 0f
             if (sp.rarity == 4 && age < 2) x = 0f
             if (sp.rarity >= 5) x = 0f
+            if (isBranchForm(sp.id)) x = 0f
             if (sp.activity == 1 && !night && !(sp.id == 50 && winter)) x = 0f
             if (sp.activity == 2 && night) x = 0f
             if (sp.habitat == "snow" && winter) x *= 2.5f
@@ -482,12 +505,12 @@ class Critter(val uid: Int, var sp: Int, var level: Int) {
     }
 
     /** Becomes its next form. HP keeps its share of the new maximum. */
-    fun evolve() {
+    fun evolve(to: Int = species.evolveTo) {
         val frac = hpFrac
         val s = species
         if (s.evolveTo <= 0) return
         if (nick == s.name) nick = ""
-        sp = s.evolveTo
+        sp = to
         hp = max(1, (maxHp * frac).toInt())
     }
 }

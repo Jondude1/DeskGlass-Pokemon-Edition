@@ -106,6 +106,6 @@ class CritterArt {
     fun white(id: Int): ImageBitmap = whites[id.coerceIn(0, Dex_COUNT)]
 
     companion object {
-        const val Dex_COUNT = 89
+        const val Dex_COUNT = 95
     }
 }

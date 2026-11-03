@@ -124,6 +124,30 @@ fun CritterDexScreen(sim: CivSim, onBack: () -> Unit) {
                     for (i in line.size until 3) Spacer(Modifier.weight(1f))
                 }
             }
+            Text("SECOND FORMS", color = Glass.InkFaint, fontSize = 13.sp, letterSpacing = 3.sp, modifier = Modifier.padding(top = 14.dp))
+            Text("A bonded critter that changes shape under the right sky may take the other road.", color = Glass.InkDim, fontSize = 12.sp)
+            for (row in Dex.branches.chunked(3)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.Top) {
+                    for (br in row) {
+                        val s = Dex.byId(br.to)
+                        val known = s.id in cw.caught
+                        val seen = s.id in cw.seen
+                        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Sprite(cart, s.id, 64, if (known) null else if (seen) Color(0xFF6C7488) else Color(0xFF1B2030))
+                            Text(
+                                if (known || seen) s.name else "???",
+                                color = if (known) Glass.Ink else Glass.InkDim, fontSize = 13.sp, fontWeight = FontWeight.Medium,
+                            )
+                            Text(
+                                if (known || seen) s.typeText else "",
+                                color = if (known) Color(s.t1.color) else Glass.InkFaint, fontSize = 11.sp,
+                            )
+                            Text("from ${Dex.byId(br.from).name} ${br.hint}", color = Glass.InkFaint, fontSize = 10.sp)
+                        }
+                    }
+                    for (i in row.size until 3) Spacer(Modifier.weight(1f))
+                }
+            }
             Spacer(Modifier.height(24.dp))
         }
     }
