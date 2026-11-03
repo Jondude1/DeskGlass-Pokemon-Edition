@@ -14,6 +14,7 @@ import com.jondude1.deskglass.sim.CivSim
 import com.jondude1.deskglass.sim.DAY_LEN
 import com.jondude1.deskglass.sim.GH
 import com.jondude1.deskglass.sim.GW
+import com.jondude1.deskglass.sim.Look
 import com.jondude1.deskglass.sim.T
 import kotlin.math.PI
 import kotlin.math.abs
@@ -314,7 +315,8 @@ fun DrawScope.drawVillagers(sim: CivSim, art: CivArt, g: Geo, sun: Sun) {
             }
             continue
         }
-        val sp = art.person(v.colorIdx, if (walking) (((v.x + v.y) * 3f).toInt() and 1) else 0)
+        val old = Look.elder(sim, v)
+        val sp = art.personLook(v.colorIdx, Look.skinOf(v.id), Look.hairOf(v.id), old, if (walking) (((v.x + v.y) * 3f).toInt() and 1) else 0)
         val w = sp.lw * ps * kid
         val h = sp.lh * ps * kid
         val tt = v.talkTo
@@ -336,8 +338,9 @@ fun DrawScope.drawVillagers(sim: CivSim, art: CivArt, g: Geo, sun: Sun) {
         val breathe = if (walking || working) 1f else 1f + 0.03f * sin(t * 2.2f + v.id)
         val lean = when {
             working && v.action == "dance" -> 10f * sin(t * 3.5f + v.id)
-            walking -> 4f
+            walking -> if (old) 7f else 4f
             working -> 6f * sin(t * 6f + v.id)
+            old -> 3f
             else -> 0f
         }
 
@@ -475,6 +478,13 @@ fun DrawScope.drawVillagers(sim: CivSim, art: CivArt, g: Geo, sun: Sun) {
         }) {
             img(sp, cx - w / 2f, top, w, h)
             if (!child) jobGear(v.job, cx - w / 2f, top, w / 8f, working, t + v.id)
+            if (old) {
+                // a walking stick with a crook, tapping while they walk
+                val cu = w / 8f
+                val tap = if (walking) abs(sin(t * 9f + v.id)) * cu * 0.6f else 0f
+                drawRect(Color(0xFF8A5A2B), Offset(cx - w / 2f - 0.5f * cu, top + 5.2f * cu - tap), Size(0.9f * cu, 6.8f * cu))
+                drawRect(Color(0xFF8A5A2B), Offset(cx - w / 2f - 0.5f * cu, top + 4.8f * cu - tap), Size(1.7f * cu, 0.8f * cu))
+            }
             weatherGear(sim, v, g, cx, top, feetY, w, 1f, child, working, walking)
             // what they carry on their back
             if (v.gathered > 0 && !child) {

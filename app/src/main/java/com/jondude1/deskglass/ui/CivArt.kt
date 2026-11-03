@@ -509,6 +509,26 @@ class CivArt {
 
     fun person(colorIdx: Int, frame: Int): ImageBitmap = people[colorIdx.coerceIn(0, 9)][frame and 1]
 
+    private val lookCache = HashMap<Int, List<ImageBitmap>>()
+
+    /** A villager with their own skin tone and hair colour (grey when old), built once per combination. */
+    fun personLook(colorIdx: Int, skin: Int, hair: Int, elder: Boolean, frame: Int): ImageBitmap {
+        val ci = colorIdx.coerceIn(0, 9)
+        val si = skin.coerceIn(0, com.jondude1.deskglass.sim.Look.SKIN.size - 1)
+        val hi = hair.coerceIn(0, com.jondude1.deskglass.sim.Look.HAIR.size - 1)
+        val key = ((ci * 5 + si) * 8 + (if (elder) 0 else hi)) * 2 + (if (elder) 1 else 0)
+        val l = lookCache.getOrPut(key) {
+            val sk = com.jondude1.deskglass.sim.Look.SKIN[si]
+            val pal = mapOf(
+                'r' to (if (elder) com.jondude1.deskglass.sim.Look.GREY else com.jondude1.deskglass.sim.Look.HAIR[hi]),
+                'h' to sk, 'H' to com.jondude1.deskglass.sim.Look.shade(sk), 'd' to 0xFF222222.toInt(),
+                's' to shirts[ci], 'S' to shirtShade[ci], 'p' to 0xFF3A3F5C.toInt(), 'b' to 0xFF3B2A1A.toInt(),
+            )
+            listOf(sprite(PERSON1, pal), sprite(PERSON2, pal))
+        }
+        return l[frame and 1]
+    }
+
     companion object {
         val OAK = listOf(
             "....hhhhhh....",
