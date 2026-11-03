@@ -3169,7 +3169,21 @@ class CivSim(
     }
 
     /** Age of Empires style: people, buildings, time and a payment from the stores. Null in the last age. */
-    private fun needs(): List<Need>? {
+    private var momentumLogged = -1
+
+    /** Thriving villages do not wait for the calendar: once every other requirement is met the days gate drops to 70%. */
+    private fun withMomentum(parts: List<Need>?): List<Need>? {
+        if (parts == null || age < 1) return parts
+        val d = parts.firstOrNull { it.label == "days" } ?: return parts
+        if (!parts.all { it.done || it.label == "days" }) return parts
+        val eased = Need("days", d.have, kotlin.math.ceil(d.need * 0.7f))
+        if (momentumLogged != age && eased.done != d.done) { momentumLogged = age; addLog("The village is thriving: stores are full and every hall is built, so it will not wait for the calendar.") }
+        return parts.map { if (it.label == "days") eased else it }
+    }
+
+    private fun needs(): List<Need>? = withMomentum(needsBase())
+
+    private fun needsBase(): List<Need>? {
         val ad = adults()
         fun n(l: String, h: Int, d: Int) = Need(l, h.toFloat(), d.toFloat())
         return when (age) {

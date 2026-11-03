@@ -54,6 +54,7 @@ fun main(args: Array<String>) {
         cw.lastError?.let { println("CRITTER ERROR at step $i"); it.printStackTrace(System.out); return }
         if (i / (steps / 6) >= nextReport && i > 0) {
             nextReport++
+            println("   NEED day=${sim.day()} progress=${sim.progress()}% missing: ${sim.ageNeedText()} | food=${sim.food} wood=${sim.wood} stone=${sim.stone}")
             println("t=%.0f min  age=${sim.age} villagers=${sim.villagers.size} wild=${cw.wilds.size} kept=${cw.critters.size} enc=${cw.encounters.size} preds=${sim.predators.size} dex seen=${cw.seen.size} caught=${cw.caught.size}".format(sim.time / 60.0))
         }
     }
