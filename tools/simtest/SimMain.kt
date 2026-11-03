@@ -114,7 +114,7 @@ fun main(args: Array<String>) {
     println("SPIDERS slain=${sim.spidersSlain} webs=${sim.websSpun} caught=${sim.webCatches} bites=${sim.spiderBites} websNow=${sim.webs.size} poisonedNow=${sim.poisoned.size}")
     println("WEATHER day=${sim.day()} season=${sim.seasonName()} events=${sim.wxStats.toSortedMap()} distinct=${sim.wxStats.size}")
     println("RELATIONS weddings=${sim.weds} couples=${sim.villagers.count { it.partner >= 0 } / 2} bffs=${sim.bffs.size} feudsStarted=${sim.feudsStarted} feudsEnded=${sim.feudsEnded} activeFeuds=${sim.villagers.count { sim.feudWith(it) != null } / 2} babiesBorn=${sim.babiesBorn}")
-    println("VISITORS total=${sim.visitTotal()} ${sim.visitStats.toSortedMap()}")
+    println("VISITORS total=${sim.visitTotal()} ${sim.visitStats.toSortedMap()} duels=${sim.knightDuels} toys=${sim.toysGiven} kinds=${sim.visitStats.size}")
     println("WONDERS count=${sim.buildings.count { it.type == "wonder" }} kinds=${sim.buildings.filter { it.type == "wonder" }.map { sim.wonderName(it.era) }} wood=${sim.wood} stone=${sim.stone} metal=${sim.metal}")
     println("EGGS laid=${sim.critters.eggsLaid} hatched=${sim.critters.eggsHatched} golden=${sim.critters.goldenHatched} pending=${sim.critters.eggs.count { it.hatchedAt < 0.0 }} critters=${sim.critters.critters.size}")
     println("TOURNEY held=${sim.critters.tourneys} matches=${sim.critters.tourMatches} forfeits=${sim.critters.tourForfeits} champ=${sim.critters.champName} on=${sim.critters.tourOn}")

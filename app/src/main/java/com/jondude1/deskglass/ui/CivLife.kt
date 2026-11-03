@@ -209,7 +209,7 @@ fun DrawScope.drawVisitor(sim: CivSim, art: CivArt, g: Geo, sun: Sun) {
     val ts = g.ts
     val ps = g.ps
     val t = g.t
-    val sp = when (vis.kind) { "merchant" -> art.merchant; "bard" -> art.bard; else -> art.pilgrim }
+    val sp = when (vis.kind) { "merchant" -> art.merchant; "bard" -> art.bard; "knight" -> art.knight; "scholar" -> art.scholar; "toymaker" -> art.toymaker; else -> art.pilgrim }
     val w = sp.lw * ps * 1.1f
     val h = sp.lh * ps * 1.1f
     val cx = g.ox + vis.x * ts
@@ -234,6 +234,36 @@ fun DrawScope.drawVisitor(sim: CivSim, art: CivArt, g: Geo, sun: Sun) {
             val c = Color(0xFFFFE08A).copy(alpha = 1f - p)
             drawCircle(c, radius = ps * 1.6f, center = Offset(nx, ny))
             drawRect(c, Offset(nx + ps * 1.2f, ny - ps * 5f), Size(ps * 0.9f, ps * 5f))
+        }
+        "knight" -> {
+            // a pennant on the lance and the odd steel-on-steel spark from the practice bout
+            val ph = (t * 1.6f) % 1f
+            drawRect(Color(0xFFC8452F), Offset(cx + w * 0.55f, feet - h - ps * 3f), Size(ps * 4f * (0.7f + 0.3f * sin(t * 6f)), ps * 2.2f))
+            if (ph < 0.25f) {
+                val a = 1f - ph / 0.25f
+                for (k in 0 until 5) {
+                    val ang = k * 1.256f + t * 3f
+                    drawRect(Color(0xFFFFF6C8).copy(alpha = a), Offset(cx + w * 0.7f + cos(ang) * ps * (2f + ph * 14f), feet - h * 0.6f + sin(ang) * ps * (2f + ph * 14f)), Size(ps * 1.1f, ps * 1.1f))
+                }
+            }
+        }
+        "scholar" -> for (k in 0 until 5) {
+            // little runes and page-scraps rise from the open book
+            val p = (t * 0.35f + k * 0.2f) % 1f
+            val rx = cx + w * 0.4f + sin(t * 1.5f + k * 2.1f) * ps * 5f
+            val ry = feet - h * 0.7f - p * ps * 20f
+            val c = Color(0xFF7FE0D0).copy(alpha = 1f - p)
+            drawRect(c, Offset(rx, ry), Size(ps * 1.2f, ps * 2.4f))
+            drawRect(c, Offset(rx - ps * 0.8f, ry + ps * 0.8f), Size(ps * 2.8f, ps * 0.8f))
+        }
+        "toymaker" -> for (k in 0 until 3) {
+            // three wooden toys juggled in a slow arc over the pack
+            val p = (t * 0.9f + k / 3f) % 1f
+            val jx = cx - w * 0.3f + p * w * 0.9f
+            val jy = feet - h - ps * 1.5f - sin(p * 3.14159f) * ps * 9f
+            val c = when (k) { 0 -> Color(0xFF4AA8E8); 1 -> Color(0xFF6AD05A); else -> Color(0xFFFFB347) }
+            drawRect(c, Offset(jx - ps * 1.2f, jy - ps * 1.2f), Size(ps * 2.4f, ps * 2.4f))
+            drawRect(Color.White.copy(alpha = 0.6f), Offset(jx - ps * 0.6f, jy - ps * 0.8f), Size(ps * 0.9f, ps * 0.9f))
         }
         "pilgrim" -> {
             val pulse = 0.5f + 0.5f * sin(t * 3f)

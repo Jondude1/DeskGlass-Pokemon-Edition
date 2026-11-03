@@ -365,6 +365,20 @@ class CivArt {
         'w' to 0xFFEDEBE0.toInt(), 'W' to 0xFFB9B5A0.toInt(), 's' to 0xFFD9A878.toInt(), 'k' to 0xFF1E1A16.toInt(),
         't' to 0xFF6B4A2B.toInt(), 'g' to 0xFFFFF2A0.toInt(), 'G' to 0xFFFFD86A.toInt(), 'b' to 0xFF3A2A1E.toInt(),
     ))
+    val knight = sprite(KNIGHT, mapOf(
+        'i' to 0xFFB9BCC6.toInt(), 'I' to 0xFF8D909C.toInt(), 'r' to 0xFFC8452F.toInt(), 'k' to 0xFF22222A.toInt(),
+        'b' to 0xFF2F5F9F.toInt(), 'B' to 0xFF1E3A66.toInt(), 'y' to 0xFFE8C547.toInt(), 's' to 0xFFE8ECF4.toInt(),
+        'c' to 0xFF6B4A2B.toInt(),
+    ))
+    val scholar = sprite(SCHOLAR, mapOf(
+        'h' to 0xFF3A5FA0.toInt(), 's' to 0xFFD9A878.toInt(), 'y' to 0xFFE8C547.toInt(), 'g' to 0xFF4A7A5A.toInt(),
+        'G' to 0xFF2F5238.toInt(), 'B' to 0xFF8A2A1A.toInt(), 'w' to 0xFFF2E6C8.toInt(), 'k' to 0xFF1E1A16.toInt(),
+    ))
+    val toymaker = sprite(TOYMAKER, mapOf(
+        'h' to 0xFFD9484A.toInt(), 's' to 0xFFD9A878.toInt(), 'k' to 0xFF1E1A16.toInt(), 't' to 0xFFE8B83A.toInt(),
+        'T' to 0xFFB88A1E.toInt(), 'p' to 0xFF8A5A2A.toInt(), 'P' to 0xFF5E3A1A.toInt(), 'a' to 0xFF4AA8E8.toInt(),
+        'e' to 0xFF6AD05A.toInt(), 'b' to 0xFF3A2A1E.toInt(),
+    ))
     val shaman = sprite(SHAMAN, mapOf(
         's' to 0xFFD9A878.toInt(), 'm' to 0xFF6E3A8C.toInt(), 'M' to 0xFF4A2462.toInt(), 'b' to 0xFFEDE3C8.toInt(),
         'g' to 0xFF7FFFB0.toInt(), 'c' to 0xFF6B4A2B.toInt(), 'k' to 0xFF1E1A16.toInt(), 'r' to 0xFFB02A2A.toInt(),
@@ -1248,6 +1262,48 @@ class CivArt {
             "..srrrrllL..",
             "...rrrrlL...",
             "...rr..rr...",
+            "...bb..bb...",
+        )
+        val KNIGHT = listOf(
+            "....rr......",
+            "...iiii.....",
+            "...ikki....s",
+            "...iiii....s",
+            "..biiiib...s",
+            ".bBiIIiBb.ys",
+            ".bByiIIiBbcs",
+            ".bBbiIIi...c",
+            "..bBiIIi....",
+            "...iiii.....",
+            "...ii.ii....",
+            "...kk.kk....",
+        )
+        val SCHOLAR = listOf(
+            "....hh......",
+            "...hhhh.....",
+            "..hhhhhh....",
+            "...ssss.....",
+            "...sysy.....",
+            "....ss......",
+            "..ggggggBBB.",
+            ".gggGggBwwwB",
+            ".gggGgggBwwB",
+            ".gggGgggBBB.",
+            "..gGggGg....",
+            "...kk.kk....",
+        )
+        val TOYMAKER = listOf(
+            "...hhhh..a.e",
+            "..hhhhhh.pp.",
+            "...ssss.pPpp",
+            "...skks.pPpp",
+            "....ss..pPpp",
+            "..ttttttpPp.",
+            ".sttTttttpp.",
+            ".s.ttTttt...",
+            "...ttTtt....",
+            "...tt..tt...",
+            "...bb..bb...",
             "...bb..bb...",
         )
         val PILGRIM = listOf(
