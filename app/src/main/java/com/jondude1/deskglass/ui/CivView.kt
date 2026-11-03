@@ -802,6 +802,53 @@ private fun DrawScope.drawWorld(
                     if (kotlin.math.sin(t * 5f + b.y) > 0.8f) drawCircle(Color.White.copy(alpha = 0.7f), radius = ps * 1.2f, center = Offset(cx + w * 0.05f, baseY - hh * 0.2f))
                 }
             }
+            if (b.type == "tavern") {
+                // tavern night effects: tumbling dice, flexing sparks, a tale bubble, bigger songs, strung lanterns
+                val age = (sim.time - sim.tavernFx).toFloat()
+                if (age in 0f..3.5f) {
+                    val k = sim.tavernFxKind
+                    val fade = 1f - age / 3.5f
+                    when (k) {
+                        0 -> for (d in 0 until 2) {
+                            val dx = cx + w * 0.38f + d * ps * 5f
+                            val dy = baseY - ts * 0.05f - kotlin.math.abs(kotlin.math.sin(age * 6f + d * 1.7f)) * ps * 7f * fade
+                            drawRect(Color.White.copy(alpha = fade), Offset(dx, dy - ps * 3f), Size(ps * 3f, ps * 3f))
+                            drawRect(Color(0xFF3A2A20).copy(alpha = fade), Offset(dx + ps, dy - ps * 2f), Size(ps, ps))
+                        }
+                        1 -> for (q in 0 until 5) {
+                            val a = q * 1.26f + age * 3f
+                            val r = ps * (3f + age * 4f)
+                            drawRect(Color(0xFFFFE066).copy(alpha = fade), Offset(cx + kotlin.math.cos(a) * r, baseY - hh * 0.3f + kotlin.math.sin(a) * r), Size(ps * 1.5f, ps * 1.5f))
+                        }
+                        2 -> {
+                            val by = baseY - hh - ts * 0.5f - age * ps * 2f
+                            drawCircle(Color.White.copy(alpha = 0.9f * fade), radius = ps * 5f, center = Offset(cx, by))
+                            for (q in 0 until 3) drawCircle(Color(0xFF6B5B4B).copy(alpha = fade), radius = ps * 0.7f, center = Offset(cx - ps * 2.5f + q * ps * 2.5f, by))
+                        }
+                        3 -> for (q in 0 until 5) {
+                            val ph = (age * 0.5f + q * 0.2f) % 1f
+                            val nx = cx - w * 0.45f + q * ps * 6f + kotlin.math.sin(age * 3f + q) * ps * 2f
+                            val ny = baseY - hh - ph * ts * 1.6f
+                            val nc = if (q % 2 == 0) Color(0xFFFF9AD5) else Color(0xFF8AE0FF)
+                            drawCircle(nc.copy(alpha = 1f - ph), radius = ps * 1.1f, center = Offset(nx, ny))
+                            drawRect(nc.copy(alpha = 1f - ph), Offset(nx + ps * 0.8f, ny - ps * 4f), Size(ps * 0.6f, ps * 4f))
+                        }
+                        else -> {
+                            for (q in 0 until 7) {
+                                val lx = cx - w * 0.6f + q * (w * 1.2f / 6f)
+                                val ly = baseY - hh - ps * 2f + kotlin.math.abs(q - 3) * ps * 1.2f
+                                val lc = listOf(Color(0xFFFF6B6B), Color(0xFFFFD166), Color(0xFF6BCB77), Color(0xFF4D96FF))[q % 4]
+                                drawCircle(lc.copy(alpha = 0.9f * fade + 0.1f), radius = ps * 1.6f, center = Offset(lx, ly))
+                                drawCircle(lc.copy(alpha = 0.25f * fade), radius = ps * 4f, center = Offset(lx, ly))
+                            }
+                            for (q in 0 until 6) {
+                                val ph = (age * 0.6f + q * 0.17f) % 1f
+                                drawRect(listOf(Color(0xFFFFD166), Color(0xFFFF6B6B), Color(0xFF4D96FF))[q % 3].copy(alpha = 1f - ph), Offset(cx - w * 0.5f + q * w * 0.2f, baseY - hh - ph * ts), Size(ps * 1.2f, ps * 1.2f))
+                            }
+                        }
+                    }
+                }
+            }
             if (b.type == "pasture") {
                 // sheep graze and hens peck inside the fence; wool puffs and feathers drift up while someone tends them
                 val pens = sim.buildings.count { it.type == "pasture" }.coerceAtLeast(1)
