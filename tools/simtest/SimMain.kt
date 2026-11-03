@@ -7,6 +7,7 @@ fun main(args: Array<String>) {
     val hours = (args.getOrNull(0) ?: "2").toDouble()
     val f = File.createTempFile("civ", ".json"); f.delete()
     val sim = CivSim(f, CoroutineScope(Dispatchers.Default)) { null }
+    if (System.getenv("GOLDEN") != null) sim.goldenAt = 0.5
     if (System.getenv("BOOST") != null) { sim.age = (System.getenv("BOOST")!!).toInt().coerceAtLeast(2); sim.metal = 30; sim.wood = 100; sim.stone = 100 }
     val legSeen = HashMap<String,Int>(); val legEnc = LinkedHashSet<String>()
     val errors = ArrayList<String>()
@@ -164,6 +165,7 @@ fun main(args: Array<String>) {
         println("FIRE started=${sim.firesStarted} doused=${sim.firesDoused} burnedOut=${sim.fireBurnedOut} douseTrips=${sim.fireDouses} woodLost=${sim.fireLoss} blazesNow=${sim.blazes.size} scorch=${sim.scorches.size}")
         println("SKILLS ups=${sim.skillUps} masters=${sim.skillMasters} bonusLoads=${sim.skillBonusLoads} skilledPairs(lv>=3)=${lvls.count { it >= 3 }} lv5+=${lvls.count { it >= 5 }} best=$best titles=${sim.villagers.sumOf { it.titles.size }}")
     }
+    println("GLORY golden=${sim.goldenAt} legacy=${sim.legacy().count { it.second }}/${sim.legacy().size} decrees=${sim.decrees} kinds=${sim.decreeKinds} gildings=${sim.gildings} now=${sim.decreeKind}")
     println("COUNCIL held=${sim.councilsHeld} seats=${sim.councilSeats} policies=${sim.policyKinds} steered=${sim.policyActs} won=${sim.policiesWon} lost=${sim.policiesLost} now=${sim.policy} on=${sim.councilOn}")
     run { val tv = sim.buildings.count { it.type == "tavern" }; println("TAVERN built=$tv visits=${sim.tavernVisits}") }
     run { println("RESEARCH studies=${sim.studyCount} points=${sim.research} libs=${sim.buildings.count { it.type == "library" }} techs=${sim.techs.size}/${sim.allTechs.size} higher=${sim.higherTechs()} age=${sim.age} list=${sim.techs.joinToString(",")}") }
