@@ -152,6 +152,7 @@ fun main(args: Array<String>) {
     println("STATUES count=${sim.statues.size} cheers=${sim.statueCheers} tiers=${sim.statues.map { it.tier }} heroes=${sim.statues.map { it.name + ":" + it.kind }}")
     println("GRAVES buried=${sim.buried} onMap=${sim.graves.size} mourn=${sim.mournVisits} site=${sim.graveX},${sim.graveY} names=${sim.graves.map { it.name + ":" + it.cause }}")
     println("DEATHS causes=${sim.deathCauses}")
+    println("SNACKS emergencyBites=${sim.hungerSnacks}")
     println("SELFDEF ${sim.selfDefence}")
     println("DEATHNOTES ${sim.deathNotes}")
     println("RAISED buildings=${sim.raised} sitesNow=${sim.buildings.count { sim.time - it.built < 9.0 }}")
