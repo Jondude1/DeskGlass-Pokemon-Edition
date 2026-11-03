@@ -2402,7 +2402,7 @@ class CivSim(
                 v.happiness = min(100f, v.happiness + 3f)
                 studied++
                 studyCount++
-                research += 1 + (if (v.job == "Storyteller" || v.job == "Scholar") 1 else 0) + (if (count("library") >= 2) 1 else 0) + (if (hasTech("scribes")) 1 else 0)
+                research += 2 + (if (v.job == "Storyteller" || v.job == "Scholar") 1 else 0) + (if (count("library") >= 2) 1 else 0) + (if (hasTech("scribes")) 1 else 0)
                 if (studied % 6 == 1) addLog("${v.name} studies in the library.")
                 v.remember("read in the library")
                 finish(v)
@@ -3948,10 +3948,12 @@ class CivSim(
     /** Reading only pays while there are discoveries left and the reading room has seats (4 adults at once). */
     private fun studyW(v: Villager, base: Int): Int {
         if (count("library") == 0) return 0
-        if (isChild(v)) return base
+        // lessons are a pastime, not a career: children read now and then, and nobody reads three times running
+        if (isChild(v)) return if (v.action == "study") 0 else if (raining() || rnd.nextInt(5) == 0) base else 0
         if (nextTech() == null) return 0
-        if (v.action != "study" && villagers.count { it.action == "study" && !isChild(it) } >= 4) return 0
-        return base
+        if (v.action == "study") return if (rnd.nextInt(4) == 0) base else 0
+        if (villagers.count { it.action == "study" && !isChild(it) } >= 3) return 0
+        return if (rnd.nextInt(3) != 0) base else 0
     }
 
     /** Dancing is a mood tonic: the happier a villager already is, the less they want it (so work and hobbies fill the day). */
@@ -4132,7 +4134,7 @@ class CivSim(
             val games = listOf("puddle_jump", "catch_fireflies", "hide_seek").filter { kidGameOk(it) }
             if (games.isNotEmpty() && rnd.nextInt(if (games.size > 1 || games[0] != "hide_seek") 2 else 3) == 0) return games[rnd.nextInt(games.size)] to ""
             if (hasDog(v) && dogOk() && rnd.nextInt(3) == 0) return "walk_dog" to ""
-            return when (pick("swim" to (if (canSwim() && hasShore) 2 else 0), "play" to 4, "study" to (if (count("library") > 0) 4 else 0), "talk" to chat, "wander" to 2, "fetch_water" to (if (count("well") > 0) 1 else 0))) {
+            return when (pick("swim" to (if (canSwim() && hasShore) 2 else 0), "play" to 4, "study" to studyW(v, 4), "talk" to chat, "wander" to 2, "fetch_water" to (if (count("well") > 0) 1 else 0))) {
                 "talk" -> "talk" to (friendFor(v)?.name ?: "")
                 "play" -> "play" to ""
                 "swim" -> "swim" to ""
