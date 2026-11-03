@@ -145,6 +145,7 @@ fun main(args: Array<String>) {
     println("MILL built=${sim.buildings.count { it.type == "mill" }} grinds=${sim.millGrinds} flour=${sim.flourMade} loaves=${sim.loavesBaked} food=${sim.food}")
     println("WALL raised=${sim.wallsRaised} gates=${sim.buildings.count { it.type == "gate" }} done=${sim.wallDone} planLeft=${sim.wallPlan.size} holdSecs=${"%.0f".format(sim.wallHoldSecs)} stone=${sim.stone}")
     println("QUARRY built=${sim.buildings.count { it.type == "quarry" }} hauls=${sim.quarryHauls} stone=${sim.quarryStone} veins=${sim.quarryVeins} storeStone=${sim.stone}")
+    println("TRIALS met=${sim.trialsMetCount()}/6 announced=${Integer.bitCount(sim.trialMask)} hints=${sim.trialsHinted} calls=${sim.legendCalls} list=${(57..62).map { sim.legendTrial(it).first }}")
     println("SHRINE built=${sim.buildings.count { it.type == "shrine" }} vigils=${sim.vigils} calls=${sim.legendCalls} points=${sim.vigilPoints}/${sim.vigilNeed()} legendsOwned=${sim.critters.legendsOwned()}")
     println("CAMP up=${sim.campUp} razed=${sim.campsRazed} hits=${sim.campHits} sorties=${sim.campSorties} hp=${sim.campHp.toInt()}/${sim.campMax.toInt()}")
     println("RANCH built=${sim.buildings.count { it.type == "ranch" }} visits=${sim.ranchVisits} tended=${sim.critters.ranchTended} residents=${sim.ranchResidents()} atRanch=$atRanch")

@@ -1228,6 +1228,15 @@ private fun DrawScope.drawWorld(
                     val col = if (k < lit) Color(0xFFFFE9A0) else Color(0xFF3A3A4A).copy(alpha = 0.7f)
                     drawRect(col, Offset(cx - ps * 6.5f + k * ps * 2.2f, baseY - hh - ps * 2.2f), Size(ps * 1.5f, ps * 1.5f))
                 }
+                // trial runes below the orb: one per legend of the chain, in its own colour; bright = trial done, pulsing = being called
+                val runeCols = longArrayOf(0xFFFFB347, 0xFF4FD6C4, 0xFF7ED957, 0xFFF4E04D, 0xFFB8C0CC, 0xFFB07CFF)
+                for (k in 0 until 6) {
+                    val done = sim.trialMask and (1 shl k) != 0
+                    val bound = sim.critters.critters.any { it.sp == 57 + k }
+                    val rc = Color(runeCols[k])
+                    val a = if (bound) 1f else if (done) 0.6f + 0.4f * kotlin.math.sin(t * 3f + k) else 0.18f
+                    drawRect(rc.copy(alpha = a.coerceIn(0.1f, 1f)), Offset(cx - ps * 6.5f + k * ps * 2.2f, baseY - hh - ps * 4.2f), Size(ps * 1.5f, ps * 1.5f))
+                }
                 val glow = sim.shrineGlowUntil - sim.time
                 if (glow > 0.0) {
                     val a = kotlin.math.min(1f, (glow / 6.0).toFloat())
