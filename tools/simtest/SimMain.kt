@@ -16,6 +16,7 @@ fun main(args: Array<String>) {
     val seenEnc = LinkedHashSet<Enc>()
     val logSeen = LinkedHashSet<String>()
     val actHist = HashMap<String, Int>()
+    val kidHist = HashMap<String, Int>()
     val perP = HashMap<Int, HashMap<String, Int>>()
     var hurtSamples = 0; var farSamples = 0; var samples = 0; var stuckIdle = 0; val happySum = DoubleArray(1)
     val dt = 0.05f
@@ -35,6 +36,7 @@ fun main(args: Array<String>) {
         if (i % 12000 == 0) { val cmds = listOf("gather wood","attack the enemy","defend the village","hold a feast","build more homes","go hunting","everyone hide","study hard","trade at the market","rest now"); sim.whisper(cmds[(i/12000) % cmds.size]) }
         if (i % 40 == 0) { for (w in cw.wilds) if (w.c.species.rarity >= 5) legSeen.merge(w.c.species.name, 1, Int::plus); for (e in cw.encounters) if (e.foe?.species?.rarity ?: 0 >= 5) legEnc.add(e.state + ":" + e.result) }
         if (i % 20 == 0) { foeTotal++; if (sim.predators.isNotEmpty()) foeSamples++; for (k in sim.predators.map { it.kind }.distinct()) foeKinds.merge(k, 1, Int::plus) }
+        if (i % 20 == 0) { for (v in sim.villagers) if (v.job == "Child") kidHist.merge(if (v.action.isEmpty()) "IDLE" else v.action, 1, Int::plus) }
         if (i % 20 == 0) { for (v in sim.villagers) { if (v.action == "huddle" && v.phase != "idle") { val kid = v.job == "Child"; val near = sim.predators.any { Math.hypot((it.x - v.x).toDouble(), (it.y - v.y).toDouble()) < 13.0 }; val k = (if (kid) "kid" else "adult") + (if (near) "-near" else if (sim.predators.isNotEmpty()) "-farfoe:" + sim.predators.map { it.kind }.distinct().sorted().joinToString("+") + "@" + sim.predators.minOf { Math.hypot((it.x - v.x).toDouble(), (it.y - v.y).toDouble()) }.toInt() / 10 * 10 else "-nofoe"); huddleWhy.merge(k, 1, Int::plus) } }; for (v in sim.villagers) { actHist.merge(if (v.phase == "idle") "IDLE" else v.action, 1, Int::plus); if (v.job != "Child") perP.getOrPut(v.personaIdx) { HashMap() }.merge(if (v.phase == "idle") "IDLE" else v.action, 1, Int::plus); samples++; if (v.hp < 60f) hurtSamples++; if (v.phase == "idle" && v.idleFor > 2f) stuckIdle++; happySum[0] += v.happiness; val cd = Math.hypot((v.x - 48.0), (v.y - 27.0)); if (cd > 26) farSamples++ } }
         if (i % 40 == 0) for (l in sim.log.toList()) if (l.contains("circle") || l.contains("teaches") || l.contains("scroll") || l.contains("channels")) logSeen.add(l)
         for (e in cw.encounters) { seenEnc.add(e); if (e.state == "cast" && e.spellT < 0.06f) spellsSeen.merge(e.spell, 1, Int::plus) }
@@ -64,6 +66,7 @@ fun main(args: Array<String>) {
     println("summoners: " + sim.villagers.filter { cw.mageOf(it).talent }.joinToString { "${it.name} Lv${cw.mageOf(it).lv} (cap ${cw.mageOf(it).capacity}, used ${cw.budgetUsed(it)})" })
     println("magic log: " + logSeen.groupBy { it.replace(Regex("[A-Z][a-z]+"), "N").take(30) }.mapValues { it.value.size })
     logSeen.take(8).forEach { println("   $it") }
+    run { val kt = kidHist.values.sum().coerceAtLeast(1); println("KIDS samples=$kt play=${"%.1f".format(100.0 * (kidHist["play"] ?: 0) / kt)}% distinct=${kidHist.keys.size} mix=" + kidHist.entries.sortedByDescending { it.value }.take(14).joinToString { "${it.key}=${"%.0f".format(100.0 * it.value / kt)}%" }) }
     println("actions: " + actHist.entries.sortedByDescending { it.value }.take(14).joinToString { "${it.key}=${it.value}" })
     println("far from village samples: $farSamples/$samples")
     println("STARS fallen=${sim.starsFallen} shardsGathered=${sim.starShardsGot} metal=${sim.metal}")
@@ -144,6 +147,8 @@ fun main(args: Array<String>) {
     println("RAISED buildings=${sim.raised} sitesNow=${sim.buildings.count { sim.time - it.built < 9.0 }}")
     println("TOTEM built=${sim.buildings.count { it.type == "totem" }} visits=${sim.totemVisits} omens=${sim.omens} kinds=${sim.buildings.map { it.type }.toSet().size}")
     println("MENTOR lessons=${sim.lessonsGiven} apprenticesMade=${sim.apprenticesMade} pending=${sim.apprentice.size} kids=${sim.villagers.count { sim.isChild(it) }}")
+
+    println("KIDGAMES puddles=${sim.puddleJumps} jars=${sim.fireflyJars} hide=${sim.hideSeekGames} found=${sim.hideFinds}")
     println("SEASONFUN snowmen=${sim.snowmenBuilt} leafPiles=${sim.leafPilesRaked} kites=${sim.kitesFlown} propsNow=${sim.seasonProps.map { it.kind }} total=${sim.snowmenBuilt + sim.leafPilesRaked + sim.kitesFlown}")
     println("PETS dogs=${sim.pets.size} adopted=${sim.dogsAdopted} walks=${sim.dogWalks} barks=${sim.dogBarks} onMap=${sim.fauna.animals.count { it.kind == "dog" }} names=${sim.pets.map { it.name + ":" + it.bond }}")
     println("FETE held=${sim.fetesHeld} revels=${sim.feteRevels} kinds=${sim.feteKinds} on=${sim.feteOn}")

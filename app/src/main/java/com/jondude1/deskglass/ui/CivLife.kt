@@ -296,7 +296,7 @@ fun DrawScope.drawVillagers(sim: CivSim, art: CivArt, g: Geo, sun: Sun) {
         }
         val talking = tt != null || v.say.isNotEmpty()
         val bob = when {
-            working && (v.action == "dance" || v.action == "play") -> abs(sin(t * 7f + v.id)) * ps * 3.2f * kid
+            working && (v.action == "dance" || v.action == "play" || v.action == "puddle_jump") -> abs(sin(t * 7f + v.id)) * ps * 3.2f * kid
             walking -> abs(sin(t * 9f + v.id)) * ps * 0.9f * kid
             working -> abs(sin(t * 6f + v.id)) * ps * 1.2f * kid
             child -> abs(sin(t * 5f + v.id)) * ps * 1.4f * kid
@@ -383,6 +383,41 @@ fun DrawScope.drawVillagers(sim: CivSim, art: CivArt, g: Geo, sun: Sun) {
             }
             drawPath(kp, kc)
             for (k in 1..3) drawCircle(kc.copy(alpha = 0.8f), radius = ps * 0.5f, center = Offset(kx - ps * 0.5f * k + sin(t * 4f + k) * ps, ky + ps * (3.4f + k * 1.8f)))
+        }
+        if (working && v.action == "puddle_jump") {
+            drawOval(Color(0xFF7FB4D9).copy(alpha = 0.45f), Offset(cx - ps * 4.5f, feetY - ps * 0.8f), Size(ps * 9f, ps * 2.6f))
+            for (k in 0 until 2) {
+                val p = (t * 1.6f + k * 0.5f + v.id * 0.2f) % 1f
+                drawOval(Color.White.copy(alpha = 0.7f * (1f - p)), Offset(cx - ps * (1f + p * 5f), feetY - ps * (0.4f + p * 0.4f)), Size(ps * (2f + p * 10f), ps * (0.8f + p * 2f)), style = Stroke(ps * 0.35f))
+            }
+            for (k in 0 until 5) {
+                val p = (t * 2.2f + k * 0.2f + v.id * 0.13f) % 1f
+                drawCircle(Color(0xFFBFE3FF).copy(alpha = 0.9f * (1f - p)), radius = ps * 0.55f, center = Offset(cx + (k - 2f) * ps * (1f + p * 1.6f), feetY - ps * 10f * sin(p * PI.toFloat())))
+            }
+        }
+        if (working && v.action == "catch_fireflies") {
+            val jx = cx + fx * ps * 3f
+            val jy = feetY - ps * 6f
+            val pulse = 0.55f + 0.45f * sin(t * 4f + v.id)
+            drawCircle(Color(0xFFFFE680).copy(alpha = 0.22f * pulse), radius = ps * 7f, center = Offset(jx, jy))
+            drawRect(Color(0xFFDFF3FF).copy(alpha = 0.55f), Offset(jx - ps * 1.3f, jy - ps * 1.6f), Size(ps * 2.6f, ps * 3.2f))
+            drawRect(Color(0xFF8A5A2B), Offset(jx - ps * 1.5f, jy - ps * 2.2f), Size(ps * 3f, ps * 0.8f))
+            drawCircle(Color(0xFFFFF176).copy(alpha = 0.5f + 0.5f * pulse), radius = ps * 0.6f, center = Offset(jx, jy))
+            for (k in 0 until 5) {
+                val ang = t * 1.3f + k * 1.25f + v.id
+                val tw = 0.5f + 0.5f * sin(t * 5f + k * 2.1f)
+                drawCircle(Color(0xFFFFF59D).copy(alpha = 0.25f + 0.7f * tw), radius = ps * 0.55f, center = Offset(cx + cos(ang) * ps * 6f, feetY - ps * (7f + 3f * sin(ang * 1.7f))))
+            }
+        }
+        if (working && v.action == "hide_seek") {
+            val lc = listOf(Color(0xFF4F8A3B), Color(0xFF6DAA4F), Color(0xFF93C46A))
+            for (k in 0 until 4) {
+                val p = (t * 0.9f + k * 0.25f + v.id * 0.1f) % 1f
+                drawRect(lc[k % 3].copy(alpha = 0.9f * (1f - p)), Offset(cx + sin(p * 7f + k) * ps * 3.5f, feetY - ps * (12f - p * 8f)), Size(ps * 1.1f, ps * 0.8f))
+            }
+            val shh = (t * 0.7f + v.id * 0.31f) % 1f
+            drawCircle(Color.White.copy(alpha = 0.8f * (1f - shh)), radius = ps * 0.5f, center = Offset(cx + fx * ps * 2.5f, feetY - ps * (13f + shh * 4f)))
+            drawCircle(Color.White.copy(alpha = 0.8f * (1f - shh)), radius = ps * 0.5f, center = Offset(cx + fx * ps * 3.8f, feetY - ps * (13f + shh * 4f)))
         }
         if (working && v.action == "stargaze") {
             for (k in 0 until 4) {
