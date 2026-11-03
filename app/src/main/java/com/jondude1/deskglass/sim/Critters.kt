@@ -50,7 +50,7 @@ class Species(
 
 object Dex {
     const val DUMMY = 0
-    const val COUNT = 80
+    const val COUNT = 89
     const val MAX_LEVEL = 50
     /** Level at which a critter learns the ultimate of its main type. */
     const val ULTIMATE_LV = 30
@@ -225,6 +225,18 @@ object Dex {
         s(78, "Coralit", CType.TIDE, CType.STONE, 1, 50, 46, 60, 32, 79, 18, 2, "water", 0, "A little shell-walker with a sprig of pink coral on its head."),
         s(79, "Reefback", CType.TIDE, CType.STONE, 2, 78, 70, 92, 40, 80, 34, 2, "water", 0, "A reef grows on its back, full of tiny glowing fish."),
         s(80, "Tidemonarch", CType.TIDE, CType.STONE, 3, 104, 92, 118, 46, -1, 0, 3, "water", 0, "A living reef-king who calls the shoals home with a conch horn."),
+        // Moth line: a dusty night-moth that grows into a moon-crowned moth
+        s(81, "Mothlet", CType.GLOW, CType.GALE, 1, 40, 44, 38, 66, 82, 18, 2, "meadow", 1, "A fuzzy little moth that circles every lantern in the village."),
+        s(82, "Lunaflit", CType.GLOW, CType.GALE, 2, 60, 64, 54, 88, 83, 34, 2, "meadow", 1, "Its wing eyes glow like pale moons and never blink."),
+        s(83, "Moonmantle", CType.GLOW, CType.SPIRIT, 3, 82, 90, 72, 110, -1, 0, 3, "meadow", 1, "A moth with a crown of moonlight whose dust makes sleepers dream kindly."),
+        // Otter line: a playful stream-otter that grows into a rapids lord
+        s(84, "Ripotter", CType.TIDE, null, 1, 50, 46, 46, 54, 85, 18, 2, "water", 0, "A cheerful pup that slides down every muddy bank."),
+        s(85, "Streamotter", CType.TIDE, CType.FROST, 2, 72, 66, 66, 72, 86, 34, 2, "water", 0, "It carries a river pebble and juggles it all day."),
+        s(86, "Rapidlord", CType.TIDE, CType.SPARK, 3, 96, 92, 88, 94, -1, 0, 3, "water", 0, "A big otter in a crown of foam who rides the fastest rapids."),
+        // Whelp line: a horned cinder whelp that grows into a caldera dragon
+        s(87, "Emberwhelp", CType.EMBER, CType.STONE, 1, 48, 54, 48, 40, 88, 18, 2, "rock", 0, "A stubby horned whelp that naps on warm rocks."),
+        s(88, "Cragwyrm", CType.EMBER, CType.STONE, 2, 70, 80, 72, 50, 89, 34, 2, "rock", 0, "Stone plates grow on its shoulders and glow when it is cross."),
+        s(89, "Calderon", CType.EMBER, CType.STONE, 3, 96, 110, 100, 56, -1, 0, 3, "rock", 0, "A volcano-bellied dragon. The ground warms wherever it sleeps."),
     )
 
     private val dummy = Species(
