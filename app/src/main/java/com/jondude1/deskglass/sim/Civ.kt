@@ -516,6 +516,9 @@ class CivSim(
     /** Villagers wearing a flower crown after their coming-of-age day (id -> crown ends). Not saved. */
     private val crowns = HashMap<Int, Double>()
     var comingAges = 0
+    var birthdays = 0
+    var birthdayCakes = 0
+    var birthdayGifts = 0
     var comingGuests = 0
     var comingGifts = 0
     var comingParents = 0
@@ -782,7 +785,7 @@ class CivSim(
         hides = 0
         puddleJumps = 0; fireflyJars = 0; hideSeekGames = 0; hideFinds = 0; kidGameKinds.clear()
         goods = 0
-        visitor = null; nextVisitAt = time + DAY_LEN * 1.2; visitStats.clear(); knightDuels = 0; toysGiven = 0; raidsRepelled = 0; ogresSlain = 0; bossesSlain = 0; warlordsSlain = 0; golemsSlain = 0; shamansSlain = 0; frostPacksBroken = 0; pilfersFoiled = 0; pilfersLost = 0; swarmsBroken = 0; hornetsSwatted = 0; lichesSlain = 0; bonesRaised = 0; lastLichAt = -999.0; reaversSlain = 0; trollsSlain = 0; trollsStoned = 0; trollBoulders = 0; spidersSlain = 0; wormsSlain = 0; wormErupts = 0; wormHits = 0; lastWormAt = -999.0; craters.clear(); harpiesSlain = 0; flocksScattered = 0; harpyDives = 0; harpyLoot = 0; lastHarpyAt = -999.0; websSpun = 0; webCatches = 0; spiderBites = 0; lastSpiderAt = -999.0; webs.clear(); poisoned.clear(); skillUps = 0; skillBonusLoads = 0; skillMasters = 0; lastTrollAt = -999.0; trollRocks.clear(); shipsSeized = 0; landings = 0; lastLandingAt = -999.0; shipUp = false; shipT = 0f; foeStats.clear(); lastWarlordAt = -999.0; goldenAt = -1.0; deeds.clear(); babiesBorn = 0; weds = 0; feudsStarted = 0; feudsEnded = 0; bffs.clear(); feudEnds.clear(); courting.clear(); weddingAt = -999.0; nextRelAt = 0.0; deedBannerAt = -999.0; nextDeedAt = 0.0; titlesEarned = 0; dreamsDone = 0; lastThreatAt = 0.0; crowns.clear(); comingAges = 0; comingGuests = 0; comingGifts = 0; comingParents = 0; tavDice = 0; tavWrestles = 0; tavTales = 0; tavSongs = 0; tavNights = 0; tavernFx = -100.0
+        visitor = null; nextVisitAt = time + DAY_LEN * 1.2; visitStats.clear(); knightDuels = 0; toysGiven = 0; raidsRepelled = 0; ogresSlain = 0; bossesSlain = 0; warlordsSlain = 0; golemsSlain = 0; shamansSlain = 0; frostPacksBroken = 0; pilfersFoiled = 0; pilfersLost = 0; swarmsBroken = 0; hornetsSwatted = 0; lichesSlain = 0; bonesRaised = 0; lastLichAt = -999.0; reaversSlain = 0; trollsSlain = 0; trollsStoned = 0; trollBoulders = 0; spidersSlain = 0; wormsSlain = 0; wormErupts = 0; wormHits = 0; lastWormAt = -999.0; craters.clear(); harpiesSlain = 0; flocksScattered = 0; harpyDives = 0; harpyLoot = 0; lastHarpyAt = -999.0; websSpun = 0; webCatches = 0; spiderBites = 0; lastSpiderAt = -999.0; webs.clear(); poisoned.clear(); skillUps = 0; skillBonusLoads = 0; skillMasters = 0; lastTrollAt = -999.0; trollRocks.clear(); shipsSeized = 0; landings = 0; lastLandingAt = -999.0; shipUp = false; shipT = 0f; foeStats.clear(); lastWarlordAt = -999.0; goldenAt = -1.0; deeds.clear(); babiesBorn = 0; weds = 0; feudsStarted = 0; feudsEnded = 0; bffs.clear(); feudEnds.clear(); courting.clear(); weddingAt = -999.0; nextRelAt = 0.0; deedBannerAt = -999.0; nextDeedAt = 0.0; titlesEarned = 0; dreamsDone = 0; lastThreatAt = 0.0; crowns.clear(); comingAges = 0; comingGuests = 0; comingGifts = 0; comingParents = 0; tavDice = 0; tavWrestles = 0; tavTales = 0; tavSongs = 0; tavNights = 0; birthdays = 0; birthdayCakes = 0; birthdayGifts = 0; tavernFx = -100.0
         riftState = 0; party.clear(); expeditions = 0; expWins = 0; expRetreats = 0; roomsCleared = 0; relics = 0; deepestRoom = 0; wardensSlain = 0; sideRooms = 0; sideTraps = 0; sideVaults = 0; sideSprings = 0; sideShrines = 0; riftRallies = 0; riftSide = false; nextRiftAt = time + DAY_LEN
         campUp = false; campsRazed = 0; campHits = 0; campSorties = 0; campRazedAt = -999.0; campHitAt = -999.0; campNextAt = time + DAY_LEN * 1.5
         nextThreatAt = DAY_LEN * 1.4; lastBossAt = -999.0
@@ -3269,9 +3272,44 @@ class CivSim(
         courting.keys.filter { it.split("-").contains(dead.id.toString()) }.forEach { courting.remove(it) }
     }
 
+    /** Every villager has a birthday once a village year: neighbours gather, a cake (1 food from the stores) and a gift from the best friend. */
+    private fun birthdayTick() {
+        for (v in villagers.toList()) {
+            val yr = ageYears(v)
+            val last = v.st["bdayY"]
+            if (last == null) { v.st["bdayY"] = yr; continue }
+            if (yr <= last) continue
+            v.st["bdayY"] = yr
+            if (yr < 1 || v.phase == "sleeping" || alert()) continue
+            birthdays++
+            v.bump("birthdays")
+            v.happiness = min(100f, v.happiness + 8f)
+            val cake = food >= 15
+            if (cake) { food -= 1; birthdayCakes++; v.happiness = min(100f, v.happiness + 4f) }
+            fx.add(Fx("birthday", v.x, v.y, time, 6f))
+            val guests = villagers.filter { it !== v && it.phase != "sleeping" && Math.hypot((it.x - v.x).toDouble(), (it.y - v.y).toDouble()) < 9.0 }
+            for (g in guests) {
+                g.happiness = min(100f, g.happiness + 3f)
+                g.affinity[v.id] = (g.affinity[v.id] ?: 0) + 1
+            }
+            val friend = guests.maxByOrNull { (it.affinity[v.id] ?: 0) }
+            var gift = ""
+            if (friend != null && (friend.affinity[v.id] ?: 0) >= 3 && wood >= 2) {
+                wood -= 2; birthdayGifts++
+                friend.affinity[v.id] = (friend.affinity[v.id] ?: 0) + 2
+                v.affinity[friend.id] = (v.affinity[friend.id] ?: 0) + 2
+                gift = " ${friend.name} gives a carved keepsake."
+                friend.remember("gave ${v.name} a keepsake for their birthday")
+            }
+            v.remember("turned $yr" + (if (cake) " with a cake" else ""))
+            if (yr % 10 == 0 || gift.isNotEmpty() || birthdays % 4 == 1) addLog("It is ${v.name}'s birthday: $yr years." + (if (cake) " A cake is shared (${guests.size} neighbours)." else "") + gift)
+        }
+    }
+
     private fun relationTick() {
         if (time < nextRelAt || villagers.size < 2) return
         nextRelAt = time + 6.0
+        birthdayTick()
         val adults = villagers.filter { grownUp(it) }
         // feuds end after a while, with a handshake
         for (k in feudEnds.entries.toList()) {
@@ -7427,7 +7465,7 @@ class CivSim(
             o.put("hides", hides)
             o.put("goods", goods)
             o.put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("campUp", if (campUp) 1 else 0).put("campX", campX.toDouble()).put("campY", campY.toDouble()).put("campHp", campHp.toDouble()).put("campMax", campMax.toDouble()).put("campR", campsRazed).put("campH", campHits).put("campS", campSorties).put("expN", expeditions).put("expW", expWins).put("expR", expRetreats).put("expRooms", roomsCleared).put("relics", relics).put("expDeep", deepestRoom).put("wardens", wardensSlain).put("golems", golemsSlain).put("frostPacks", frostPacksBroken).put("pilfF", pilfersFoiled).put("pilfL", pilfersLost).put("swarms", swarmsBroken).put("hornets", hornetsSwatted).put("liches", lichesSlain).put("bones", bonesRaised).put("reavers", reaversSlain).put("spiderS", spidersSlain).put("wormS", wormsSlain).put("wormE", wormErupts).put("wormH", wormHits).put("harpyS", harpiesSlain).put("harpyF", flocksScattered).put("harpyD", harpyDives).put("harpyL", harpyLoot).put("spiderW", websSpun).put("spiderC", webCatches).put("spiderB", spiderBites).put("trollS", trollsSlain).put("trollR", trollsStoned).put("trollB", trollBoulders).put("trollRocks", trollRocks.joinToString(",") { "${it[0].toInt()}:${it[1].toInt()}" }).put("ships", shipsSeized).put("landings", landings).put("shamans", shamansSlain).put("golden", goldenAt).put("visits", visitStats.entries.joinToString(",") { "${it.key}:${it.value}" }).put("deeds", deeds.joinToString(",")).put("tavern", tavernVisits).put("snacks", hungerSnacks).put("pets", pets.joinToString(",") { "${it.name}:${it.owner}:${it.bond}" }).put("dogA", dogsAdopted).put("dogW", dogWalks).put("dogB", dogBarks).put("fetes", fetesHeld).put("feteR", feteRevels).put("feteL", lastFeteSeason).put("feteK", feteKinds.joinToString(",")).put("snowmen", snowmenBuilt).put("leafR", leafPilesRaked).put("starsF", starsFallen).put("starG", starShardsGot).put("kites", kitesFlown).put("sprops", seasonProps.joinToString(",") { "${it.kind}:${it.x.toInt()}:${it.y.toInt()}" }).put("statues", statues.joinToString(";") { "${it.name}|${it.title}|${it.kind}|${it.x.toInt()}|${it.y.toInt()}|${it.tier}" }).put("statueC", statueCheers).put("graves", graves.joinToString(";") { "${it.name}|${it.job}|${it.x.toInt()}|${it.y.toInt()}|${it.ageYears}|${it.cause}|${it.day}" }).put("graveX", graveX).put("graveY", graveY).put("buried", buried).put("mournN", mournVisits).put("totemV", totemVisits).put("raised", raised).put("omens", omens).put("recov", recoveries).put("balS", ballistaShots).put("balK", ballistaKills).put("ranchV", ranchVisits).put("pastV", pastureVisits).put("sailN", sailTrips).put("millN", millGrinds).put("millF", flourMade).put("millL", loavesBaked).put("quarryN", quarryHauls).put("quarryS", quarryStone).put("quarryV", quarryVeins).put("vigN", vigils).put("vigP", vigilPoints).put("trMask", trialMask).put("legCalls", legendCalls).put("dockC", dockCatch).put("bottles", bottlesFound).put("flockS", flockSheep).put("flockH", flockHens).put("eggsG", eggsGathered).put("fleece", fleeces).put("techs", techs.joinToString(",")).put("research", research).put("studyN", studyCount).put("babies", babiesBorn).put("dreams", dreamsDone).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" }).put("wallN", wallsRaised).put("wallX", wallCx).put("wallY", wallCy).put("wallD", if (wallDone) 1 else 0).put("wallH", wallHoldSecs.toDouble()).put("lessons", lessonsGiven).put("appMade", apprenticesMade).put("apprentice", apprentice.entries.joinToString(";") { "${it.key}:${it.value}" }).put("cathX", cathX).put("cathY", cathY).put("cathW", cathWork).put("cathT", cathTrips).put("cathB", cathBells).put("jubU", jubileeUntil).put("honeyN", honeyHarvests).put("honeyJ", honeyJars).put("honeyS", beeStings).put("honeyM", meadFeasts).put("honeyT", honeyMark).put("soakN", soaks).put("soakH", soakHeals).put("soakP", soakParties).put("soakG", soakGossips).put("shotN", shotsFired).put("shotB", bullseyes).put("shotM", archeryMatches).put("shotBest", archeryBest).put("fruitN", fruitPicks).put("fruitB", fruitBaskets).put("fruitC", ciderFeasts).put("fruitF", fruitFalls).put("fruitT", fruitMark).put("councN", councilsHeld).put("councS", councilSeats).put("councNext", councilNextAt).put("policy", policy).put("policyU", policyUntil).put("policyS", policyStart).put("policyB", policyBase.toDouble()).put("policyV", policyVotes).put("policyO", policyOf).put("policyA", policyActs).put("policyW", policiesWon).put("policyL", policiesLost).put("policyK", policyKinds.joinToString(",")).put("skUp", skillUps).put("skB", skillBonusLoads).put("skM", skillMasters).put("fireS", firesStarted).put("fireD", firesDoused).put("fireW", fireDouses).put("fireB", fireBurnedOut).put("fireL", fireLoss).put("sideN", sideRooms).put("sideT", sideTraps).put("sideV", sideVaults).put("sideS", sideSprings).put("sideH", sideShrines).put("riftRal", riftRallies).put("kgPud", puddleJumps).put("kgFly", fireflyJars).put("kgHide", hideSeekGames).put("kgFound", hideFinds).put("knightD", knightDuels).put("toysG", toysGiven).put("gDec", decrees).put("gNext", gloryNextAt).put("gKind", decreeKind).put("gUntil", decreeUntil).put("gStart", decreeStart).put("gGild", gildings).put("gKinds", decreeKinds.joinToString(",")).put("gLast", lastDecree).put("dryN", droughts).put("dryE", droughtsEnded).put("dryW", droughtWaterings).put("dryS", droughtSaved).put("dryX", droughtWithered).put("dryR", droughtRainEnds)
-            o.put("coaN", comingAges).put("coaG", comingGuests).put("coaF", comingGifts).put("coaP", comingParents)
+            o.put("bdN", birthdays).put("bdC", birthdayCakes).put("bdG", birthdayGifts).put("coaN", comingAges).put("coaG", comingGuests).put("coaF", comingGifts).put("coaP", comingParents)
             o.put("bellR", bellRings).put("bellA", bellAlarms).put("tvD", tavDice).put("tvW", tavWrestles).put("tvT", tavTales).put("tvS", tavSongs).put("tvN", tavNights).put("showN", shows).put("showG", grandShows).put("showA", showAudience).put("kilnN", kilnFires).put("kilnG", kilnGlazed).put("kilnC", kilnCheers).put("yardN", yardSessions).put("yardS", yardSpars).put("yardT", critters.yardTrained).put("yardL", critters.yardLevelUps).put("yardX", critters.yardXp).put("loomN", loomWeaves).put("loomK", loomCloaks)
             o.put("traffic", String(CharArray(traffic.size) { i -> '0' + min(9, (traffic[i] / 4f).toInt()) }))
             val ks = JSONArray()
@@ -7558,7 +7596,7 @@ class CivSim(
             for (e in o.optString("visits", "").split(",")) { val kv = e.split(":"); if (kv.size == 2) visitStats[kv[0]] = kv[1].toIntOrNull() ?: 0 }
             goldenAt = o.optDouble("golden", -1.0)
             droughts = o.optInt("dryN", 0); droughtsEnded = o.optInt("dryE", 0); droughtWaterings = o.optInt("dryW", 0); droughtSaved = o.optInt("dryS", 0); droughtWithered = o.optInt("dryX", 0); droughtRainEnds = o.optInt("dryR", 0)
-            comingAges = o.optInt("coaN", 0); comingGuests = o.optInt("coaG", 0); comingGifts = o.optInt("coaF", 0); comingParents = o.optInt("coaP", 0)
+            birthdays = o.optInt("bdN", 0); birthdayCakes = o.optInt("bdC", 0); birthdayGifts = o.optInt("bdG", 0); comingAges = o.optInt("coaN", 0); comingGuests = o.optInt("coaG", 0); comingGifts = o.optInt("coaF", 0); comingParents = o.optInt("coaP", 0)
             decrees = o.optInt("gDec", 0); gloryNextAt = o.optDouble("gNext", 0.0); decreeKind = o.optString("gKind", ""); decreeUntil = o.optDouble("gUntil", 0.0); decreeStart = o.optDouble("gStart", 0.0); gildings = o.optInt("gGild", 0); lastDecree = o.optString("gLast", ""); decreeKinds.clear(); o.optString("gKinds", "").split(",").filter { it.isNotBlank() }.forEach { decreeKinds.add(it) }
             campUp = o.optInt("campUp", 0) == 1; campX = o.optDouble("campX", 0.0).toFloat(); campY = o.optDouble("campY", 0.0).toFloat(); campMax = o.optDouble("campMax", 100.0).toFloat(); campHp = o.optDouble("campHp", campMax.toDouble()).toFloat(); campsRazed = o.optInt("campR", 0); campHits = o.optInt("campH", 0); campSorties = o.optInt("campS", 0)
             campNextAt = time + DAY_LEN; campSortieAt = time + DAY_LEN * 0.8; campHitAt = -999.0; campRazedAt = -999.0

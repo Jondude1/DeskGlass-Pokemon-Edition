@@ -1471,6 +1471,32 @@ private fun DrawScope.drawWorld(
                     drawRect(petal[k % 5].copy(alpha = 0.95f * fade), Offset(fxp - ps * 0.9f, by + sag), Size(ps * 1.8f, ps * 2.4f))
                 }
             }
+            "birthday" -> {
+                // a little cake with flickering candles, balloons and confetti
+                val fade = if (p < 0.8f) 1f else (1f - p) / 0.2f
+                val bx = cx
+                val by = cy - ts * 1.1f
+                drawRect(Color(0xFFF2D9A8).copy(alpha = fade), Offset(bx - ps * 4f, by), Size(ps * 8f, ps * 3f))
+                drawRect(Color(0xFFFF8FB1).copy(alpha = fade), Offset(bx - ps * 4f, by - ps * 1.2f), Size(ps * 8f, ps * 1.4f))
+                for (k in 0 until 3) {
+                    val kx = bx - ps * 2.5f + k * ps * 2.5f
+                    drawRect(Color(0xFFFFFFFF).copy(alpha = fade), Offset(kx, by - ps * 3f), Size(ps * 0.8f, ps * 1.8f))
+                    val fl = 0.6f + 0.4f * kotlin.math.sin(age * 9f + k * 2f)
+                    drawRect(Color(0xFFFFC94A).copy(alpha = fade * fl), Offset(kx - ps * 0.1f, by - ps * 4.2f), Size(ps * 1f, ps * 1.2f))
+                }
+                val cols = listOf(Color(0xFFFF6B6B), Color(0xFF6BB7FF), Color(0xFFFFE066), Color(0xFF7FD36B))
+                for (k in 0 until 4) {
+                    val sway = kotlin.math.sin(age * 1.6f + k) * ps * 1.5f
+                    val gx = cx + (k - 1.5f) * ts * 0.55f + sway
+                    val gy = cy - ts * (1.9f + 0.25f * (k % 2))
+                    drawLine(Color(0xFFEFE6C8).copy(alpha = 0.7f * fade), Offset(gx, gy + ps * 4f), Offset(cx + (k - 1.5f) * ts * 0.2f, cy - ts * 0.6f), strokeWidth = ps * 0.35f)
+                    drawCircle(cols[k].copy(alpha = 0.95f * fade), radius = ps * 2.6f, center = Offset(gx, gy))
+                }
+                for (k in 0 until 8) {
+                    val q = ((age * 0.6f + k * 0.125f) % 1f)
+                    drawRect(cols[k % 4].copy(alpha = fade * (1f - q)), Offset(cx + (((k * 53) % 100) / 100f - 0.5f) * ts * 2.4f, cy - ts * 2.4f + q * ts * 2.2f), Size(ps * 1.2f, ps * 1.2f))
+                }
+            }
             "levelup" -> {
                 // a gold ring and rising chevrons: a skill just went up a level
                 drawCircle(Color(0xFFFFD84A).copy(alpha = 0.5f * (1f - p)), radius = ts * (0.2f + p * 1.1f), center = Offset(cx, cy - ts * 0.5f))
