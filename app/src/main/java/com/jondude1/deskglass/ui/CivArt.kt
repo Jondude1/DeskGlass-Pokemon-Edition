@@ -303,6 +303,11 @@ class CivArt {
         'p' to 0xFFD9A066.toInt(), 'b' to 0xFF4A82B5.toInt(),
         'g' to 0xFF4F9E3F.toInt(), 'G' to 0xFF3A7A30.toInt(),
     ))
+    val yard = sprite(YARD, mapOf(
+        'h' to 0xFFE2C070.toInt(), 'H' to 0xFFB8903C.toInt(), 'r' to 0xFFC8402E.toInt(),
+        'F' to 0xFF6E4A24.toInt(), 'f' to 0xFFA8793E.toInt(), 'a' to 0xFFD9C08A.toInt(), 'A' to 0xFFB8A070.toInt(),
+        'g' to 0xFF4F9E3F.toInt(), 'G' to 0xFF3A7A30.toInt(),
+    ))
     val belfry = sprite(BELFRY, mapOf(
         'r' to 0xFFB8452F.toInt(), 'R' to 0xFF7A2C1E.toInt(), 's' to 0xFF9A9AA2.toInt(), 'S' to 0xFF6C6C76.toInt(),
         'y' to 0xFFF2D14E.toInt(), 'Y' to 0xFFC9A030.toInt(), 'd' to 0xFF2A2A32.toInt(),
@@ -1069,6 +1074,18 @@ class CivArt {
             ".WmrmrmrmrmrW.",
             ".WrmrmrmrmrmW.",
             ".WW........WW.",
+            "gGggGgggGggGgg",
+        )
+        val YARD = listOf(
+            "......hh......",
+            ".....hHHh.....",
+            "......hh......",
+            ".....rhhr.....",
+            "......FF......",
+            "..f...FF...f..",
+            ".fFf..FF..fFf.",
+            "fFfFfFFFFfFfFf",
+            "aAaaAaaaAaaAaa",
             "gGggGgggGggGgg",
         )
         val KILN = listOf(

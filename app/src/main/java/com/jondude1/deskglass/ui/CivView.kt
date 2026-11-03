@@ -605,6 +605,7 @@ private fun DrawScope.drawWorld(
                 "stage" -> art.stage
                 "bath" -> art.bath
                 "kiln" -> art.kiln
+                "yard" -> art.yard
                 "loom" -> art.loom
                 "dock" -> art.dock
                 "quarry" -> art.quarry
@@ -965,6 +966,19 @@ private fun DrawScope.drawWorld(
                     drawCircle(Color(0xFFFFC857).copy(alpha = 0.9f * (1f - ph)), radius = ps * 0.5f, center = Offset(cx + (k - 1) * ps * 1.5f, baseY - hh * 0.45f - ph * hh * 0.5f))
                 }
                 if (dark > 0.1f) drawCircle(Color(0xFFFFB45A).copy(alpha = min(0.34f, dark * 0.55f)), radius = ts * 0.9f, center = Offset(cx, baseY - hh * 0.4f))
+            }
+            if (b.type == "yard") {
+                // the straw dummy shudders under each blow, dust and wood chips fly, a pennant waves; trainers add stars and a night lantern
+                val drillers = sim.villagers.count { it.action == "train_critters" && it.phase == "working" && kotlin.math.hypot(it.x - (b.x + 0.5f), it.y - (b.y + 0.5f)) < 2.5f }
+                val sway = if (drillers > 0) kotlin.math.sin(t * 14f) * ps * 0.8f else kotlin.math.sin(t * 1.5f) * ps * 0.2f
+                drawLine(Color(0xFFC8402E), Offset(cx - w * 0.36f, baseY - hh * 0.95f), Offset(cx - w * 0.36f + ps * 2.6f + sway, baseY - hh * 0.88f + sway * 0.4f), strokeWidth = ps * 0.9f)
+                if (drillers > 0) for (k in 0 until 2 + drillers) {
+                    val ph = (t * 1.6f + k * 0.29f) % 1f
+                    val a2 = k * 2.1f + t
+                    drawCircle(Color(0xFFFFE066).copy(alpha = 0.9f * (1f - ph)), radius = ps * 0.55f, center = Offset(cx + kotlin.math.cos(a2) * ps * (1f + ph * 3f), baseY - hh * 0.7f + kotlin.math.sin(a2) * ps * (0.6f + ph * 1.8f)))
+                    drawCircle(Color(0xFFD9C08A).copy(alpha = 0.5f * (1f - ph)), radius = ps * (0.8f + ph * 1.6f), center = Offset(cx + (k - 1.5f) * ps * 2.2f, baseY - hh * 0.12f - ph * ps * 2f))
+                }
+                if (dark > 0.1f) drawCircle(Color(0xFFFFD27A).copy(alpha = min(0.26f, dark * 0.4f)), radius = ts * 0.8f, center = Offset(cx, baseY - hh * 0.5f))
             }
             if (b.type == "belfry") {
                 // the bell swings and sound rings spread while somebody is ringing

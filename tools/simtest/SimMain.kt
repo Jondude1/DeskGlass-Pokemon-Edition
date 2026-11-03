@@ -133,6 +133,7 @@ fun main(args: Array<String>) {
     println("BATH built=${sim.buildings.count { it.type == "bath" }} soaks=${sim.soaks} heals=${sim.soakHeals} gossips=${sim.soakGossips} parties=${sim.soakParties}")
     println("STAGE built=${sim.buildings.count { it.type == "stage" }} shows=${sim.shows} grand=${sim.grandShows} audience=${sim.showAudience}")
     println("LOOM built=${sim.buildings.count { it.type == "loom" }} weaves=${sim.loomWeaves} cloaks=${sim.loomCloaks} hides=${sim.hides} adults=${sim.villagers.count { !sim.isChild(it) }}")
+    println("YARD built=${sim.buildings.count { it.type == "yard" }} sessions=${sim.yardSessions} trained=${sim.critters.yardTrained} spars=${sim.yardSpars} levelUps=${sim.critters.yardLevelUps} xp=${sim.critters.yardXp}")
     println("KILN built=${sim.buildings.count { it.type == "kiln" }} fires=${sim.kilnFires} glazed=${sim.kilnGlazed} cheers=${sim.kilnCheers}")
     println("BELL built=${sim.buildings.count { it.type == "belfry" }} rings=${sim.bellRings} alarms=${sim.bellAlarms} reach=${sim.bellReach}")
     println("ARCHERY built=${sim.buildings.count { it.type == "range" }} shots=${sim.shotsFired} bullseyes=${sim.bullseyes} contests=${sim.archeryMatches} best=${sim.archeryBest}")
@@ -196,6 +197,7 @@ fun main(args: Array<String>) {
     }
     println("ABIL talents fired=${Battle.abilCount.values.sum()} kinds=${Battle.abilCount.size} ${Battle.abilCount.toSortedMap()}")
     sim.log.filter { it.contains("aider") || it.contains("ogre") || it.contains("wraith") || it.contains("drake") || it.contains("warlord") || it.contains("golem") || it.contains("shaman") || it.contains("Golden") }.takeLast(8).forEach { println("  LOG $it") }
+    run { val cs = sim.critters.critters; val lv = cs.map { it.level }.sortedDescending(); println("CRITLEVELS n=${cs.size} sum=${lv.sum()} max=${lv.firstOrNull() ?: 0} top5=${lv.take(5)} lv10+=${lv.count { it >= 10 }} lv20+=${lv.count { it >= 20 }} lv30+=${lv.count { it >= 30 }} stage3=${cs.count { it.species.stage >= 2 }}") }
     println("LEGENDS wild=$legSeen enc=$legEnc maxCompLv=${sim.critters.critters.maxOfOrNull{it.level}}")
     println("LEGLOG " + sim.log.filter{it.contains("LEGENDDBG")||it.contains("pact")||it.contains("legend")}.takeLast(6))
     println("RESULTS " + sim.log.filter{it.contains("lost to")||it.contains("defeat")}.size)

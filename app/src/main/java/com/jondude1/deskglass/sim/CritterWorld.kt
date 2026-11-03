@@ -824,6 +824,33 @@ class CritterWorld(private val sim: CivSim) {
         return c
     }
 
+    var yardTrained = 0
+    var yardLevelUps = 0
+    var yardXp = 0
+    /** Levels gained by the last training bout. */
+    var lastTrainLevels = 0
+
+    /** The training yard: a villager drills one of their own critters (or a ranch critter) against the dummy; sparring partners double the lesson. */
+    fun trainYard(v: Villager, mates: Int): Critter? {
+        var pool = critters.filter { it.owner == v.id && !inEncounter(it) && evolving(it) == null && it.faintedUntil <= 0.0 }
+        if (pool.isEmpty()) pool = critters.filter { it.owner < 0 && !inEncounter(it) && evolving(it) == null && it.faintedUntil <= 0.0 }
+        if (pool.isEmpty()) return null
+        val c = pool[rnd.nextInt(pool.size)]
+        if (c.level >= Dex.MAX_LEVEL) return null
+        val gain = (16 + c.level * 3) * (if (mates > 0) 3 else 2) / 2
+        val lv = c.gainXp(gain)
+        c.bond++
+        c.hp = min(c.maxHp, c.hp + 2)
+        yardTrained++
+        yardXp += gain
+        yardLevelUps += lv
+        lastTrainLevels = lv
+        val bx = bodies[c.uid]
+        pop(bx?.x ?: v.x, (bx?.y ?: v.y) - 0.7f, if (lv > 0) "Lv ${c.level}!" else "+$gain xp", if (lv > 0) 0xFFFFE066 else 0xFF9AD7FF)
+        if (lv > 0) checkEvolve(c)
+        return c
+    }
+
     private fun bodyFor(c: Critter): Body {
         val b = bodies[c.uid]
         if (b != null) return b
