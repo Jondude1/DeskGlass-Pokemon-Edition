@@ -476,6 +476,14 @@ fun DrawScope.drawVillagers(sim: CivSim, art: CivArt, g: Geo, sun: Sun) {
             rotate(lean * fx, Offset(cx, feetY))
             scale(fx, breathe, Offset(cx, feetY))
         }) {
+            if (!child && sim.cloaked(v)) {
+                // a woollen cloak: a coloured mantle over the shoulders that flares out behind the walker
+                val cu = w / 8f
+                val cc = Color(listOf(0xFFB8453A, 0xFF3F6FB5, 0xFF7A4B9C, 0xFF3F8F5A, 0xFFC8923F)[v.id % 5])
+                val flare = if (walking) abs(sin(t * 9f + v.id)) * cu * 0.8f else 0f
+                drawRect(cc, Offset(cx - w / 2f - 0.5f * cu - flare, top + 3.3f * cu), Size(2.0f * cu + flare, 4.4f * cu))
+                drawRect(cc.copy(alpha = 0.92f), Offset(cx - w / 2f + 0.6f * cu, top + 2.9f * cu), Size(6.8f * cu, 1.5f * cu))
+            }
             img(sp, cx - w / 2f, top, w, h)
             if (!child) jobGear(v.job, cx - w / 2f, top, w / 8f, working, t + v.id)
             if (old) {

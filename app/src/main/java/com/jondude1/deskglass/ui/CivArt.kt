@@ -292,6 +292,11 @@ class CivArt {
         'B' to 0xFF2E4A82.toInt(), 't' to 0xFFB98A4E.toInt(), 'W' to 0xFF6E4A24.toInt(),
         'g' to 0xFF4F9E3F.toInt(), 'G' to 0xFF3A7A30.toInt(),
     ))
+    val loom = sprite(LOOM, mapOf(
+        'r' to 0xFFC8473A.toInt(), 'w' to 0xFFF0EBDD.toInt(), 'W' to 0xFF6E4A24.toInt(), 'y' to 0xFFE8C547.toInt(),
+        'b' to 0xFF3F6FB5.toInt(), 'B' to 0xFF2E4F86.toInt(), 'm' to 0xFF7A4B9C.toInt(),
+        'g' to 0xFF4F9E3F.toInt(), 'G' to 0xFF3A7A30.toInt(),
+    ))
     val kiln = sprite(KILN, mapOf(
         'c' to 0xFFC8714A.toInt(), 'C' to 0xFF8E4A2E.toInt(), 'd' to 0xFF2A1E1A.toInt(), 'o' to 0xFFF29A38.toInt(),
         's' to 0xFF9A9AA2.toInt(), 'S' to 0xFF6C6C76.toInt(), 't' to 0xFFB98A4E.toInt(), 'W' to 0xFF6E4A24.toInt(),
@@ -1052,6 +1057,18 @@ class CivArt {
             ".tttttttttttt.",
             ".tWtWtWtWtWtW.",
             ".W..........W.",
+            "gGggGgggGggGgg",
+        )
+        val LOOM = listOf(
+            "..rwrwrwrwrw..",
+            ".rwrwrwrwrwrw.",
+            ".W..........W.",
+            ".WyyyyyyyyyyW.",
+            ".WbBbBbBbBbBW.",
+            ".WbBbBbBbBbBW.",
+            ".WmrmrmrmrmrW.",
+            ".WrmrmrmrmrmW.",
+            ".WW........WW.",
             "gGggGgggGggGgg",
         )
         val KILN = listOf(

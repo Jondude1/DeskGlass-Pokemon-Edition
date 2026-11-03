@@ -603,6 +603,7 @@ private fun DrawScope.drawWorld(
                 "stage" -> art.stage
                 "bath" -> art.bath
                 "kiln" -> art.kiln
+                "loom" -> art.loom
                 "dock" -> art.dock
                 "quarry" -> art.quarry
                 "mill" -> art.mill
@@ -932,6 +933,19 @@ private fun DrawScope.drawWorld(
                     }
                 }
                 if (dark > 0.1f) drawCircle(Color(0xFFFFD27A).copy(alpha = min(0.3f, dark * 0.5f) + (if (acts > 0) 0.12f else 0f)), radius = ts * 0.8f, center = Offset(cx, baseY - hh * 0.5f))
+            }
+            if (b.type == "loom") {
+                // thread flies while somebody weaves: the shuttle slides, wool fluff drifts, a warm lamp glows at night
+                val weavers = sim.villagers.count { it.action == "weave" && it.phase == "working" && kotlin.math.hypot(it.x - (b.x + 0.5f), it.y - (b.y + 0.5f)) < 2.5f }
+                if (weavers > 0) {
+                    val sx = cx + kotlin.math.sin(t * 6f) * w * 0.28f
+                    drawRect(Color(0xFFF2D14E), Offset(sx - ps * 1.2f, baseY - hh * 0.5f), Size(ps * 2.4f, ps * 0.9f))
+                    for (k in 0 until 4) {
+                        val ph = (t * 0.9f + k * 0.27f) % 1f
+                        drawCircle(Color(0xFFFFFFFF).copy(alpha = 0.75f * (1f - ph)), radius = ps * 0.7f, center = Offset(cx + (k - 1.5f) * ps * 2.4f + kotlin.math.sin(ph * 6f + k) * ps, baseY - hh * 0.7f - ph * hh * 0.6f))
+                    }
+                }
+                if (dark > 0.1f) drawCircle(Color(0xFFFFD27A).copy(alpha = min(0.28f, dark * 0.45f) + (if (weavers > 0) 0.1f else 0f)), radius = ts * 0.8f, center = Offset(cx, baseY - hh * 0.5f))
             }
             if (b.type == "kiln") {
                 // fire glows in the mouth, smoke climbs the chimney (thick while pots are firing), sparks jump, warm glow at night
