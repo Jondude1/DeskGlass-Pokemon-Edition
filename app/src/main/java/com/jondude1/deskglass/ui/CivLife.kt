@@ -458,6 +458,18 @@ fun DrawScope.drawVillagers(sim: CivSim, art: CivArt, g: Geo, sun: Sun) {
             drawCircle(Color.White.copy(alpha = 0.8f * (1f - shh)), radius = ps * 0.5f, center = Offset(cx + fx * ps * 2.5f, feetY - ps * (13f + shh * 4f)))
             drawCircle(Color.White.copy(alpha = 0.8f * (1f - shh)), radius = ps * 0.5f, center = Offset(cx + fx * ps * 3.8f, feetY - ps * (13f + shh * 4f)))
         }
+        if (working && v.action == "visit_friend") {
+            for (k in 0 until 3) {
+                val p = (t * 0.6f + k * 0.34f + v.id * 0.17f) % 1f
+                val hx = cx + (k - 1) * ps * 3.2f + sin(p * 6f + k) * ps * 1.2f
+                val hy = feetY - ps * (13f + p * 9f)
+                val hc = Color(0xFFFF7A9C).copy(alpha = 0.9f * (1f - p))
+                drawCircle(hc, radius = ps * 0.9f, center = Offset(hx - ps * 0.8f, hy))
+                drawCircle(hc, radius = ps * 0.9f, center = Offset(hx + ps * 0.8f, hy))
+                drawRect(hc, Offset(hx - ps * 1.4f, hy + ps * 0.3f), Size(ps * 2.8f, ps * 1.2f))
+                drawRect(hc, Offset(hx - ps * 0.6f, hy + ps * 1.4f), Size(ps * 1.2f, ps * 0.9f))
+            }
+        }
         if (working && v.action == "stargaze") {
             for (k in 0 until 4) {
                 val tw = 0.5f + 0.5f * sin(t * 3f + k * 1.7f + v.id)

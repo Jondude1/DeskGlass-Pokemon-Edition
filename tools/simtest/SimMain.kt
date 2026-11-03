@@ -167,6 +167,7 @@ fun main(args: Array<String>) {
     println("KIDGAMES puddles=${sim.puddleJumps} jars=${sim.fireflyJars} hide=${sim.hideSeekGames} found=${sim.hideFinds}")
     println("BIRTHDAY parties=${sim.birthdays} cakes=${sim.birthdayCakes} gifts=${sim.birthdayGifts}")
     println("COMING ceremonies=${sim.comingAges} guests=${sim.comingGuests} gifts=${sim.comingGifts} parentsCheered=${sim.comingParents} crownedNow=${sim.villagers.count { sim.crowned(it) }} gift-skilled=${sim.villagers.count { !sim.isChild(it) && sim.skillLines(it).isNotEmpty() }}")
+    println("VISITS trips=${sim.friendVisits} met=${sim.friendVisitsMet} wanderShare=${"%.2f".format(100.0*(actHist["wander"]?:0)/samples)}% visitShare=${"%.2f".format(100.0*(actHist["visit_friend"]?:0)/samples)}%")
     println("SHROOMS picked=${sim.mushPicked} glowcaps=${sim.glowcapsFound} stews=${sim.mushStews} nowOut=${sim.seasonProps.count { it.kind == "shroom" || it.kind == "glowcap" }}")
     println("SEASONFUN snowmen=${sim.snowmenBuilt} leafPiles=${sim.leafPilesRaked} kites=${sim.kitesFlown} propsNow=${sim.seasonProps.map { it.kind }} total=${sim.snowmenBuilt + sim.leafPilesRaked + sim.kitesFlown}")
     println("PETS dogs=${sim.pets.size} adopted=${sim.dogsAdopted} walks=${sim.dogWalks} barks=${sim.dogBarks} onMap=${sim.fauna.animals.count { it.kind == "dog" }} names=${sim.pets.map { it.name + ":" + it.bond }}")
