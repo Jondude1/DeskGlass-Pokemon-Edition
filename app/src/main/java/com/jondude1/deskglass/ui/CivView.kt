@@ -1388,6 +1388,32 @@ private fun DrawScope.drawWorld(
                     )
                 }
             }
+            "coming" -> {
+                // a coming-of-age day: a ring of petals and confetti, bunting overhead and a sun-gold glow
+                val fade = if (p < 0.8f) 1f else (1f - p) / 0.2f
+                drawCircle(Color(0xFFFFE9A0).copy(alpha = 0.22f * fade), radius = ts * (1.6f + 0.2f * kotlin.math.sin(age * 3f)), center = Offset(cx, cy))
+                drawCircle(Color(0xFFFFD84A).copy(alpha = 0.5f * fade), radius = ts * 1.5f, center = Offset(cx, cy), style = androidx.compose.ui.graphics.drawscope.Stroke(width = ps * 0.8f))
+                val petal = listOf(Color(0xFFFF8FB1), Color(0xFFFFE066), Color(0xFFFFFFFF), Color(0xFFB69CFF), Color(0xFF7FD36B))
+                for (k in 0 until 14) {
+                    val ang = k * 0.449f + age * 0.9f
+                    val rr = ts * (1.3f + 0.15f * kotlin.math.sin(age * 2f + k))
+                    drawRect(petal[k % 5].copy(alpha = 0.95f * fade), Offset(cx + kotlin.math.cos(ang) * rr, cy + kotlin.math.sin(ang) * rr * 0.55f - ts * 0.2f), Size(ps * 1.8f, ps * 1.8f))
+                }
+                for (k in 0 until 10) {
+                    val q = ((age * 0.5f + k * 0.1f) % 1f)
+                    val fx0 = cx + (((k * 37) % 100) / 100f - 0.5f) * ts * 3.4f + kotlin.math.sin(q * 6f + k) * ps * 3f
+                    drawRect(petal[(k + 2) % 5].copy(alpha = fade * (1f - q)), Offset(fx0, cy - ts * 2.6f + q * ts * 2.8f), Size(ps * 1.2f, ps * 1.8f))
+                }
+                // bunting: a drooping line of little flags above the child
+                val bw = ts * 2.6f
+                val by = cy - ts * 1.7f
+                drawLine(Color(0xFFEFE6C8).copy(alpha = fade), Offset(cx - bw / 2f, by), Offset(cx + bw / 2f, by), strokeWidth = ps * 0.5f)
+                for (k in 0 until 7) {
+                    val fxp = cx - bw / 2f + bw * (k + 0.5f) / 7f
+                    val sag = kotlin.math.sin((k + 0.5f) / 7f * 3.1416f) * ts * 0.18f
+                    drawRect(petal[k % 5].copy(alpha = 0.95f * fade), Offset(fxp - ps * 0.9f, by + sag), Size(ps * 1.8f, ps * 2.4f))
+                }
+            }
             "levelup" -> {
                 // a gold ring and rising chevrons: a skill just went up a level
                 drawCircle(Color(0xFFFFD84A).copy(alpha = 0.5f * (1f - p)), radius = ts * (0.2f + p * 1.1f), center = Offset(cx, cy - ts * 0.5f))

@@ -491,6 +491,13 @@ fun DrawScope.drawVillagers(sim: CivSim, art: CivArt, g: Geo, sun: Sun) {
                 drawRect(cc.copy(alpha = 0.92f), Offset(cx - w / 2f + 0.6f * cu, top + 2.9f * cu), Size(6.8f * cu, 1.5f * cu))
             }
             img(sp, cx - w / 2f, top, w, h)
+            if (!child && sim.crowned(v)) {
+                // a flower crown from their coming-of-age day
+                val cu = w / 8f
+                val fl = listOf(Color(0xFFFF8FB1), Color(0xFFFFE066), Color(0xFFFFFFFF), Color(0xFFB69CFF))
+                drawRect(Color(0xFF4F9B4A), Offset(cx - w / 2f + 1.8f * cu, top + 0.1f * cu), Size(4.4f * cu, 0.8f * cu))
+                for (k in 0 until 4) drawRect(fl[(k + v.id) % 4], Offset(cx - w / 2f + (1.9f + k * 1.2f) * cu, top - 0.4f * cu), Size(1.0f * cu, 1.1f * cu))
+            }
             if (!child) jobGear(v.job, cx - w / 2f, top, w / 8f, working, t + v.id)
             if (old) {
                 // a walking stick with a crook, tapping while they walk
