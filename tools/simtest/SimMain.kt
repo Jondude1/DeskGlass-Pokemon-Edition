@@ -33,8 +33,10 @@ fun main(args: Array<String>) {
     var nextReport = 0
     val foeKinds = HashMap<String, Int>(); val huddleWhy = HashMap<String, Int>(); var foeSamples = 0; var foeTotal = 0
     val t0 = System.currentTimeMillis()
+    val sightKinds = HashMap<String, Int>(); var sightSamples = 0; var sightAny = 0; var sightMax = 0
     for (i in 0 until steps) {
         sim.tick(dt)
+        if (i % 40 == 0) { val sl = Sights.find(sim); sightSamples++; if (sl.isNotEmpty()) sightAny++; if (sl.size > sightMax) sightMax = sl.size; for (s in sl) sightKinds.merge(s.kind, 1, Int::plus) }
         if (forkTest && i % 600 == 0) for (c in cw.critters) if (c.owner >= 0 && com.jondude1.deskglass.sim.Dex.branchOf(c.sp) != null && c.level < 28) { c.level = 28; c.bond = 40 }
         if (sim.age != lastAge) { lastAge = sim.age; ageAt.add("age${sim.age}@%.2fh".format(sim.time / 3600.0)) }
         if (i % 12000 == 0) { val cmds = listOf("gather wood","attack the enemy","defend the village","hold a feast","build more homes","go hunting","everyone hide","study hard","trade at the market","rest now"); sim.whisper(cmds[(i/12000) % cmds.size]) }
@@ -181,6 +183,7 @@ fun main(args: Array<String>) {
     println("COUNCIL held=${sim.councilsHeld} seats=${sim.councilSeats} policies=${sim.policyKinds} steered=${sim.policyActs} won=${sim.policiesWon} lost=${sim.policiesLost} now=${sim.policy} on=${sim.councilOn}")
     run { val tv = sim.buildings.count { it.type == "tavern" }; println("TAVERN built=$tv visits=${sim.tavernVisits} dice=${sim.tavDice} wrestles=${sim.tavWrestles} tales=${sim.tavTales} songs=${sim.tavSongs} nights=${sim.tavNights}") }
     run { println("RESEARCH studies=${sim.studyCount} points=${sim.research} libs=${sim.buildings.count { it.type == "library" }} techs=${sim.techs.size}/${sim.allTechs.size} higher=${sim.higherTechs()} age=${sim.age} list=${sim.techs.joinToString(",")}") }
+    println("SIGHTS samples=$sightSamples withSight=$sightAny max=$sightMax kinds=${sightKinds.size} $sightKinds")
     println("DEEDS ${sim.deeds.size}/${sim.allDeeds.size} renown=${sim.renownTitle()} ${sim.deeds}")
     run {
         val keys = perP.keys.sorted()
