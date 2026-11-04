@@ -237,6 +237,11 @@ fun main(args: Array<String>) {
     }
     run {
         val cw = sim.critters
+        val rk = (0..4).associate { Rank.name(it).ifEmpty { "none" } to cw.critters.count { c -> c.rank == it } }
+        println("RANKS kept=${cw.critters.size} byRank=$rk promotions=${cw.rankUps.toList()} topWins=${cw.critters.map { it.wins }.sortedDescending().take(5)} veterans=${cw.critters.count { it.rank > 0 }}")
+    }
+    run {
+        val cw = sim.critters
         val st = cw.charmStats
         val kinds = (1..Charm.COUNT).associate { Charm.name(it) to cw.critters.count { c -> c.charm == it } }
         fun pct(w: Int, f: Int) = if (f == 0) "n/a" else "${w * 100 / f}%"

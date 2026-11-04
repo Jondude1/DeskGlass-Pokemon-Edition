@@ -158,6 +158,25 @@ class CritterWorld(private val sim: CivSim) {
     var charmsSpare = 0
     /** Wild fights fought and won by critters with and without a charm [with fights, with wins, without fights, without wins]. */
     val charmStats = IntArray(4)
+    /** Veteran promotions announced so far, by rank (index 1..4). */
+    val rankUps = IntArray(5)
+
+    /** Celebrates a critter that has just won enough to earn the next veteran medal. */
+    private fun checkRank(c: Critter) {
+        val r = c.rank
+        if (r <= c.rankSeen) return
+        c.rankSeen = r
+        rankUps[r.coerceIn(0, 4)]++
+        val b = bodyFor(c)
+        pop(b.x, b.y - 1.8f, Rank.title(r), Rank.color(r))
+        val owner = sim.villagers.firstOrNull { it.id == c.owner }
+        sim.note("${c.name} the ${c.species.name} earns a ${Rank.title(r)} after ${c.wins} victories: +${Rank.bonus(r)}% strength.")
+        owner?.let {
+            it.remember("${c.name} earned a ${Rank.title(r)}")
+            it.happiness = min(100f, it.happiness + 4f)
+        }
+        sim.fx.add(Fx("spawn", b.x, b.y, sim.time, 1.0f))
+    }
     fun alphaKept(): Int = critters.count { it.alpha }
     var shinyHatched = 0
     private val shinyAnnounced = HashSet<Int>()
@@ -584,6 +603,7 @@ class CritterWorld(private val sim: CivSim) {
         if (c != null) {
             c.gainXp(30 + c.level * 4)
             c.wins++
+            checkRank(c)
             checkEvolve(c)
             if (c.charm == 0) giveCharm(c, w, "a tournament prize") else dropCharm(w, 1f, "a tournament prize")
         }
@@ -1743,6 +1763,7 @@ class CritterWorld(private val sim: CivSim) {
         d.natureIdx = Nature.ALL.indexOf(c.nature)
         d.alpha = c.alpha
         d.charm = c.charm
+        d.wins = c.wins
         d.heal()
         return d
     }
@@ -2194,6 +2215,7 @@ class CritterWorld(private val sim: CivSim) {
                     val gain = (14 + foe.level * 5 + foe.species.stage * 6) * (if (foe.alpha) 2 else 1)
                     val lv = mine.gainXp(gain)
                     mine.wins++
+                    checkRank(mine)
                     mine.bond++
                     e.result = "won"
                     e.banner = "${mine.name} wins! +$gain XP"
@@ -2245,6 +2267,7 @@ class CritterWorld(private val sim: CivSim) {
                 val l1 = c1.gainXp(x1)
                 val l2 = c2.gainXp(x2)
                 if (w1) c1.wins++ else c2.wins++
+                checkRank(if (w1) c1 else c2)
                 val win = if (w1) c1 else c2
                 e.result = "spar"
                 e.banner = "${win.name} takes the match!"
@@ -2485,6 +2508,7 @@ class CritterWorld(private val sim: CivSim) {
                     c.companion = j.optBoolean("comp", false)
                     c.nick = j.optString("nick", "")
                     c.wins = j.optInt("wins", 0)
+                    c.rankSeen = c.rank
                     c.bond = j.optInt("bond", 0)
                     c.shiny = j.optBoolean("shiny", false)
                     if (c.shiny) shinyAnnounced.add(c.uid)

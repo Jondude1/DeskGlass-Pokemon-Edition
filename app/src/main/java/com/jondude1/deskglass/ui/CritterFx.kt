@@ -22,6 +22,7 @@ import com.jondude1.deskglass.sim.Villager
 import com.jondude1.deskglass.sim.CritterWorld
 import com.jondude1.deskglass.sim.Dex
 import com.jondude1.deskglass.sim.Enc
+import com.jondude1.deskglass.sim.Rank
 import com.jondude1.deskglass.sim.EvolveScene
 import com.jondude1.deskglass.sim.Wild
 import kotlin.math.PI
@@ -210,6 +211,29 @@ private fun DrawScope.charmGlint(cx: Float, base: Float, wd: Float, ht: Float, t
     }
 }
 
+/** A little ribbon and medal at the chest of a veteran critter; platinum ones also glint. */
+private fun DrawScope.rankMedal(cx: Float, base: Float, wd: Float, ht: Float, t: Float, ps: Float, c: Critter) {
+    val r = c.rank
+    if (r <= 0) return
+    val k = Color(Rank.color(r))
+    val bx = cx - wd * 0.40f
+    val by = base - ht * 0.38f
+    val ribbon = if (r % 2 == 1) Color(0xFFC0392B) else Color(0xFF2F6FB5)
+    drawRect(ribbon, Offset(bx - ps * 1.4f, by - ps * 2.4f), Size(ps * 1.4f, ps * 2.6f))
+    drawRect(ribbon.copy(alpha = 0.85f), Offset(bx, by - ps * 2.4f), Size(ps * 1.4f, ps * 2.6f))
+    drawRect(Color(0xFF2A2024), Offset(bx - ps * 1.9f, by - ps * 0.1f), Size(ps * 3.8f, ps * 3.8f))
+    drawRect(k, Offset(bx - ps * 1.4f, by + ps * 0.4f), Size(ps * 2.8f, ps * 2.8f))
+    drawRect(Color.White.copy(alpha = 0.55f), Offset(bx - ps * 0.9f, by + ps * 0.8f), Size(ps * 0.9f, ps * 0.9f))
+    if (r >= 3) {
+        val g = (sin(t * 2.6f + c.uid * 1.3f) * 0.5f + 0.5f)
+        if (g > 0.75f) {
+            val a = (g - 0.75f) * 4f
+            drawRect(Color.White.copy(alpha = a), Offset(bx - ps * 0.5f, by - ps * 1.2f), Size(ps, ps * 6.4f))
+            drawRect(Color.White.copy(alpha = a), Offset(bx - ps * 3.2f, by + ps * 1.4f), Size(ps * 6.4f, ps))
+        }
+    }
+}
+
 private fun DrawScope.alphaAura(cx: Float, base: Float, wd: Float, ht: Float, t: Float, ps: Float, seed: Int, alpha: Float) {
     val pulse = 0.5f + 0.5f * sin(t * 3f + seed)
     val red = Color(0xFFFF4A3A)
@@ -265,6 +289,7 @@ private fun DrawScope.drawKeptCritter(
     if (c.shiny) shinySparkle(cx, base, wd, ht, t, ps, c.uid, 1f)
     if (c.alpha) alphaAura(cx, base, wd, ht, t, ps, c.uid, 0.8f)
     if (c.charm != 0 && !tired) charmGlint(cx, base, wd, ht, t, ps, c)
+    if (c.rank > 0 && !tired) rankMedal(cx, base, wd, ht, t, ps, c)
     if (c.companion && !tired) {
         // a little bright mark above a companion, so you can tell who walks with whom
         val bx = cx

@@ -29,6 +29,7 @@ import com.jondude1.deskglass.sim.CType
 import com.jondude1.deskglass.sim.Charm
 import com.jondude1.deskglass.sim.CivSim
 import com.jondude1.deskglass.sim.Dex
+import com.jondude1.deskglass.sim.Rank
 
 /** The Critterdex: every critter the village keeps, and all 89 species by evolution line. */
 @Composable
@@ -87,7 +88,7 @@ fun CritterDexScreen(sim: CivSim, onBack: () -> Unit) {
                             color = Glass.InkDim, fontSize = 13.sp,
                         )
                         Text(
-                            "HP ${c.hp}/${c.maxHp} · XP ${c.xp}/${Dex.xpNeed(c.level)} · ${c.wins} wins" +
+                            "HP ${c.hp}/${c.maxHp} · XP ${c.xp}/${Dex.xpNeed(c.level)} · ${c.wins} wins" + (if (c.rank > 0) " · ${Rank.title(c.rank)}" else "") +
                                 (if (c.species.evolveTo > 0 && c.owner >= 0) " · trust ${c.bond}/${c.trustNeeded()}" else " · trust ${c.bond}") + " · " + c.species.t1.job,
                             color = Glass.InkFaint, fontSize = 12.sp,
                         )

@@ -468,7 +468,11 @@ class Critter(val uid: Int, var sp: Int, var level: Int) {
     var alpha = false
     /** The charm it carries into battle (Charm.SUNBERRY etc.), 0 for none. */
     var charm = 0
-    private val statPct: Int get() = (if (shiny) 108 else 100) + (if (alpha) 10 else 0)
+    /** Veteran rank earned by victories: 0 none, 1 Bronze (2 wins), 2 Silver (5), 3 Gold (10), 4 Platinum (20). */
+    val rank: Int get() = Rank.of(wins)
+    /** The rank already announced, so a promotion is celebrated exactly once. */
+    var rankSeen = 0
+    private val statPct: Int get() = (if (shiny) 108 else 100) + (if (alpha) 10 else 0) + Rank.bonus(rank)
     /** Copy of another critter's nature (battle doubles have no id of their own); -1 means derive it from the id. */
     var natureIdx = -1
     val nature: Nature get() = if (natureIdx in Nature.ALL.indices) Nature.ALL[natureIdx] else Nature.of(uid)
@@ -523,6 +527,16 @@ class Critter(val uid: Int, var sp: Int, var level: Int) {
         sp = to
         hp = max(1, (maxHp * frac).toInt())
     }
+}
+
+/** Veteran ranks: a critter that keeps winning earns a medal, and a few percent more strength with it. */
+object Rank {
+    private val NEED = intArrayOf(2, 5, 10, 20)
+    fun of(wins: Int): Int = NEED.count { wins >= it }
+    fun bonus(r: Int): Int = when (r) { 1 -> 3; 2 -> 6; 3 -> 10; 4 -> 15; else -> 0 }
+    fun name(r: Int): String = when (r) { 1 -> "Bronze"; 2 -> "Silver"; 3 -> "Gold"; 4 -> "Platinum"; else -> "" }
+    fun color(r: Int): Long = when (r) { 1 -> 0xFFC8844AL; 2 -> 0xFFD6DCE4L; 3 -> 0xFFFFD34DL; 4 -> 0xFF8FE8FFL; else -> 0xFFFFFFFFL }
+    fun title(r: Int): String = when (r) { 1 -> "Bronze Medal"; 2 -> "Silver Medal"; 3 -> "Gold Medal"; 4 -> "Platinum Star"; else -> "" }
 }
 
 /** Little keepsakes a critter can carry into a fight: each has one clear effect. */
