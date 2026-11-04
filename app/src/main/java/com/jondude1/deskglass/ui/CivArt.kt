@@ -307,6 +307,12 @@ class CivArt {
         'p' to 0xFFD9A066.toInt(), 'b' to 0xFF4A82B5.toInt(),
         'g' to 0xFF4F9E3F.toInt(), 'G' to 0xFF3A7A30.toInt(),
     ))
+    val smokehouse = sprite(SMOKEHOUSE, mapOf(
+        'r' to 0xFF7A4B2A.toInt(), 'R' to 0xFF55341C.toInt(), 'w' to 0xFFB98A4E.toInt(), 'W' to 0xFF6E4A24.toInt(),
+        'd' to 0xFF2A1E1A.toInt(), 'f' to 0xFFA9BCCF.toInt(), 'F' to 0xFFD98A4E.toInt(),
+        's' to 0xFF9A9AA2.toInt(), 'S' to 0xFF6C6C76.toInt(),
+        'g' to 0xFF4F9E3F.toInt(), 'G' to 0xFF3A7A30.toInt(),
+    ))
     val yard = sprite(YARD, mapOf(
         'h' to 0xFFE2C070.toInt(), 'H' to 0xFFB8903C.toInt(), 'r' to 0xFFC8402E.toInt(),
         'F' to 0xFF6E4A24.toInt(), 'f' to 0xFFA8793E.toInt(), 'a' to 0xFFD9C08A.toInt(), 'A' to 0xFFB8A070.toInt(),
@@ -1122,6 +1128,18 @@ class CivArt {
             "..cCcdooDcCc..".replace("D","d"),
             "..cCcddddcCc..",
             ".ttpbtpWtpbtt.",
+            "gGggGgggGggGgg",
+        )
+        val SMOKEHOUSE = listOf(
+            "......sS......",
+            "......sS......",
+            "...rrrrrrrr...",
+            "..rRrRrRrRrR..",
+            ".rrrrrrrrrrrr.",
+            ".WwFwFwFwwddW.",
+            ".WwfwfwfwwddW.",
+            ".WwwwwwwwwddW.",
+            ".WWWWWWWWWWWW.",
             "gGggGgggGggGgg",
         )
         val BELFRY = listOf(

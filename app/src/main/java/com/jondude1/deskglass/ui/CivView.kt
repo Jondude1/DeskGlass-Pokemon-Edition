@@ -606,6 +606,7 @@ private fun DrawScope.drawWorld(
                 "stage" -> art.stage
                 "bath" -> art.bath
                 "kiln" -> art.kiln
+                "smokehouse" -> art.smokehouse
                 "yard" -> art.yard
                 "loom" -> art.loom
                 "fountain" -> art.fountain
@@ -1035,6 +1036,19 @@ private fun DrawScope.drawWorld(
                     drawCircle(Color(0xFFFFC857).copy(alpha = 0.9f * (1f - ph)), radius = ps * 0.5f, center = Offset(cx + (k - 1) * ps * 1.5f, baseY - hh * 0.45f - ph * hh * 0.5f))
                 }
                 if (dark > 0.1f) drawCircle(Color(0xFFFFB45A).copy(alpha = min(0.34f, dark * 0.55f)), radius = ts * 0.9f, center = Offset(cx, baseY - hh * 0.4f))
+            }
+            if (b.type == "smokehouse") {
+                // grey smoke curls up from the chimney (thick while a batch is smoking), warm embers glow at the door, night glow
+                val smokers = sim.villagers.count { it.action == "smoke_fish" && it.phase == "working" && kotlin.math.hypot(it.x - (b.x + 0.5f), it.y - (b.y + 0.5f)) < 2.5f }
+                for (k in 0 until 4 + smokers * 3) {
+                    val ph = (t * 0.28f + k * 0.23f) % 1f
+                    val sx = cx + w * 0.02f + kotlin.math.sin(ph * 4f + k) * ps * (1.2f + ph * 2f)
+                    val sy = baseY - hh * 0.95f - ph * hh * 1.1f
+                    drawCircle(Color(0xFFB8B8BE).copy(alpha = (0.28f + smokers * 0.08f) * (1f - ph)), radius = ps * (1.1f + ph * 2.8f), center = Offset(sx, sy))
+                }
+                val ember = 0.45f + 0.25f * kotlin.math.sin(t * 7f)
+                drawCircle(Color(0xFFFF8A2E).copy(alpha = ember), radius = ps * 1.1f, center = Offset(cx + w * 0.26f, baseY - hh * 0.22f))
+                if (dark > 0.1f) drawCircle(Color(0xFFFFB45A).copy(alpha = min(0.3f, dark * 0.5f)), radius = ts * 0.8f, center = Offset(cx, baseY - hh * 0.35f))
             }
             if (b.type == "yard") {
                 // the straw dummy shudders under each blow, dust and wood chips fly, a pennant waves; trainers add stars and a night lantern
