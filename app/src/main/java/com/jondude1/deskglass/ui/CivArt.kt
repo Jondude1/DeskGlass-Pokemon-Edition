@@ -449,6 +449,11 @@ class CivArt {
         's' to 0xFFD2843A.toInt(), 'S' to 0xFF96521E.toInt(), 'k' to 0xFF2A1A10.toInt(), 'r' to 0xFFFF4A3A.toInt(),
         'g' to 0xFF8CD84A.toInt(), 'c' to 0xFFE8B066.toInt(),
     ))
+    val ram = sprite(RAM, mapOf(
+        'c' to 0xFF8A4A2A.toInt(), 'C' to 0xFF5E3018.toInt(), 'w' to 0xFFB87C48.toInt(), 'W' to 0xFF5A3A20.toInt(),
+        'i' to 0xFF8E96A2.toInt(), 'I' to 0xFF4C525C.toInt(), 'l' to 0xFFD0D6E0.toInt(), 'r' to 0xFFC8392E.toInt(),
+        'k' to 0xFF1E1812.toInt(),
+    ))
     val stag = sprite(STAG, mapOf(
         'b' to 0xFF9A6234.toInt(), 'B' to 0xFF603A1E.toInt(), 'c' to 0xFFE8D2A0.toInt(), 'm' to 0xFFD0802C.toInt(),
         'a' to 0xFFEFE4BC.toInt(), 'A' to 0xFFB6A474.toInt(), 'k' to 0xFF1E140C.toInt(), 'r' to 0xFFFF5A3A.toInt(),
@@ -1561,6 +1566,20 @@ class CivArt {
             ".kgyyyyyyyygk.",
             "gGk.kggggk.kGg",
             "ggg.k....k.ggg",
+        )
+        val RAM = listOf(
+            "....cccccccccc..",
+            "...cCcCcCcCcCcc.",
+            "..cccccccccccccc",
+            "..W...r....r..W.",
+            "lIiwwwwrwwwwrwW.",
+            "IiiwwwwwwwwwwwW.",
+            "lIiwwwwrwwwwrwW.",
+            "..W...W....W..W.",
+            "..W...W....W..W.",
+            "..kWk.kWk..kWk..",
+            "..WkW.WkW..WkW..",
+            "..kWk.kWk..kWk..",
         )
         val STAG = listOf(
             "a..a.a.........",

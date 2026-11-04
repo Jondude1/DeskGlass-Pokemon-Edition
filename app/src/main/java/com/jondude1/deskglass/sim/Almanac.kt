@@ -13,7 +13,7 @@ class Almanac {
     var lastPageAt = -999.0
 
     private fun slain(s: CivSim): Int = s.ogresSlain + s.bossesSlain + s.warlordsSlain + s.golemsSlain + s.lichesSlain + s.reaversSlain +
-        s.trollsSlain + s.harpiesSlain + s.spidersSlain + s.wormsSlain + s.scorpionsSlain + s.toadsSlain + s.stagsSlain + s.shamansSlain
+        s.trollsSlain + s.harpiesSlain + s.spidersSlain + s.wormsSlain + s.scorpionsSlain + s.toadsSlain + s.stagsSlain + s.ramsSlain + s.shamansSlain
 
     private fun take(s: CivSim): IntArray = intArrayOf(
         s.villagers.size, s.babiesBorn, s.buried, s.raidsRepelled, slain(s), s.expWins, s.fetesHeld, s.weds,
