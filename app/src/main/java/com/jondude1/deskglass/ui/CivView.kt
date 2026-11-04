@@ -612,6 +612,7 @@ private fun DrawScope.drawWorld(
                 "museum" -> art.museum
                 "guild" -> art.guild
                 "observatory" -> art.observatory
+                "lighthouse" -> art.lighthouse
                 "yard" -> art.yard
                 "loom" -> art.loom
                 "fountain" -> art.fountain
@@ -1130,6 +1131,37 @@ private fun DrawScope.drawWorld(
                     drawCircle(Color(0xFFFFC857).copy(alpha = 0.9f * (1f - ph)), radius = ps * 0.5f, center = Offset(cx + (k - trainers * 1.5f) * ps * 1.5f, baseY - hh * 0.4f - ph * hh * 0.45f))
                 }
                 if (dark > 0.1f) drawCircle(Color(0xFFFFD27A).copy(alpha = min(0.3f, dark * 0.5f)), radius = ts * 0.9f, center = Offset(cx, baseY - hh * 0.4f))
+            }
+            if (b.type == "lighthouse") {
+                // a lit lamp sweeps two pale beams round the lake and land at dusk, at night and in fog or rain; the keeper sends up sparks, a warm halo glows
+                val lit = sim.beaconLit()
+                val lx = cx
+                val ly = baseY - hh * 0.72f
+                val seen = dark > 0.12f || sim.foggy() || sim.raining()
+                if (lit) {
+                    val keepers = sim.villagers.count { it.action == "tend_beacon" && it.phase == "working" && kotlin.math.hypot(it.x - (b.x + 0.5f), it.y - (b.y + 0.5f)) < 2.5f }
+                    drawCircle(Color(0xFFFFE27A).copy(alpha = 0.16f + 0.1f * kotlin.math.sin(t * 5f)), radius = ts * 0.9f, center = Offset(lx, ly))
+                    if (seen) {
+                        val a0 = t * 0.9f
+                        val reach = ts * (if (sim.foggy()) 7.5f else 10f)
+                        val ba = (0.12f + dark * 0.28f + (if (sim.foggy()) 0.1f else 0f)).coerceAtMost(0.45f)
+                        for (side in 0 until 2) {
+                            val ang = a0 + side * 3.14159f
+                            val ex = lx + kotlin.math.cos(ang) * reach
+                            val ey = ly + kotlin.math.sin(ang) * reach * 0.55f
+                            drawLine(Color(0xFFFFF0B0).copy(alpha = ba * 0.35f), Offset(lx, ly), Offset(ex, ey), strokeWidth = ps * 7f)
+                            drawLine(Color(0xFFFFF0B0).copy(alpha = ba * 0.6f), Offset(lx, ly), Offset(ex, ey), strokeWidth = ps * 3.8f)
+                            drawLine(Color(0xFFFFFAD8).copy(alpha = ba), Offset(lx, ly), Offset(ex, ey), strokeWidth = ps * 1.6f)
+                            drawCircle(Color(0xFFFFF4C0).copy(alpha = ba * 0.7f), radius = ps * 3f, center = Offset(ex, ey))
+                        }
+                    }
+                    for (k in 0 until keepers * 3) {
+                        val ph = (t * 1.1f + k * 0.31f) % 1f
+                        drawCircle(Color(0xFFFFD27A).copy(alpha = 0.9f * (1f - ph)), radius = ps * 0.5f, center = Offset(lx + (k - keepers * 1.5f) * ps * 1.2f, ly - ph * hh * 0.35f))
+                    }
+                } else if (dark > 0.2f) {
+                    drawCircle(Color(0xFF4A4F66).copy(alpha = 0.35f), radius = ps * 1.6f, center = Offset(lx, ly))
+                }
             }
             if (b.type == "observatory") {
                 // the dome slit sweeps a pale beam across the sky, stars wink above it at night, observers send up bright sparks, window glows

@@ -330,6 +330,12 @@ class CivArt {
         'f' to 0xFF9A9AA2.toInt(), 'F' to 0xFF6C6C76.toInt(),
         'g' to 0xFF4F9E3F.toInt(), 'G' to 0xFF3A7A30.toInt(),
     ))
+    val lighthouse = sprite(LIGHTHOUSE, mapOf(
+        'k' to 0xFF3A3F4E.toInt(), 'l' to 0xFFFFE27A.toInt(), 'L' to 0xFFF2B93A.toInt(),
+        'w' to 0xFFF1EEE4.toInt(), 'W' to 0xFFC4C0B4.toInt(), 'r' to 0xFFC8402E.toInt(), 'R' to 0xFF8E2A1E.toInt(),
+        'd' to 0xFF3A2A1E.toInt(), 's' to 0xFF8A8D99.toInt(),
+        'g' to 0xFF4F9E3F.toInt(), 'G' to 0xFF3A7A30.toInt(),
+    ))
     val observatory = sprite(OBSERVATORY, mapOf(
         'b' to 0xFF3F5E86.toInt(), 'B' to 0xFF2A4166.toInt(), 't' to 0xFFD9B04A.toInt(), 'T' to 0xFF9A7A2A.toInt(),
         's' to 0xFF9A9AA2.toInt(), 'S' to 0xFF6C6C76.toInt(), 'w' to 0xFFF2D56B.toInt(), 'd' to 0xFF3A2A1E.toInt(),
@@ -1164,6 +1170,24 @@ class CivArt {
             "..cCcddddcCc..",
             ".ttpbtpWtpbtt.",
             "gGggGgggGggGgg",
+        )
+        val LIGHTHOUSE = listOf(
+            "............",
+            ".....kk.....",
+            "....kkkk....",
+            "...kkkkkk...",
+            "...lLllLl...",
+            "...lwllwl...",
+            "..kkkkkkkk..",
+            "...wwwwWw...",
+            "...rrrrRr...",
+            "...wwwwWw...",
+            "..wwwwwwWw..",
+            "..rrrrrrRr..",
+            "..wwwwwwWw..",
+            "..wwwddwWw..",
+            ".ssssssssss.",
+            "gGggGgggGggG",
         )
         val OBSERVATORY = listOf(
             ".......tT.....",

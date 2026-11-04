@@ -156,6 +156,7 @@ fun main(args: Array<String>) {
     println("LOOM built=${sim.buildings.count { it.type == "loom" }} weaves=${sim.loomWeaves} cloaks=${sim.loomCloaks} hides=${sim.hides} adults=${sim.villagers.count { !sim.isChild(it) }}")
     println("YARD built=${sim.buildings.count { it.type == "yard" }} sessions=${sim.yardSessions} trained=${sim.critters.yardTrained} spars=${sim.yardSpars} levelUps=${sim.critters.yardLevelUps} xp=${sim.critters.yardXp}")
     println("VOYAGE docks=${sim.buildings.count { it.type == "dock" }} voyages=${sim.voyages} finds=${sim.voyFinds} serpents=${sim.voyScares} crowd=${sim.voyCrowd} active=${sim.voyActive} routes=${sim.voyRouteLens()}")
+    println("LIGHTHOUSE built=${sim.buildings.count { it.type == "lighthouse" }} tends=${sim.beaconTends} nightWatch=${sim.beaconNightWatch} fogSails=${sim.beaconFogSails} nightSails=${sim.beaconNightSails} scares=${sim.beaconScares} guided=${sim.beaconGuided} voyages=${sim.voyages} lit=${sim.beaconLit()}")
     println("GUILD built=${sim.buildings.count { it.type == "guild" }} works=${sim.guildWorks} rank=${sim.guildRank} spent=${sim.guildSpent} wood=${sim.wood} stone=${sim.stone} age=${sim.age}")
     println("MUSEUM built=${sim.buildings.count { it.type == "museum" }} visits=${sim.museumVisits} talks=${sim.museumTalks} shown=${Integer.bitCount(sim.museumShown)}/${Integer.bitCount(sim.exhibitMask())} age=${sim.age}")
     println("MARKETDAY market=${sim.buildings.count { it.type == "market" }} visits=${sim.stallVisits} days=${sim.stallDays} deals=${sim.stallDeals} bargains=${sim.stallBargains}")
