@@ -465,6 +465,10 @@ class CivArt {
         'i' to 0xFF8E96A2.toInt(), 'I' to 0xFF4C525C.toInt(), 'l' to 0xFFD0D6E0.toInt(), 'r' to 0xFFC8392E.toInt(),
         'k' to 0xFF1E1812.toInt(),
     ))
+    val stormling = sprite(STORMLING, mapOf(
+        'l' to 0xFF8E96B4.toInt(), 'w' to 0xFFC6CCE0.toInt(), 'd' to 0xFF4A5068.toInt(), 'D' to 0xFF2C3044.toInt(),
+        'y' to 0xFFFFE070.toInt(), 'Y' to 0xFFFFB020.toInt(), 'k' to 0xFF14161E.toInt(),
+    ))
     val stag = sprite(STAG, mapOf(
         'b' to 0xFF9A6234.toInt(), 'B' to 0xFF603A1E.toInt(), 'c' to 0xFFE8D2A0.toInt(), 'm' to 0xFFD0802C.toInt(),
         'a' to 0xFFEFE4BC.toInt(), 'A' to 0xFFB6A474.toInt(), 'k' to 0xFF1E140C.toInt(), 'r' to 0xFFFF5A3A.toInt(),
@@ -1615,6 +1619,19 @@ class CivArt {
             "..kWk.kWk..kWk..",
             "..WkW.WkW..WkW..",
             "..kWk.kWk..kWk..",
+        )
+        val STORMLING = listOf(
+            "....lllll.....",
+            "..llwwwwwll...",
+            ".lwwwwwwwwwwl.",
+            "lwwwwwwwwwwwwl",
+            "lddddddddddddl",
+            "dDyyDddDyyDddd",
+            "dDDDkkkkkkDDDd",
+            ".dDDDDDDDDDDd.",
+            "..ddDDDDDDdd..",
+            "...y..Y..y....",
+            "....y.....Y...",
         )
         val STAG = listOf(
             "a..a.a.........",
