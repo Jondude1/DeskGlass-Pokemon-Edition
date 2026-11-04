@@ -1423,6 +1423,7 @@ private fun DrawScope.drawWorld(
     graveyard(sim, geo)
     cathedral(sim, geo)
     reaverShip(sim, geo)
+    voyageGalleon(sim, geo)
     trollRocks(sim, geo)
     spiderWebs(sim, geo)
     wormCraters(sim, geo)
