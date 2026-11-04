@@ -470,6 +470,32 @@ fun DrawScope.drawVillagers(sim: CivSim, art: CivArt, g: Geo, sun: Sun) {
                 drawRect(hc, Offset(hx - ps * 0.6f, hy + ps * 1.4f), Size(ps * 1.2f, ps * 0.9f))
             }
         }
+        if (working && v.action == "hearth_game") {
+            // a little pebble board on the ground between the players, or a steaming mug for a solo mender
+            val warm = 0.5f + 0.5f * sin(t * 3f + v.id)
+            drawCircle(Color(0xFFFFB347).copy(alpha = 0.10f + 0.08f * warm), radius = ps * 9f, center = Offset(cx, feetY - ps * 2f))
+            if (v.id % 2 == 0) {
+                val bx = cx + fx * ps * 5f
+                val by = feetY - ps * 1.5f
+                drawRect(Color(0xFF8A5A2B), Offset(bx - ps * 4.5f, by - ps * 2.5f), Size(ps * 9f, ps * 5f))
+                drawRect(Color(0xFFD9B87A), Offset(bx - ps * 3.7f, by - ps * 1.8f), Size(ps * 7.4f, ps * 3.6f))
+                for (k in 0 until 5) {
+                    val hop = if (((t * 0.8f + k * 0.37f + v.id * 0.21f) % 1f) < 0.12f) ps * 1.2f else 0f
+                    val px = bx + (k - 2) * ps * 1.4f
+                    val py = by + (if (k % 2 == 0) -ps * 0.6f else ps * 0.7f) - hop
+                    drawCircle(if (k % 2 == 0) Color(0xFF2E2A28) else Color(0xFFF2EEE6), radius = ps * 0.62f, center = Offset(px, py))
+                }
+            } else {
+                val mx = cx + fx * ps * 3.5f
+                val my = feetY - ps * 3f
+                drawRect(Color(0xFFB5503A), Offset(mx - ps * 1.2f, my - ps * 1.6f), Size(ps * 2.4f, ps * 2.2f))
+                drawRect(Color(0xFFE6D3B1), Offset(mx - ps * 0.8f, my - ps * 1.8f), Size(ps * 1.6f, ps * 0.5f))
+                for (k in 0 until 3) {
+                    val sp = (t * 0.7f + k * 0.33f + v.id * 0.13f) % 1f
+                    drawCircle(Color.White.copy(alpha = 0.55f * (1f - sp)), radius = ps * (0.5f + 0.7f * sp), center = Offset(mx + sin(sp * 6f + k) * ps * 0.8f, my - ps * (2.4f + sp * 5f)))
+                }
+            }
+        }
         if (working && v.action == "stargaze") {
             for (k in 0 until 4) {
                 val tw = 0.5f + 0.5f * sin(t * 3f + k * 1.7f + v.id)
