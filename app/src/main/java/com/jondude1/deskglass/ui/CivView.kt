@@ -349,7 +349,7 @@ private fun DrawScope.banner(x: Float, baseY: Float, h: Float, c: Color, ps: Flo
     val parts = 4
     val cw = ps * 1.3f
     for (i in 0 until parts) {
-        val off = kotlin.math.sin(t * 4f + seed + i * 0.9f) * ps * 0.5f
+        val off = kotlin.math.sin(t * (4f + 4f * windPush(t)) + seed + i * 0.9f) * ps * (0.5f + 0.7f * windPush(t))
         val fx0 = x + ps * 0.9f + i * cw
         drawRect(c, Offset(fx0, baseY - h + off), Size(cw + 0.5f, ps * 3.2f))
         drawRect(Color.Black.copy(alpha = 0.18f), Offset(fx0, baseY - h + off + ps * 2.2f), Size(cw + 0.5f, ps))
@@ -509,7 +509,7 @@ private fun DrawScope.drawWorld(
                     shadow(cx, baseY, shadowW * ps, 3.5f * ps)
                     castShadow(art, sp, cx, baseY, w, hh, sun)
                 }
-                val sway = if (swaying) kotlin.math.sin(t * 1.3f + (h % 7)) * ps * 0.6f else 0f
+                val sway = if (swaying) kotlin.math.sin(t * (1.3f + 2.2f * windPush(t)) + (h % 7)) * ps * (0.6f + 1.2f * windPush(t)) else 0f
                 img(sp, cx - w / 2f + sway, baseY - hh, w, hh)
             }
         }
@@ -1737,6 +1737,9 @@ private fun DrawScope.drawWorld(
         }
     }
 
+    // the wind: gust streaks and whatever the season sends flying
+    windBorne(sim, geo, vx0, vx1, vy0, vy1)
+
     // drifting cloud shadows in daylight
     val cloudAlpha = 0.10f * (1f - dark / 0.55f)
     if (cloudAlpha > 0.005f) {
@@ -1762,7 +1765,7 @@ private fun DrawScope.drawWorld(
             val rise = ph * ts * 2.6f
             val sway = kotlin.math.sin(t * 1.3f + k * 2f + b.y) * ts * 0.18f * ph
             val a = (1f - ph) * 0.32f
-            drawCircle(Color(0xFFD8D4D0).copy(alpha = a), radius = ts * (0.10f + 0.16f * ph), center = Offset(bx + sway + ph * ts * 0.3f, by - rise))
+            drawCircle(Color(0xFFD8D4D0).copy(alpha = a), radius = ts * (0.10f + 0.16f * ph), center = Offset(bx + sway + ph * ts * (0.3f + 1.4f * windPush(t)), by - rise))
         }
     }
 
