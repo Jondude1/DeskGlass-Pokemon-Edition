@@ -447,6 +447,7 @@ private fun DrawScope.drawWorld(
     }
 
     lifeUnderlay(sim, art, geo)
+    lampPosts(sim, geo)
 
     // ships sail along open water
     var shipN = 0
@@ -1940,7 +1941,12 @@ private fun DrawScope.drawWorld(
                     b.type == "tower" -> light(bx, by - ts * 0.8f, ts * 4f * flick, 0.8f)
                     b.type == "hut" && b.era >= 1 -> light(bx, by + ts * 0.1f, ts * 2.2f, 0.6f)
                     b.type == "hall" -> light(bx, by, ts * 3.4f, 0.75f)
+                    else -> { val lg = com.jondude1.deskglass.sim.Lamps.lightOf(b.type); if (lg != null) light(bx, by, ts * lg[0] * flick, lg[1]) }
                 }
+            }
+            for (li in com.jondude1.deskglass.sim.Lamps.sites(sim)) {
+                val lf = com.jondude1.deskglass.sim.Lamps.lit(dark, li)
+                if (lf > 0f) light(ox + ((li % GW) + 0.5f) * ts, oy + ((li / GW) + 0.4f) * ts, ts * 2.1f, 0.6f * lf)
             }
             for (k in sim.kingdoms) {
                 if (k.id == 0 || k.fallen) continue
@@ -1972,6 +1978,7 @@ private fun DrawScope.drawWorld(
                 blendMode = BlendMode.Plus,
             )
         }
+        lampGlow(sim, geo)
         for (b in sim.buildings) {
             if (b.type != "hut") continue
             val wx = ox + (b.x + 0.5f) * ts
