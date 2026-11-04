@@ -517,6 +517,8 @@ class CivSim(
     val drops = ArrayList<Drop>()
     /** Wild critters, companions, helpers, training and evolution. */
     val critters = CritterWorld(this)
+    /** Dawn digests of the last 40 days (see Almanac.kt). */
+    val almanac = Almanac()
     /** Ordinary animals that make the land feel alive. Not saved. */
     val fauna = Fauna(this)
     /** A travelling guest (merchant, bard or pilgrim) who walks in, visits the fire and walks on. */
@@ -811,6 +813,7 @@ class CivSim(
         explored = 0
         age = 0
         chronicle.clear()
+        almanac.reset()
         predators.clear()
         time = DAY_LEN * 0.08
         lastBirth = time
@@ -7742,6 +7745,7 @@ class CivSim(
         time += dt
         weatherTick()
         councilTick()
+        almanac.check(this)
         gloryTick()
         starTick()
         shroomTick()
@@ -8000,6 +8004,7 @@ class CivSim(
             o.put("villagers", vs)
             o.put("log", JSONArray(log.takeLast(20)))
             o.put("critters", critters.toJson())
+            o.put("almanac", almanac.encode())
             val tmp = File(saveFile.parentFile, saveFile.name + ".tmp")
             tmp.writeText(o.toString())
             tmp.renameTo(saveFile)
@@ -8060,6 +8065,7 @@ class CivSim(
             chronicle.clear()
             val ch = o.optJSONArray("chron")
             if (ch != null) for (i in 0 until ch.length()) chronicle.add(ch.getString(i))
+            almanac.decode(o.optString("almanac", ""))
             villagers.clear()
             val vs = o.getJSONArray("villagers")
             for (i in 0 until vs.length()) {

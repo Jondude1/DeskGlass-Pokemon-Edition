@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.sp
 import com.jondude1.deskglass.sim.CivSim
 import kotlinx.coroutines.delay
 
-private val BOOK_TABS = listOf("Deeds", "Lore", "Heroes", "Records", "Annals")
+private val BOOK_TABS = listOf("Deeds", "Lore", "Heroes", "Records", "Days", "Annals")
 
 /** The Village Book: every deed (done and still to do), the heroes, lifetime records and the long chronicle. */
 @Composable
@@ -55,6 +55,7 @@ fun VillageBookScreen(sim: CivSim, onBack: () -> Unit) {
                 1 -> lorePage(sim)
                 2 -> heroesPage(sim)
                 3 -> recordsPage(sim)
+                4 -> almanacPage(sim)
                 else -> annalsPage(sim)
             }
             Spacer(Modifier.height(24.dp))
@@ -172,5 +173,20 @@ private fun annalsPage(sim: CivSim) {
     if (sim.chronicle.isEmpty()) Text("The pages are blank.", color = Glass.InkFaint, fontSize = 13.sp)
     for (line in sim.chronicle.toList().reversed()) {
         Text(line, color = Glass.InkDim, fontSize = 13.sp)
+    }
+}
+
+@Composable
+private fun almanacPage(sim: CivSim) {
+    val pages = sim.almanac.pages.toList().reversed()
+    Text("${pages.size} day(s) written up, newest first. A new page is written at every dawn.", color = Glass.InkDim, fontSize = 14.sp)
+    if (pages.isEmpty()) Text("The first page is written when the next day dawns.", color = Glass.InkFaint, fontSize = 13.sp)
+    for (p in pages) {
+        val f = p.split("|")
+        if (f.size < 4) continue
+        Column {
+            Text("Day ${f[0]} · ${f[1]} · ${f[2]}", color = Glass.Ink, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+            Text(f[3].split(";").joinToString("  ·  "), color = Glass.InkDim, fontSize = 12.sp)
+        }
     }
 }

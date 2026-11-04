@@ -79,6 +79,14 @@ fun main(args: Array<String>) {
     println("actions: " + actHist.entries.sortedByDescending { it.value }.take(14).joinToString { "${it.key}=${it.value}" })
     println("far from village samples: $farSamples/$samples")
     println("STARS fallen=${sim.starsFallen} shardsGathered=${sim.starShardsGot} metal=${sim.metal}")
+    run {
+        val pg = sim.almanac.pages
+        val quiet = pg.count { it.split("|")[2] == "A quiet day." }
+        println("ALMANAC pages=${pg.size} quiet=$quiet distinctHeadlines=${pg.map { it.split("|")[2] }.toSet().size} lines/page=${if (pg.isEmpty()) 0 else pg.sumOf { it.split("|")[3].split(";").size } / pg.size}")
+        for (x in pg.takeLast(3)) println("   ALM " + x)
+        val enc = sim.almanac.encode(); val copy = com.jondude1.deskglass.sim.Almanac(); copy.decode(enc)
+        println("ALMANAC save round trip ok=${copy.pages == pg}")
+    }
     println("SURPLUS wastedGathers=${sim.wastedGathers} carved=${sim.carved} posies=${sim.posies}")
     println("FOEUPTIME ${"%.1f".format(100.0 * foeSamples / foeTotal)}% huddleShare=${"%.1f".format(100.0 * (actHist["huddle"] ?: 0) / samples)}% attackShare=${"%.2f".format(100.0 * (actHist["attack"] ?: 0) / samples)}%")
     for (pp in sim.predators) println("FOE-NOW ${pp.kind} at ${"%.1f".format(pp.x)},${"%.1f".format(pp.y)} life=${pp.life.toInt()} looted=${pp.looted} hp=${pp.hp.toInt()}")
