@@ -444,6 +444,10 @@ class CivArt {
         's' to 0xFFD2843A.toInt(), 'S' to 0xFF96521E.toInt(), 'k' to 0xFF2A1A10.toInt(), 'r' to 0xFFFF4A3A.toInt(),
         'g' to 0xFF8CD84A.toInt(), 'c' to 0xFFE8B066.toInt(),
     ))
+    val stag = sprite(STAG, mapOf(
+        'b' to 0xFF9A6234.toInt(), 'B' to 0xFF603A1E.toInt(), 'c' to 0xFFE8D2A0.toInt(), 'm' to 0xFFD0802C.toInt(),
+        'a' to 0xFFEFE4BC.toInt(), 'A' to 0xFFB6A474.toInt(), 'k' to 0xFF1E140C.toInt(), 'r' to 0xFFFF5A3A.toInt(),
+    ))
     val toad = sprite(TOAD, mapOf(
         'g' to 0xFF5E9A3A.toInt(), 'G' to 0xFF3C6B24.toInt(), 'y' to 0xFFD8D890.toInt(), 'k' to 0xFF1C2A14.toInt(),
         'e' to 0xFFE8C040.toInt(),
@@ -1540,6 +1544,21 @@ class CivArt {
             ".kgyyyyyyyygk.",
             "gGk.kggggk.kGg",
             "ggg.k....k.ggg",
+        )
+        val STAG = listOf(
+            "a..a.a.........",
+            "aA.aAaA........",
+            ".aAaAAa........",
+            "..aAAa.........",
+            "..kbbmm........",
+            ".rkbbmmbbbbb...",
+            "kkbbbmmmbbbBBb.",
+            "..bbmmmbbbbBBBb",
+            "...bmmbbbbbbBBB",
+            "....bcccccbbBb.",
+            "....bcccccbbbB.",
+            "....B.B....B.B.",
+            "....k.k....k.k.",
         )
         val SCORPION = listOf(
             "..........gr...",
