@@ -607,6 +607,7 @@ private fun DrawScope.drawWorld(
                 "bath" -> art.bath
                 "kiln" -> art.kiln
                 "smokehouse" -> art.smokehouse
+                "scarecrow" -> art.scarecrow
                 "museum" -> art.museum
                 "observatory" -> art.observatory
                 "yard" -> art.yard
@@ -693,6 +694,20 @@ private fun DrawScope.drawWorld(
                             center = Offset(cx + kotlin.math.cos(ang) * w * 0.6f * cf, baseY - hh * 0.6f + kotlin.math.sin(ang) * hh * 0.5f * cf - cf * ps * 4f),
                         )
                     }
+                }
+            }
+            if (b.type == "farm" && sim.crowsOn() && b.x == sim.crowFarmX && b.y == sim.crowFarmY) {
+                // a flock of crows pecks at the field: hopping black birds, flapping wings, feathers when they take off
+                val shooers = sim.villagers.count { it.action == "shoo_crows" && it.phase == "working" }
+                for (k in 0 until 6) {
+                    val hop = kotlin.math.abs(kotlin.math.sin(t * (4f + k * 0.7f) + k * 1.9f))
+                    val flap = if (shooers > 0) hop * ps * 5f else hop * ps * 0.8f
+                    val px = cx + (k - 2.5f) * ps * 3.6f
+                    val py = baseY - hh * 0.35f - flap
+                    drawRect(Color(0xFF1C1C26), topLeft = Offset(px, py), size = androidx.compose.ui.geometry.Size(ps * 3f, ps * 2f))
+                    drawRect(Color(0xFF1C1C26), topLeft = Offset(px + ps * 2.4f, py - ps * 1f), size = androidx.compose.ui.geometry.Size(ps * 1.6f, ps * 1.6f))
+                    drawRect(Color(0xFFF29A38), topLeft = Offset(px + ps * 4f, py - ps * 0.4f), size = androidx.compose.ui.geometry.Size(ps * 1.2f, ps * 0.6f))
+                    if (hop > 0.6f) drawRect(Color(0xFF3A3A4A), topLeft = Offset(px - ps * 0.2f, py - ps * 1.4f), size = androidx.compose.ui.geometry.Size(ps * 2f, ps * 1f))
                 }
             }
             if (b.type == "farm") crops(b, geo, cx - w / 2f, baseY - hh, if (sim.farmsWatered()) 0f else sim.droughtLevel())

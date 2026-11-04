@@ -307,6 +307,11 @@ class CivArt {
         'p' to 0xFFD9A066.toInt(), 'b' to 0xFF4A82B5.toInt(),
         'g' to 0xFF4F9E3F.toInt(), 'G' to 0xFF3A7A30.toInt(),
     ))
+    val scarecrow = sprite(SCARECROW, mapOf(
+        'h' to 0xFFC8A04A.toInt(), 'H' to 0xFF8E6A26.toInt(), 's' to 0xFFE8C98A.toInt(), 'd' to 0xFF2A1E1A.toInt(),
+        'b' to 0xFFC45A4A.toInt(), 'B' to 0xFF8E3A32.toInt(), 'W' to 0xFF6E4A24.toInt(),
+        'g' to 0xFF4F9E3F.toInt(), 'G' to 0xFF3A7A30.toInt(),
+    ))
     val smokehouse = sprite(SMOKEHOUSE, mapOf(
         'r' to 0xFF7A4B2A.toInt(), 'R' to 0xFF55341C.toInt(), 'w' to 0xFFB98A4E.toInt(), 'W' to 0xFF6E4A24.toInt(),
         'd' to 0xFF2A1E1A.toInt(), 'f' to 0xFFA9BCCF.toInt(), 'F' to 0xFFD98A4E.toInt(),
@@ -1172,6 +1177,18 @@ class CivArt {
             ".cCbbcddcbbCc.",
             ".cCbbcddcbbCc.",
             "ffffffffffffff",
+            "gGggGgggGggGgg",
+        )
+        val SCARECROW = listOf(
+            "....hhhhhh....",
+            "...HHHHHHHH...",
+            ".....sdsd.....",
+            ".....ssss.....",
+            "ssbbbbbbbbbbss",
+            "s.bBbBbBbBbB.s",
+            "..bBbBbBbBbB..",
+            ".....WWWW.....",
+            ".....WWWW.....",
             "gGggGgggGggGgg",
         )
         val SMOKEHOUSE = listOf(
