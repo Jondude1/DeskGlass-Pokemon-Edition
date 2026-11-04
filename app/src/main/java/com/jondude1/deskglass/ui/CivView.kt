@@ -612,6 +612,7 @@ private fun DrawScope.drawWorld(
                 "scarecrow" -> art.scarecrow
                 "museum" -> art.museum
                 "guild" -> art.guild
+                "armory" -> art.armory
                 "observatory" -> art.observatory
                 "lighthouse" -> art.lighthouse
                 "yard" -> art.yard
@@ -1132,6 +1133,22 @@ private fun DrawScope.drawWorld(
                     drawCircle(Color(0xFFFFC857).copy(alpha = 0.9f * (1f - ph)), radius = ps * 0.5f, center = Offset(cx + (k - trainers * 1.5f) * ps * 1.5f, baseY - hh * 0.4f - ph * hh * 0.45f))
                 }
                 if (dark > 0.1f) drawCircle(Color(0xFFFFD27A).copy(alpha = min(0.3f, dark * 0.5f)), radius = ts * 0.9f, center = Offset(cx, baseY - hh * 0.4f))
+            }
+            if (b.type == "armory") {
+                // the forge burns low all day and flares while a smith hammers: chimney smoke, anvil sparks, and a peg of colour for each tier of gear made
+                val smiths = sim.villagers.count { it.action == "forge_gear" && it.phase == "working" && kotlin.math.hypot(it.x - (b.x + 0.5f), it.y - (b.y + 0.5f)) < 2.5f }
+                for (k in 0 until 3) {
+                    val ph = (t * 0.5f + k * 0.33f) % 1f
+                    drawCircle(Color(0xFF8A8D99).copy(alpha = 0.35f * (1f - ph)), radius = ps * (0.9f + 1.4f * ph), center = Offset(cx + w * 0.14f + ph * ps * 3f, baseY - hh * (1.05f + ph * 0.7f)))
+                }
+                val tierCols = longArrayOf(0xFF8A5A2B, 0xFFC48A3A, 0xFFC9D2DC)
+                val tierHave = intArrayOf(sim.gearLeather + sim.gearBronze + sim.gearSteel, sim.gearBronze + sim.gearSteel, sim.gearSteel)
+                for (k in 0 until 3) if (tierHave[k] > 0) drawRect(Color(tierCols[k]), Offset(cx + w * 0.12f + k * ps * 2.2f, baseY - hh * 0.5f), Size(ps * 1.6f, ps * 2.2f))
+                for (k in 0 until smiths * 4) {
+                    val ph = (t * 2.2f + k * 0.23f) % 1f
+                    drawCircle(Color(0xFFFFC857).copy(alpha = 0.95f * (1f - ph)), radius = ps * 0.5f, center = Offset(cx - w * 0.05f + kotlin.math.sin(k * 2.1f) * ps * 2.5f * ph, baseY - hh * 0.2f - ph * hh * 0.5f))
+                }
+                if (dark > 0.1f) drawCircle(Color(0xFFFF9A4A).copy(alpha = min(0.3f, dark * 0.5f)), radius = ts * 0.8f, center = Offset(cx - w * 0.2f, baseY - hh * 0.5f))
             }
             if (b.type == "lighthouse") {
                 // a lit lamp sweeps two pale beams round the lake and land at dusk, at night and in fog or rain; the keeper sends up sparks, a warm halo glows

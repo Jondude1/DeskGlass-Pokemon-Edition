@@ -20,7 +20,7 @@ object Lamps {
         "apiary" to floatArrayOf(1.4f, 0.4f), "quarry" to floatArrayOf(1.8f, 0.5f), "totem" to floatArrayOf(1.8f, 0.5f),
         "wonder" to floatArrayOf(4.0f, 0.85f), "ballista" to floatArrayOf(1.6f, 0.5f), "gate" to floatArrayOf(2.2f, 0.65f),
         "yard" to floatArrayOf(1.8f, 0.5f), "range" to floatArrayOf(1.8f, 0.5f), "observatory" to floatArrayOf(2.4f, 0.65f),
-        "lighthouse" to floatArrayOf(3.0f, 0.8f),
+        "lighthouse" to floatArrayOf(3.0f, 0.8f), "armory" to floatArrayOf(2.2f, 0.7f),
     )
 
     fun lightOf(type: String): FloatArray? = glow[type]

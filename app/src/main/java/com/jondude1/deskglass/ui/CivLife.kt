@@ -536,6 +536,26 @@ fun DrawScope.drawVillagers(sim: CivSim, art: CivArt, g: Geo, sun: Sun) {
                 drawRect(Color(0xFF4F9B4A), Offset(cx - w / 2f + 1.8f * cu, top + 0.1f * cu), Size(4.4f * cu, 0.8f * cu))
                 for (k in 0 until 4) drawRect(fl[(k + v.id) % 4], Offset(cx - w / 2f + (1.9f + k * 1.2f) * cu, top - 0.4f * cu), Size(1.0f * cu, 1.1f * cu))
             }
+            if (!child) {
+                // forged gear from the armory: a leather jerkin, then a bronze helm and shield, then steel mail with a red plume
+                val gt = sim.gearTier(v)
+                if (gt > 0) {
+                    val cu = w / 8f
+                    val x0 = cx - w / 2f
+                    val metalC = if (gt >= 3) Color(0xFFC9D2DC) else Color(0xFFC48A3A)
+                    if (gt == 1) {
+                        drawRect(Color(0xFF8A5A2B), Offset(x0 + 2.0f * cu, top + 3.9f * cu), Size(4.0f * cu, 2.6f * cu))
+                        drawRect(Color(0xFF5E3A1C), Offset(x0 + 2.0f * cu, top + 5.4f * cu), Size(4.0f * cu, 0.5f * cu))
+                    } else {
+                        if (gt >= 3) drawRect(Color(0xFFAEB8C6), Offset(x0 + 2.0f * cu, top + 3.9f * cu), Size(4.0f * cu, 2.6f * cu))
+                        drawRect(metalC, Offset(x0 + 1.8f * cu, top - 0.1f * cu), Size(4.4f * cu, 1.5f * cu))
+                        drawRect(Color(0xFF6C6C76), Offset(x0 + 1.8f * cu, top + 1.3f * cu), Size(0.8f * cu, 0.8f * cu))
+                        drawRect(metalC, Offset(x0 - 0.7f * cu, top + 4.0f * cu), Size(2.0f * cu, 2.8f * cu))
+                        drawRect(Color(0xFF6C6C76), Offset(x0 - 0.1f * cu, top + 4.6f * cu), Size(0.8f * cu, 1.6f * cu))
+                        if (gt >= 3) drawRect(Color(0xFFC8402E), Offset(x0 + 3.4f * cu, top - 1.0f * cu), Size(1.2f * cu, 1.1f * cu))
+                    }
+                }
+            }
             if (!child) jobGear(v.job, cx - w / 2f, top, w / 8f, working, t + v.id)
             if (old) {
                 // a walking stick with a crook, tapping while they walk
