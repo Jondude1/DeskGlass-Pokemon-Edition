@@ -426,6 +426,7 @@ private fun DrawScope.drawWorld(
     waterLife(sim, geo, vx0, vx1, vy0, vy1)
     seasonGround(sim, geo, vx0, vx1, vy0, vy1)
     droughtGround(sim, geo, vx0, vx1, vy0, vy1)
+    hailGround(sim, geo, vx0, vx1, vy0, vy1)
     trackMarks(sim, geo, vx0, vx1, vy0, vy1)
 
     // kingdom territories: tinted ground and glowing borders
@@ -2075,6 +2076,7 @@ private fun DrawScope.drawWorld(
             )
         }
     }
+    hailFall(sim, geo)
     val sinceStrike = (sim.time - sim.strikeAt).toFloat()
     if (sinceStrike >= 0f && sinceStrike < 0.55f) {
         val fl = 1f - sinceStrike / 0.55f

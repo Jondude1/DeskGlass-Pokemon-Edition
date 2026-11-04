@@ -159,6 +159,7 @@ fun main(args: Array<String>) {
     println("MUSEUM built=${sim.buildings.count { it.type == "museum" }} visits=${sim.museumVisits} talks=${sim.museumTalks} shown=${Integer.bitCount(sim.museumShown)}/${Integer.bitCount(sim.exhibitMask())} age=${sim.age}")
     println("MARKETDAY market=${sim.buildings.count { it.type == "market" }} visits=${sim.stallVisits} days=${sim.stallDays} deals=${sim.stallDeals} bargains=${sim.stallBargains}")
     println("OBSERVATORY built=${sim.buildings.count { it.type == "observatory" }} watches=${sim.obsWatches} forecasts=${sim.obsForecasts} hits=${sim.obsHits} prepared=${sim.obsPrepared} now=${sim.forecastKind}")
+    println("HAIL storms=${sim.hailStorms} knocks=${sim.hailHits} shelterTicks=${sim.hailSaved} grainLost=${sim.hailCrop} childrenIce=${sim.hailIce} stormsAll=${sim.wxStats["storm"] ?: 0} minHp=${sim.villagers.minOfOrNull { it.hp }?.toInt()}")
     println("CROWS flocks=${sim.crowFlocks} shooed=${sim.crowsShooed} scared=${sim.crowsScared} lost=${sim.crowLoss} saved=${sim.crowSaved} scarecrows=${sim.buildings.count { it.type == "scarecrow" }}")
     println("SMOKE built=${sim.buildings.count { it.type == "smokehouse" }} batches=${sim.smokeBatches} big=${sim.smokeRations} cheers=${sim.smokeCheers} food=${sim.food}")
     println("KILN built=${sim.buildings.count { it.type == "kiln" }} fires=${sim.kilnFires} glazed=${sim.kilnGlazed} cheers=${sim.kilnCheers}")
