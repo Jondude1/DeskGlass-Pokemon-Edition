@@ -461,6 +461,8 @@ class Critter(val uid: Int, var sp: Int, var level: Int) {
     var shiny = false
     /** A rare, hulking pack leader that was bound from the wild: tougher in every stat. */
     var alpha = false
+    /** The charm it carries into battle (Charm.SUNBERRY etc.), 0 for none. */
+    var charm = 0
     private val statPct: Int get() = (if (shiny) 108 else 100) + (if (alpha) 10 else 0)
     /** Copy of another critter's nature (battle doubles have no id of their own); -1 means derive it from the id. */
     var natureIdx = -1
@@ -516,6 +518,31 @@ class Critter(val uid: Int, var sp: Int, var level: Int) {
         sp = to
         hp = max(1, (maxHp * frac).toInt())
     }
+}
+
+/** Little keepsakes a critter can carry into a fight: each has one clear effect. */
+object Charm {
+    const val SUNBERRY = 1
+    const val PEBBLE = 2
+    const val FEATHER = 3
+    const val FANG = 4
+    const val CLOVER = 5
+    const val COUNT = 5
+    fun name(i: Int): String = when (i) {
+        SUNBERRY -> "Sunberry"; PEBBLE -> "Guard Pebble"; FEATHER -> "Swift Feather"; FANG -> "Fang Charm"; CLOVER -> "Lucky Clover"; else -> ""
+    }
+    fun text(i: Int): String = when (i) {
+        SUNBERRY -> "eaten once when hurt, heals 30%"
+        PEBBLE -> "softens the first hit it takes"
+        FEATHER -> "moves a little sooner"
+        FANG -> "the first strike bites harder"
+        CLOVER -> "lands critical hits more often"
+        else -> ""
+    }
+    fun color(i: Int): Long = when (i) {
+        SUNBERRY -> 0xFFFF6A5A; PEBBLE -> 0xFF9AA5B1; FEATHER -> 0xFF7FD6F2; FANG -> 0xFFF2E6C8; CLOVER -> 0xFF6BD36B; else -> 0xFFFFFFFF
+    }
+    fun roll(rnd: Random): Int = 1 + rnd.nextInt(COUNT)
 }
 
 /** Passive battle talents. A critter learns the signature talent of its main type at level 10. */
@@ -633,6 +660,7 @@ class Battle(val a: Critter, val b: Critter, private val rnd: Random) {
     private val used = BooleanArray(2)
     private val burstUsed = BooleanArray(2)
     private val burstOn = BooleanArray(2)
+    private val charmUsed = BooleanArray(2)
 
     var over = false
         private set
@@ -644,8 +672,8 @@ class Battle(val a: Critter, val b: Critter, private val rnd: Random) {
     fun side(i: Int): Critter = if (i == 0) a else b
 
     private fun order(): List<Int> {
-        val fa = (a.spd * (if (status[0] == CHILL) 0.7f else 1f)).toInt() + rnd.nextInt(6) + (if (Abil.has(a, CType.GALE)) 12 else 0)
-        val fb = (b.spd * (if (status[1] == CHILL) 0.7f else 1f)).toInt() + rnd.nextInt(6) + (if (Abil.has(b, CType.GALE)) 12 else 0)
+        val fa = (if (a.charm == Charm.FEATHER) 10 else 0) + (a.spd * (if (status[0] == CHILL) 0.7f else 1f)).toInt() + rnd.nextInt(6) + (if (Abil.has(a, CType.GALE)) 12 else 0)
+        val fb = (if (b.charm == Charm.FEATHER) 10 else 0) + (b.spd * (if (status[1] == CHILL) 0.7f else 1f)).toInt() + rnd.nextInt(6) + (if (Abil.has(b, CType.GALE)) 12 else 0)
         return if (fa >= fb) listOf(0, 1) else listOf(1, 0)
     }
 
@@ -733,6 +761,12 @@ class Battle(val a: Critter, val b: Critter, private val rnd: Random) {
             att.hp = min(att.maxHp, att.hp + h)
             fire("Bond Burst! +$h", s, "Bond Burst")
         }
+        if (att.charm == Charm.SUNBERRY && !charmUsed[s] && att.hp > 0 && att.hpFrac < 0.4f) {
+            charmUsed[s] = true
+            val h = max(3, att.maxHp * 3 / 10)
+            att.hp = min(att.maxHp, att.hp + h)
+            fire("+$h Sunberry", s, "Sunberry")
+        }
         val move = pickMove(att, def)
         var hit = rnd.nextInt(100) < move.acc
         if (hit && Abil.has(def, CType.GLOW) && rnd.nextInt(100) < 10) {
@@ -752,7 +786,8 @@ class Battle(val a: Critter, val b: Critter, private val rnd: Random) {
         var fm = 1f
         if (hit) {
             eff = Dex.effectiveness(move.type, def.species)
-            crit = rnd.nextInt(100) < 6
+            crit = rnd.nextInt(100) < (if (att.charm == Charm.CLOVER) 18 else 6)
+            if (crit && att.charm == Charm.CLOVER) fire("Lucky!", s, "Lucky Clover")
             val l = att.level
             var d = ((2f * l / 5f + 2f) * move.power * att.atk / max(1, def.def) / 50f + 2f)
             if (att.species.types.contains(move.type)) d *= 1.3f
@@ -768,12 +803,22 @@ class Battle(val a: Critter, val b: Critter, private val rnd: Random) {
                 fire("Blaze!", s, "Blaze")
             }
             if (Abil.has(att, CType.PLAIN)) d *= 1.08f
+            if (att.charm == Charm.FANG && !charmUsed[s]) {
+                charmUsed[s] = true
+                d *= 1.35f
+                fire("Fang Charm!", s, "Fang Charm")
+            }
             if (burstOn[s]) {
                 d *= 1.5f
                 burstOn[s] = false
             }
             if (move.tier >= 4 && abil.isEmpty()) fire("ULTIMATE!", s, "Ultimate")
             if (Abil.has(def, CType.IRON)) d *= 0.88f
+            if (def.charm == Charm.PEBBLE && !charmUsed[1 - s]) {
+                charmUsed[1 - s] = true
+                d *= 0.6f
+                fire("Guard Pebble!", 1 - s, "Guard Pebble")
+            }
             d *= 0.88f + rnd.nextFloat() * 0.12f
             if (s == 1 && shield > 0) {
                 d *= 0.5f

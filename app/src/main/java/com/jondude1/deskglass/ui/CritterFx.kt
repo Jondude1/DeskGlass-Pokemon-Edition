@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import com.jondude1.deskglass.sim.Battle
 import com.jondude1.deskglass.sim.CType
+import com.jondude1.deskglass.sim.Charm
 import com.jondude1.deskglass.sim.CivSim
 import com.jondude1.deskglass.sim.Critter
 import com.jondude1.deskglass.sim.Swap
@@ -194,6 +195,21 @@ private fun DrawScope.drawWildCritter(w: Wild, cart: CritterArt, art: CivArt, g:
 }
 
 /** A pulsing red ground ring, rising embers and a pair of burning eyes that mark an alpha pack leader. */
+/** A tiny bead of the charm's colour hung at the critter's side, with a slow glint. */
+private fun DrawScope.charmGlint(cx: Float, base: Float, wd: Float, ht: Float, t: Float, ps: Float, c: Critter) {
+    val k = Color(Charm.color(c.charm))
+    val bx = cx + wd * 0.42f
+    val by = base - ht * 0.45f
+    drawRect(Color(0xFF2A2024), Offset(bx - ps * 1.5f, by - ps * 1.5f), Size(ps * 3f, ps * 3f))
+    drawRect(k, Offset(bx - ps * 1f, by - ps * 1f), Size(ps * 2f, ps * 2f))
+    val g = (sin(t * 2.2f + c.uid) * 0.5f + 0.5f)
+    if (g > 0.8f) {
+        val a = (g - 0.8f) * 5f
+        drawRect(Color.White.copy(alpha = a), Offset(bx - ps * 0.5f, by - ps * 2.6f), Size(ps * 1f, ps * 5.2f))
+        drawRect(Color.White.copy(alpha = a), Offset(bx - ps * 2.6f, by - ps * 0.5f), Size(ps * 5.2f, ps * 1f))
+    }
+}
+
 private fun DrawScope.alphaAura(cx: Float, base: Float, wd: Float, ht: Float, t: Float, ps: Float, seed: Int, alpha: Float) {
     val pulse = 0.5f + 0.5f * sin(t * 3f + seed)
     val red = Color(0xFFFF4A3A)
@@ -248,6 +264,7 @@ private fun DrawScope.drawKeptCritter(
     }
     if (c.shiny) shinySparkle(cx, base, wd, ht, t, ps, c.uid, 1f)
     if (c.alpha) alphaAura(cx, base, wd, ht, t, ps, c.uid, 0.8f)
+    if (c.charm != 0 && !tired) charmGlint(cx, base, wd, ht, t, ps, c)
     if (c.companion && !tired) {
         // a little bright mark above a companion, so you can tell who walks with whom
         val bx = cx

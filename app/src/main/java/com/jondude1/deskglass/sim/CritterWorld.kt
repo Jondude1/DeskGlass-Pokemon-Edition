@@ -147,6 +147,12 @@ class CritterWorld(private val sim: CivSim) {
     var alphaTamed = 0
     var alphaBeaten = 0
     var alphaLosses = 0
+    /** Charms found after fights, how many found a holder, and how many went unclaimed. */
+    var charmsFound = 0
+    var charmsGiven = 0
+    var charmsSpare = 0
+    /** Wild fights fought and won by critters with and without a charm [with fights, with wins, without fights, without wins]. */
+    val charmStats = IntArray(4)
     fun alphaKept(): Int = critters.count { it.alpha }
     var shinyHatched = 0
     private val shinyAnnounced = HashSet<Int>()
@@ -571,6 +577,7 @@ class CritterWorld(private val sim: CivSim) {
             c.gainXp(30 + c.level * 4)
             c.wins++
             checkEvolve(c)
+            if (c.charm == 0) giveCharm(c, w, "a tournament prize") else dropCharm(w, 1f, "a tournament prize")
         }
         sim.bumpStat(w, "tourney")
         w.happiness = 100f
@@ -1595,6 +1602,7 @@ class CritterWorld(private val sim: CivSim) {
         d.nick = c.nick
         d.natureIdx = Nature.ALL.indexOf(c.nature)
         d.alpha = c.alpha
+        d.charm = c.charm
         d.heal()
         return d
     }
@@ -2040,6 +2048,7 @@ class CritterWorld(private val sim: CivSim) {
                 val mine = e.mine!!
                 val foe = e.foe!!
                 if (foe.alpha) { if (winner == 0) alphaBeaten++ else alphaLosses++ }
+                run { val k = if (mine.charm != 0) 0 else 2; charmStats[k]++; if (winner == 0) charmStats[k + 1]++ }
                 if (winner == 0) {
                     val gain = (14 + foe.level * 5 + foe.species.stage * 6) * (if (foe.alpha) 2 else 1)
                     val lv = mine.gainXp(gain)
@@ -2062,6 +2071,7 @@ class CritterWorld(private val sim: CivSim) {
                         it.leaving = true
                     }
                     checkEvolve(mine)
+                    dropCharm(v, if (foe.alpha) 0.45f else if (foe.species.rarity >= 5) 0.6f else 0.10f, "the fallen ${foe.species.name}")
                 } else {
                     mine.hp = 0
                     mine.faintedUntil = sim.time + 50.0
@@ -2154,6 +2164,25 @@ class CritterWorld(private val sim: CivSim) {
 
     /** Critters ready to change shape that are holding out for the sky of their second form: uid -> when they began. */
     private val holdSince = HashMap<Int, Double>()
+
+    private fun giveCharm(c: Critter, v: Villager, src: String, kind: Int = Charm.roll(rnd)) {
+        c.charm = kind
+        charmsGiven++
+        sim.note("${v.name} finds a ${Charm.name(kind)} among $src and ties it on ${c.name}: ${Charm.text(kind)}.")
+        val b = bodyFor(c)
+        pop(b.x, b.y - 1.6f, Charm.name(kind), Charm.color(kind))
+    }
+
+    /** With some chance a fight (or prize) leaves a charm behind; it goes to one of the villager's critters without one. */
+    private fun dropCharm(v: Villager, chance: Float, src: String) {
+        if (rnd.nextFloat() >= chance) return
+        charmsFound++
+        val c = critters.firstOrNull { it.owner == v.id && it.charm == 0 && it.companion }
+            ?: critters.firstOrNull { it.owner == v.id && it.charm == 0 }
+            ?: critters.firstOrNull { it.charm == 0 }
+        if (c == null) { charmsSpare++; return }
+        giveCharm(c, v, src)
+    }
 
     private fun checkEvolve(c: Critter) {
         if (!c.readyToEvolve() || evolving(c) != null) return
@@ -2248,7 +2277,7 @@ class CritterWorld(private val sim: CivSim) {
         for (c in critters) {
             arr.put(
                 JSONObject().put("id", c.uid).put("sp", c.sp).put("lv", c.level).put("xp", c.xp).put("hp", c.hp)
-                    .put("own", c.owner).put("comp", c.companion).put("nick", c.nick).put("wins", c.wins).put("bond", c.bond).put("shiny", c.shiny).put("alpha", c.alpha)
+                    .put("own", c.owner).put("comp", c.companion).put("nick", c.nick).put("wins", c.wins).put("bond", c.bond).put("shiny", c.shiny).put("alpha", c.alpha).put("chm", c.charm)
             )
         }
         o.put("critters", arr)
@@ -2300,6 +2329,7 @@ class CritterWorld(private val sim: CivSim) {
                     val c = Critter(j.getInt("id"), sp, j.optInt("lv", 5).coerceIn(1, Dex.MAX_LEVEL))
                     c.xp = j.optInt("xp", 0)
                     c.alpha = j.optBoolean("alpha", false)
+                    c.charm = j.optInt("chm", 0).coerceIn(0, Charm.COUNT)
                     c.shiny = j.optBoolean("shiny", false)
                     c.hp = j.optInt("hp", c.maxHp).coerceIn(1, c.maxHp)
                     c.owner = j.optInt("own", -1)

@@ -210,6 +210,13 @@ fun main(args: Array<String>) {
         val distinct = cw.critters.map { Triple(it.atk, it.def, it.spd) }.distinct().size
         println("NATURE kept=${cw.critters.size} kinds=${byN.size} $byN distinctStatLines=$distinct sameSpeciesSpread=$spread")
     }
+    run {
+        val cw = sim.critters
+        val st = cw.charmStats
+        val kinds = (1..Charm.COUNT).associate { Charm.name(it) to cw.critters.count { c -> c.charm == it } }
+        fun pct(w: Int, f: Int) = if (f == 0) "n/a" else "${w * 100 / f}%"
+        println("CHARMS found=${cw.charmsFound} given=${cw.charmsGiven} spare=${cw.charmsSpare} held=${cw.critters.count { it.charm != 0 }}/${cw.critters.size} $kinds fired=${Battle.abilCount.filterKeys { it in listOf("Sunberry", "Guard Pebble", "Fang Charm", "Lucky Clover") }} winrate with=${pct(st[1], st[0])}(${st[0]}) without=${pct(st[3], st[2])}(${st[2]})")
+    }
     println("ABIL talents fired=${Battle.abilCount.values.sum()} kinds=${Battle.abilCount.size} ${Battle.abilCount.toSortedMap()}")
     sim.log.filter { it.contains("aider") || it.contains("ogre") || it.contains("wraith") || it.contains("drake") || it.contains("warlord") || it.contains("golem") || it.contains("shaman") || it.contains("Golden") }.takeLast(8).forEach { println("  LOG $it") }
     run { val cs = sim.critters.critters; val lv = cs.map { it.level }.sortedDescending(); println("CRITLEVELS n=${cs.size} sum=${lv.sum()} max=${lv.firstOrNull() ?: 0} top5=${lv.take(5)} lv10+=${lv.count { it >= 10 }} lv20+=${lv.count { it >= 20 }} lv30+=${lv.count { it >= 30 }} stage3=${cs.count { it.species.stage >= 2 }}") }

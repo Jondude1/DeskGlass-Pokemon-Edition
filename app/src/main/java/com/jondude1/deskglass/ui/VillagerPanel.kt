@@ -20,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jondude1.deskglass.sim.CivSim
+import com.jondude1.deskglass.sim.Charm
 
 /** A small window on the right: the villager being followed, their summoning gift and the critters they have bonded. */
 @Composable
@@ -105,7 +106,7 @@ fun VillagerPanel(sim: CivSim, id: Int, tick: Long, modifier: Modifier = Modifie
                         color = Glass.Ink, fontSize = 13.sp, fontWeight = FontWeight.Medium,
                     )
                     Text(
-                        c.species.typeText + " · " + c.nature.name + (if (c.companion) " · out" else " · infused") + (if (cw.isTired(c)) " · resting" else ""),
+                        c.species.typeText + " · " + c.nature.name + (if (c.charm != 0) " · " + Charm.name(c.charm) else "") + (if (c.companion) " · out" else " · infused") + (if (cw.isTired(c)) " · resting" else ""),
                         color = Glass.InkDim, fontSize = 11.sp,
                     )
                     Text(

@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jondude1.deskglass.sim.Abil
 import com.jondude1.deskglass.sim.CType
+import com.jondude1.deskglass.sim.Charm
 import com.jondude1.deskglass.sim.CivSim
 import com.jondude1.deskglass.sim.Dex
 
@@ -89,6 +90,10 @@ fun CritterDexScreen(sim: CivSim, onBack: () -> Unit) {
                         )
                         Text(
                             "Nature: ${c.nature.name} (${c.nature.text}), ${c.nature.flavour}",
+                            color = Glass.InkFaint, fontSize = 12.sp,
+                        )
+                        if (c.charm != 0) Text(
+                            "Carries: ${Charm.name(c.charm)}, ${Charm.text(c.charm)}",
                             color = Glass.InkFaint, fontSize = 12.sp,
                         )
                         Text(
