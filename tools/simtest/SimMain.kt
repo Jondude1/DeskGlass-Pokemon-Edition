@@ -122,6 +122,7 @@ fun main(args: Array<String>) {
     println("HARPIES slain=${sim.harpiesSlain} flocks=${sim.flocksScattered} dives=${sim.harpyDives} loot=${sim.harpyLoot}")
     println("SPIDERS slain=${sim.spidersSlain} webs=${sim.websSpun} caught=${sim.webCatches} bites=${sim.spiderBites} websNow=${sim.webs.size} poisonedNow=${sim.poisoned.size}")
     println("SCORPIONS slain=${sim.scorpionsSlain} stings=${sim.scorpionStings} pincers=${sim.scorpionPincers} nests=${sim.scorpionSwarms} poisonedNow=${sim.poisoned.size}")
+    println("TOADS slain=${sim.toadsSlain} lashes=${sim.toadLashes} leaps=${sim.toadLeaps} choruses=${sim.toadChoruses} foeStats=${sim.foeStats["toad"]}")
     println("WORMS slain=${sim.wormsSlain} erupts=${sim.wormErupts} flung=${sim.wormHits} cratersNow=${sim.craters.size}")
     println("WEATHER day=${sim.day()} season=${sim.seasonName()} events=${sim.wxStats.toSortedMap()} distinct=${sim.wxStats.size}")
     println("RELATIONS weddings=${sim.weds} couples=${sim.villagers.count { it.partner >= 0 } / 2} bffs=${sim.bffs.size} feudsStarted=${sim.feudsStarted} feudsEnded=${sim.feudsEnded} activeFeuds=${sim.villagers.count { sim.feudWith(it) != null } / 2} babiesBorn=${sim.babiesBorn}")

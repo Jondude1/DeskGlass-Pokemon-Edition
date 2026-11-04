@@ -432,6 +432,10 @@ class CivArt {
         's' to 0xFFD2843A.toInt(), 'S' to 0xFF96521E.toInt(), 'k' to 0xFF2A1A10.toInt(), 'r' to 0xFFFF4A3A.toInt(),
         'g' to 0xFF8CD84A.toInt(), 'c' to 0xFFE8B066.toInt(),
     ))
+    val toad = sprite(TOAD, mapOf(
+        'g' to 0xFF5E9A3A.toInt(), 'G' to 0xFF3C6B24.toInt(), 'y' to 0xFFD8D890.toInt(), 'k' to 0xFF1C2A14.toInt(),
+        'e' to 0xFFE8C040.toInt(),
+    ))
     val worm = sprite(WORM, mapOf(
         'p' to 0xFFC08A78.toInt(), 'P' to 0xFF8E5A52.toInt(), 'a' to 0xFF8A8478.toInt(), 'k' to 0xFF2A1418.toInt(),
         'w' to 0xFFF2EAD0.toInt(), 'd' to 0xFF6B4A2B.toInt(),
@@ -1489,6 +1493,17 @@ class CivArt {
             ".k.kbbbbk.k.",
             "k...kbbk...k",
             "....k..k....",
+        )
+        val TOAD = listOf(
+            "..kkk....kkk..",
+            ".kgeek..kgeek.",
+            "kggggggggggggk",
+            "kggGgggggggGgk",
+            "kggkkkkkkkkggk",
+            "kgyyyyyyyyyygk",
+            ".kgyyyyyyyygk.",
+            "gGk.kggggk.kGg",
+            "ggg.k....k.ggg",
         )
         val SCORPION = listOf(
             "..........gr...",

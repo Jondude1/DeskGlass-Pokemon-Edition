@@ -1539,6 +1539,14 @@ private fun DrawScope.drawWorld(
                     Size(ts * 0.6f, ts * 3f),
                 )
             }
+            "splash" -> {
+                for (k in 0 until 6) {
+                    val ang = k * 1.05f
+                    val rr = ts * (0.1f + 0.5f * p)
+                    drawRect(Color(0xFFBFE4F5).copy(alpha = 0.85f * (1f - p)), Offset(cx + kotlin.math.cos(ang) * rr, cy - ts * 0.2f - kotlin.math.sin(p * 3.14f) * ts * 0.5f + kotlin.math.sin(ang) * rr * 0.4f), Size(ps * 1.2f, ps * 1.2f))
+                }
+                drawCircle(Color(0xFFBFE4F5).copy(alpha = 0.45f * (1f - p)), radius = ts * (0.15f + 0.5f * p), center = Offset(cx, cy), style = androidx.compose.ui.graphics.drawscope.Stroke(width = ps * 0.6f))
+            }
             "venom" -> {
                 for (k in 0 until 5) {
                     val ang = k * 1.26f + p * 2f
@@ -1661,17 +1669,19 @@ private fun DrawScope.drawWorld(
         if (p.kind == "burrower" && p.aux > 0f) { wormMound(ox + p.x * ts, oy + (p.y + 0.45f) * ts, ps, t, p.x, p.aux < 1.4f); continue }
         val sp = when (p.kind) {
             "bear" -> art.bear; "boar" -> art.boar; "raider" -> art.raider; "ogre" -> art.ogre
-            "wraith" -> art.wraith; "drake" -> art.drake; "shaman" -> art.shaman; "warlord" -> art.warlord; "golem" -> art.golem; "frostwolf" -> art.frostwolf; "lich" -> art.lich; "skeleton" -> art.skeleton; "pilferer" -> art.pilferer; "hornet" -> art.hornet; "reaver" -> art.reaver; "troll" -> art.troll; "spider" -> art.spider; "burrower" -> art.worm; "scorpion" -> art.scorpion; "harpy" -> art.harpy[((t * 7f + p.x) % 2f).toInt().coerceIn(0, 1)]; else -> art.wolf
+            "wraith" -> art.wraith; "drake" -> art.drake; "shaman" -> art.shaman; "warlord" -> art.warlord; "golem" -> art.golem; "frostwolf" -> art.frostwolf; "lich" -> art.lich; "skeleton" -> art.skeleton; "pilferer" -> art.pilferer; "hornet" -> art.hornet; "reaver" -> art.reaver; "troll" -> art.troll; "spider" -> art.spider; "burrower" -> art.worm; "scorpion" -> art.scorpion; "toad" -> art.toad; "harpy" -> art.harpy[((t * 7f + p.x) % 2f).toInt().coerceIn(0, 1)]; else -> art.wolf
         }
-        val sc = when (p.kind) { "bear" -> 1.15f; "boar" -> 0.95f; "ogre" -> 1.5f; "drake" -> 1.7f; "raider" -> 1.1f; "warlord" -> 1.45f; "golem" -> 1.55f; "shaman" -> 1.1f; "lich" -> 1.35f; "skeleton" -> 1.05f; "frostwolf" -> 1.05f; "pilferer" -> 1.05f; "hornet" -> 0.8f; "reaver" -> 1.15f; "troll" -> 1.6f; "spider" -> 1.25f; "burrower" -> 1.5f; "scorpion" -> 1.15f; "harpy" -> 1.1f; else -> 1f }
+        val sc = when (p.kind) { "bear" -> 1.15f; "boar" -> 0.95f; "ogre" -> 1.5f; "drake" -> 1.7f; "raider" -> 1.1f; "warlord" -> 1.45f; "golem" -> 1.55f; "shaman" -> 1.1f; "lich" -> 1.35f; "skeleton" -> 1.05f; "frostwolf" -> 1.05f; "pilferer" -> 1.05f; "hornet" -> 0.8f; "reaver" -> 1.15f; "troll" -> 1.6f; "spider" -> 1.25f; "burrower" -> 1.5f; "scorpion" -> 1.15f; "toad" -> 1.2f; "harpy" -> 1.1f; else -> 1f }
         val w = sp.lw * ps * sc
         val h = sp.lh * ps * sc
         val feet = oy + (p.y + 0.45f) * ts
         shadow(ox + p.x * ts, feet, w * 0.9f, 2.6f * ps)
         // harpies fly: they hover high while circling and drop low on a dive
-        val lift = if (p.kind == "harpy") ps * (if (p.aux > 0f) 9f + 2f * kotlin.math.sin(t * 6f + p.x) else 3f) else 0f
+        val lift = if (p.kind == "harpy") ps * (if (p.aux > 0f) 9f + 2f * kotlin.math.sin(t * 6f + p.x) else 3f)
+            else if (p.kind == "toad" && p.aux > 0f) ps * 8f * kotlin.math.sin(3.14159f * (1f - p.aux / 0.5f).coerceIn(0f, 1f)) else 0f
         img(sp, ox + p.x * ts - w / 2f, feet - h - lift, w, h)
         val maxHp = com.jondude1.deskglass.sim.predatorMaxHp(p.kind)
+        if (p.kind == "toad") toadFx(ox + p.x * ts, feet, ox, oy, ts, w, h, ps, t, p.x, p.aux > 0f, sim.time.toFloat() - p.lashT, p.lashX, p.lashY, p.x, p.y)
         if (p.kind == "scorpion") scorpionFx(ox + p.x * ts, feet, w, h, ps, t, p.x)
         if (p.kind == "burrower") wormDust(ox + p.x * ts, feet, ps, t, p.x)
         if (p.kind == "harpy") harpyFeathers(ox + p.x * ts, feet - h * 0.5f - lift, ps, t, p.x, p.aux > 0f)
@@ -2098,7 +2108,7 @@ private fun ThreatChip(sim: CivSim, tick: Long, modifier: Modifier = Modifier) {
 private fun newsTint(line: String): Color {
     val l = line.lowercase()
     return when {
-        listOf("killed", "war", "wolves", "wolf", "bear", "boar", "raider", "ogre", "wraith", "drake", "shaman", "warlord", "golem", "frost", "lich", "skeleton", "pilferer", "hornet", "reaver", "troll", "spider", "scorpion", "harpy", "burrow", "longship", "rift", "falls", "plague", "attack", "slain", "mourns").any { l.contains(it) } -> Color(0xFFFF9C8A)
+        listOf("killed", "war", "wolves", "wolf", "bear", "boar", "raider", "ogre", "wraith", "drake", "shaman", "warlord", "golem", "frost", "lich", "skeleton", "pilferer", "hornet", "reaver", "troll", "spider", "scorpion", "toad", "harpy", "burrow", "longship", "rift", "falls", "plague", "attack", "slain", "mourns").any { l.contains(it) } -> Color(0xFFFF9C8A)
         listOf("built", "palisade", "raise", "born", "feast", "berries", "welcome", "alliance", "trade").any { l.contains(it) } -> Color(0xFFA6E3A1)
         else -> Glass.InkDim
     }
