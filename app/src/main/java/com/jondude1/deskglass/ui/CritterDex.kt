@@ -42,6 +42,9 @@ fun CritterDexScreen(sim: CivSim, onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text("Seen ${cw.seen.size} · summoned ${cw.caught.size} of ${Dex.COUNT}", color = Glass.InkDim, fontSize = 14.sp)
+            val nextMile = cw.dexNext()
+            if (nextMile > 0) Text("Next milestone: $nextMile kinds (${nextMile - cw.caught.size} to go), the scribes pay a reward", color = Glass.InkDim, fontSize = 12.sp)
+            else Text("Every milestone reached: a grand collection", color = Glass.InkDim, fontSize = 12.sp)
 
             Text("SUMMONERS", color = Glass.InkFaint, fontSize = 13.sp, letterSpacing = 3.sp, modifier = Modifier.padding(top = 8.dp))
             val gifted = sim.villagers.filter { cw.gifted(it) }

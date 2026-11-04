@@ -366,7 +366,7 @@ object Dex {
 
     // ---- wild encounters ----
     /** Weighted pick of a wild species for the current moment. */
-    fun pickWild(rnd: Random, age: Int, night: Boolean, winter: Boolean): Species {
+    fun pickWild(rnd: Random, age: Int, night: Boolean, winter: Boolean, bound: Set<Int> = emptySet(), keptOf: (Int) -> Int = { 0 }): Species {
         var total = 0f
         val w = FloatArray(list.size)
         for ((i, sp) in list.withIndex()) {
@@ -380,6 +380,11 @@ object Dex {
             if (sp.activity == 1 && !night && !(sp.id == 50 && winter)) x = 0f
             if (sp.activity == 2 && night) x = 0f
             if (sp.habitat == "snow" && winter) x *= 2.5f
+            // the rift is curious: kinds the village has not bound yet come more often, kinds it keeps many of less often
+            if (x > 0f && bound.isNotEmpty()) {
+                if (sp.id !in bound) x *= 2.6f
+                x /= (1f + 0.55f * keptOf(sp.id))
+            }
             w[i] = x
             total += x
         }

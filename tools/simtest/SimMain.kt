@@ -142,6 +142,10 @@ fun main(args: Array<String>) {
     println("FORK branchEvos=${cw.branchEvos} held=${cw.holdHeld} formsSeen=${cw.caught.filter { it in 90..95 }.sorted()} stage3Caught=${cw.caught.count { com.jondude1.deskglass.sim.Dex.byId(it).stage == 3 }}")
     println("TOURNEY held=${sim.critters.tourneys} matches=${sim.critters.tourMatches} forfeits=${sim.critters.tourForfeits} champ=${sim.critters.champName} on=${sim.critters.tourOn}")
     println("DEX species=${com.jondude1.deskglass.sim.Dex.COUNT} caught=${sim.critters.caught.size} seen=${sim.critters.seen.size} newLines(72-80) caught=${sim.critters.caught.filter { it >= 72 }.sorted()} seen=${sim.critters.seen.filter { it >= 72 }.sorted()} kept=${sim.critters.critters.filter { it.species.id >= 72 }.map { it.species.name + it.level }}")
+    run {
+        val kc = sim.critters.critters.groupingBy { it.sp }.eachCount()
+        println("DEXLURE caught=${sim.critters.caught.size} milestones=${sim.critters.dexMiles} lureSpawns=${sim.critters.lureSpawns} keptKinds=${kc.size} keptTotal=${sim.critters.critters.size} maxDup=${kc.values.maxOrNull() ?: 0} top=${kc.entries.sortedByDescending { it.value }.take(3).map { com.jondude1.deskglass.sim.Dex.byId(it.key).name + "x" + it.value }}")
+    }
     println("ALPHA seen=${sim.critters.alphaSeen} tamed=${sim.critters.alphaTamed} beaten=${sim.critters.alphaBeaten} lost=${sim.critters.alphaLosses} kept=${sim.critters.alphaKept()} lvs=${sim.critters.critters.filter { it.alpha }.map { it.species.name + it.level }}")
     println("SHINY seen=${sim.critters.shinySeen} hatched=${sim.critters.shinyHatched} kept=${sim.critters.shinyKept()} lvs=${sim.critters.critters.filter { it.shiny }.map { it.species.name + it.level }}")
     println("APIARY built=${sim.buildings.count { it.type == "apiary" }} harvests=${sim.honeyHarvests} jars=${sim.honeyJars} stings=${sim.beeStings} mead=${sim.meadFeasts} ripeNow=${sim.honeyReady()}")

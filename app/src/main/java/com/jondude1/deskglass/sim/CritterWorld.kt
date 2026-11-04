@@ -146,6 +146,9 @@ class CritterWorld(private val sim: CivSim) {
     var shinySeen = 0
     /** Alpha pack leaders that slipped through a rift, and how many were bound. */
     var alphaSeen = 0
+    /** Dex milestones already celebrated, and rift arrivals of kinds the village had not bound yet. */
+    var dexMiles = 0
+    var lureSpawns = 0
     var alphaTamed = 0
     var alphaBeaten = 0
     var alphaLosses = 0
@@ -315,7 +318,7 @@ class CritterWorld(private val sim: CivSim) {
         summonReady.clear()
         mages.clear()
         swaps.clear()
-        eggs.clear(); eggsLaid = 0; eggsHatched = 0; goldenHatched = 0; nextEggAt = -1.0; shinySeen = 0; shinyHatched = 0; alphaSeen = 0; alphaTamed = 0; alphaBeaten = 0; alphaLosses = 0; shinyAnnounced.clear()
+        eggs.clear(); eggsLaid = 0; eggsHatched = 0; goldenHatched = 0; nextEggAt = -1.0; shinySeen = 0; shinyHatched = 0; alphaSeen = 0; alphaTamed = 0; alphaBeaten = 0; alphaLosses = 0; dexMiles = 0; lureSpawns = 0; shinyAnnounced.clear()
         errands.clear()
         lessonReady.clear()
         scribeReady.clear()
@@ -455,6 +458,7 @@ class CritterWorld(private val sim: CivSim) {
             tourTick()
             eggTick()
             shinyTick()
+            dexTick()
             for (e in encounters.toList()) encTick(e, dt)
             evoTick()
             pops.removeAll { sim.time - it.born > it.life }
@@ -621,6 +625,8 @@ class CritterWorld(private val sim: CivSim) {
             val line = Dex.lineOf(if (rnd.nextBoolean()) a.sp else b.sp)
             val base = line.firstOrNull() ?: continue
             if (base.rarity >= 5) continue
+            // no more of a kind the village already keeps plenty of: the nests go quiet for that line
+            if (critters.count { Dex.lineOf(it.sp).firstOrNull()?.id == base.id } >= 3) continue
             val ba = bodyFor(a)
             var ex = ba.x + (rnd.nextFloat() - 0.5f) * 1.6f
             var ey = ba.y + 0.6f
@@ -682,6 +688,36 @@ class CritterWorld(private val sim: CivSim) {
         }
     }
 
+    // ---- Critterdex milestones ----
+
+    private val dexSteps = intArrayOf(6, 12, 20, 30, 42, 55)
+
+    fun dexNext(): Int = if (dexMiles < dexSteps.size) dexSteps[dexMiles] else -1
+
+    /** Every time the village has bound enough different kinds of critter, it celebrates and the Dex pays out. */
+    private fun dexTick() {
+        val need = dexNext()
+        if (need < 0 || caught.size < need) return
+        val k = dexMiles
+        dexMiles++
+        val reward = when (k) {
+            0 -> { sim.food += 25; "25 food" }
+            1 -> { scrolls[1] = scrolls[1] + 1; "a fine scroll" }
+            2 -> { sim.wood += 30; sim.stone += 20; "30 wood and 20 stone" }
+            3 -> { scrolls[2] = scrolls[2] + 1; "a rare scroll" }
+            4 -> { sim.metal += 6; scrolls[1] = scrolls[1] + 1; "6 metal and a fine scroll" }
+            else -> { scrolls[2] = scrolls[2] + 2; "two rare scrolls" }
+        }
+        val c = centre()
+        pop(c[0], c[1] - 1.6f, "Dex $need!", 0xFFFFE066)
+        pop(c[0] - 1.2f, c[1] - 0.8f, "\u2605", 0xFFFFF0A0)
+        pop(c[0] + 1.2f, c[1] - 0.8f, "\u2605", 0xFFFFF0A0)
+        sim.note("The Critterdex fills to $need kinds (${caught.size}/${Dex.COUNT}). The village cheers and the scribes are paid: $reward.")
+        sim.mark("The village has bound $need kinds of critter.")
+        for (v in sim.villagers) v.happiness = min(100f, v.happiness + 6f)
+        sim.festivalUntil = max(sim.festivalUntil, sim.time + 30.0)
+    }
+
     // ---- wild critters ----
 
     private fun spawnTick(dt: Float) {
@@ -693,7 +729,8 @@ class CritterWorld(private val sim: CivSim) {
         val night = sim.darkness() > 0.3f
         val month = java.time.LocalDate.now().monthValue
         val winter = month == 12 || month <= 2
-        val sp = Dex.pickWild(rnd, sim.age, night, winter)
+        val sp = Dex.pickWild(rnd, sim.age, night, winter, caught) { id -> critters.count { it.sp == id } }
+        if (sp.id !in caught) lureSpawns++
         val cell = spawnCell(sp, winter)
         if (cell < 0) return
         val alpha = sim.age >= 1 && sp.stage <= 2 && rnd.nextInt(12) == 0
@@ -2399,7 +2436,7 @@ class CritterWorld(private val sim: CivSim) {
             ea.put(JSONObject().put("sp", e.sp).put("x", e.x.toDouble()).put("y", e.y.toDouble()).put("laid", e.laid).put("at", e.hatchAt).put("own", e.owner).put("g", e.golden).put("par", e.parents))
         }
         o.put("eggs", ea)
-        o.put("eggN", eggsLaid).put("eggH", eggsHatched).put("eggG", goldenHatched).put("alphaN", alphaSeen).put("alphaT", alphaTamed).put("shinyN", shinySeen).put("shinyH", shinyHatched)
+        o.put("eggN", eggsLaid).put("eggH", eggsHatched).put("eggG", goldenHatched).put("alphaN", alphaSeen).put("alphaT", alphaTamed).put("shinyN", shinySeen).put("shinyH", shinyHatched).put("dexM", dexMiles).put("lureN", lureSpawns)
         o.put("seen", JSONArray(seen.toList()))
         o.put("caught", JSONArray(caught.toList()))
         return o
@@ -2456,7 +2493,7 @@ class CritterWorld(private val sim: CivSim) {
                     nextUid = max(nextUid, c.uid + 1)
                 }
             }
-            eggsLaid = o.optInt("eggN", 0); eggsHatched = o.optInt("eggH", 0); goldenHatched = o.optInt("eggG", 0); alphaSeen = o.optInt("alphaN", 0); alphaTamed = o.optInt("alphaT", 0); shinySeen = o.optInt("shinyN", 0); shinyHatched = o.optInt("shinyH", 0)
+            eggsLaid = o.optInt("eggN", 0); eggsHatched = o.optInt("eggH", 0); goldenHatched = o.optInt("eggG", 0); alphaSeen = o.optInt("alphaN", 0); alphaTamed = o.optInt("alphaT", 0); shinySeen = o.optInt("shinyN", 0); shinyHatched = o.optInt("shinyH", 0); dexMiles = o.optInt("dexM", 0); lureSpawns = o.optInt("lureN", 0)
             o.optJSONArray("eggs")?.let { ea ->
                 for (i in 0 until ea.length()) {
                     val j = ea.getJSONObject(i)
