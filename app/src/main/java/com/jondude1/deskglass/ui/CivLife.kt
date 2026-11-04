@@ -216,7 +216,7 @@ fun DrawScope.drawVisitor(sim: CivSim, art: CivArt, g: Geo, sun: Sun) {
     val ts = g.ts
     val ps = g.ps
     val t = g.t
-    val sp = when (vis.kind) { "merchant" -> art.merchant; "bard" -> art.bard; "knight" -> art.knight; "scholar" -> art.scholar; "toymaker" -> art.toymaker; else -> art.pilgrim }
+    val sp = when (vis.kind) { "merchant" -> art.merchant; "bard" -> art.bard; "knight" -> art.knight; "scholar" -> art.scholar; "toymaker" -> art.toymaker; "tinker" -> art.tinker; "sower" -> art.sower; "seer" -> art.seer; else -> art.pilgrim }
     val w = sp.lw * ps * 1.1f
     val h = sp.lh * ps * 1.1f
     val cx = g.ox + vis.x * ts
@@ -271,6 +271,37 @@ fun DrawScope.drawVisitor(sim: CivSim, art: CivArt, g: Geo, sun: Sun) {
             val c = when (k) { 0 -> Color(0xFF4AA8E8); 1 -> Color(0xFF6AD05A); else -> Color(0xFFFFB347) }
             drawRect(c, Offset(jx - ps * 1.2f, jy - ps * 1.2f), Size(ps * 2.4f, ps * 2.4f))
             drawRect(Color.White.copy(alpha = 0.6f), Offset(jx - ps * 0.6f, jy - ps * 0.8f), Size(ps * 0.9f, ps * 0.9f))
+        }
+        "tinker" -> for (k in 0 until 6) {
+            // sparks fly off the grindstone in quick bursts
+            val p = (t * 1.3f + k * 0.17f) % 1f
+            val ang = -0.6f - (k % 3) * 0.5f
+            val sx = cx + w * 0.55f + cos(ang) * ps * (1f + p * 9f)
+            val sy = feet - h * 0.35f + sin(ang) * ps * (1f + p * 9f) + p * p * ps * 8f
+            drawRect(Color(0xFFFFD27A).copy(alpha = 1f - p), Offset(sx, sy), Size(ps * 1.2f, ps * 1.2f))
+            if (k == 0 && p < 0.3f) drawCircle(Color(0xFFFFF2C0).copy(alpha = 0.7f * (1f - p / 0.3f)), radius = ps * 2.2f, center = Offset(cx + w * 0.55f, feet - h * 0.35f))
+        }
+        "sower" -> for (k in 0 until 7) {
+            // handfuls of seed arc out over the ground
+            val p = (t * 0.6f + k / 7f) % 1f
+            val sx = cx - w * 0.2f + p * w * 1.6f * (if (k % 2 == 0) 1f else -0.6f)
+            val sy = feet - h * 0.6f - sin(p * 3.14159f) * ps * 6f + p * h * 0.45f
+            drawRect(Color(0xFFF4C542).copy(alpha = 1f - p * 0.5f), Offset(sx, sy), Size(ps * 1.0f, ps * 1.0f))
+            if (p > 0.8f) drawRect(Color(0xFF6AD05A).copy(alpha = 0.8f), Offset(sx, feet - ps * 1.5f), Size(ps * 0.8f, ps * 1.8f))
+        }
+        "seer" -> {
+            // the crystal ball glows, stars wink and a faint ring turns round the fortune-teller
+            val pulse = 0.5f + 0.5f * sin(t * 2.4f)
+            val bx = cx + w * 0.62f
+            val by = feet - h * 0.42f
+            drawCircle(Color(0xFF6FE3F0).copy(alpha = 0.14f + 0.12f * pulse), radius = ps * 6f, center = Offset(bx, by))
+            for (k in 0 until 5) {
+                val a = t * 1.1f + k * 1.2566f
+                val rx = cx + cos(a) * w * 0.75f
+                val ry = feet - h * 0.55f + sin(a) * h * 0.18f
+                val tw = 0.5f + 0.5f * sin(t * 5f + k * 1.7f)
+                drawRect(Color(0xFFF4E39A).copy(alpha = 0.35f + 0.55f * tw), Offset(rx, ry), Size(ps * 1.1f, ps * 1.1f))
+            }
         }
         "pilgrim" -> {
             val pulse = 0.5f + 0.5f * sin(t * 3f)

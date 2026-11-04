@@ -433,6 +433,20 @@ class CivArt {
         'T' to 0xFFB88A1E.toInt(), 'p' to 0xFF8A5A2A.toInt(), 'P' to 0xFF5E3A1A.toInt(), 'a' to 0xFF4AA8E8.toInt(),
         'e' to 0xFF6AD05A.toInt(), 'b' to 0xFF3A2A1E.toInt(),
     ))
+    val tinker = sprite(TINKER, mapOf(
+        'h' to 0xFF7A5A32.toInt(), 's' to 0xFFD9A878.toInt(), 'k' to 0xFF1E1A16.toInt(), 'o' to 0xFFC87A2E.toInt(),
+        'O' to 0xFF8E5018.toInt(), 'p' to 0xFFB9BCC6.toInt(), 'P' to 0xFF7E818E.toInt(), 'm' to 0xFFE6E9F0.toInt(),
+        'b' to 0xFF3A2A1E.toInt(),
+    ))
+    val sower = sprite(SOWER, mapOf(
+        'h' to 0xFFE8CF6A.toInt(), 'H' to 0xFFB8963A.toInt(), 's' to 0xFFD9A878.toInt(), 'k' to 0xFF1E1A16.toInt(),
+        'g' to 0xFF5E9A3A.toInt(), 'G' to 0xFF3E6E24.toInt(), 'z' to 0xFFD8C08A.toInt(), 'Z' to 0xFF9E8650.toInt(),
+        'e' to 0xFFF4C542.toInt(), 'b' to 0xFF3A2A1E.toInt(),
+    ))
+    val seer = sprite(SEER, mapOf(
+        'v' to 0xFF6A3FA0.toInt(), 'V' to 0xFF3E2268.toInt(), 's' to 0xFFD9A878.toInt(), 'k' to 0xFF1E1A16.toInt(),
+        'c' to 0xFF6FE3F0.toInt(), 'C' to 0xFFE6FFFF.toInt(), 'y' to 0xFFF4D060.toInt(), 'b' to 0xFF2A1A3A.toInt(),
+    ))
     val shaman = sprite(SHAMAN, mapOf(
         's' to 0xFFD9A878.toInt(), 'm' to 0xFF6E3A8C.toInt(), 'M' to 0xFF4A2462.toInt(), 'b' to 0xFFEDE3C8.toInt(),
         'g' to 0xFF7FFFB0.toInt(), 'c' to 0xFF6B4A2B.toInt(), 'k' to 0xFF1E1A16.toInt(), 'r' to 0xFFB02A2A.toInt(),
@@ -1530,6 +1544,48 @@ class CivArt {
             "...tt..tt...",
             "...bb..bb...",
             "...bb..bb...",
+        )
+        val TINKER = listOf(
+            "...hhhh...pp",
+            "..hhhhhh.pPP",
+            "...ssss..pPp",
+            "...skks.ppPp",
+            "....ss..pPPp",
+            "..oooooopPp.",
+            ".soooOoopp..",
+            ".s.oooOoo...",
+            "mm.oooOoo...",
+            "...oo..oo...",
+            "...bb..bb...",
+            "...bb..bb...",
+        )
+        val SOWER = listOf(
+            "..HHHHHH....",
+            ".hhhhhhhh...",
+            "...ssss.....",
+            "...skks.....",
+            "....ss..zz..",
+            "..ggggzzzZZ.",
+            ".sggGgzzezZ.",
+            ".s.gGgzzzZZ.",
+            "...gGgg.zz..",
+            "...gg.gg....",
+            "...bb.bb....",
+            "...bb.bb....",
+        )
+        val SEER = listOf(
+            "...vvvv.....",
+            "..vvvvvv....",
+            "..vvssvv..y.",
+            "..vsksv...y.",
+            "...vssv.....",
+            "..vvyyvv.cc.",
+            ".vvvVvvvcCCc",
+            ".vv.VvvvcCCc",
+            ".svvVvvv.cc.",
+            "..vvVvvv....",
+            "..vVvvVv....",
+            "...bb.bb....",
         )
         val PILGRIM = listOf(
             "....wwww..g.",
