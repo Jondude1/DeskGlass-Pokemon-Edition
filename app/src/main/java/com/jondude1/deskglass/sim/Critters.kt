@@ -459,15 +459,18 @@ class Critter(val uid: Int, var sp: Int, var level: Int) {
     var cycle = 0
     /** A rare recoloured critter: a little tougher and always sparkling. */
     var shiny = false
+    /** A rare, hulking pack leader that was bound from the wild: tougher in every stat. */
+    var alpha = false
+    private val statPct: Int get() = (if (shiny) 108 else 100) + (if (alpha) 10 else 0)
     /** Copy of another critter's nature (battle doubles have no id of their own); -1 means derive it from the id. */
     var natureIdx = -1
     val nature: Nature get() = if (natureIdx in Nature.ALL.indices) Nature.ALL[natureIdx] else Nature.of(uid)
 
     val species: Species get() = Dex.byId(sp)
-    val maxHp: Int get() = Dex.maxHp(species, level).let { if (shiny) it * 108 / 100 else it }
-    val atk: Int get() = Dex.atk(species, level).let { (if (shiny) it * 108 / 100 else it) }.let { (it * nature.mult(0)).toInt() }
-    val def: Int get() = Dex.def(species, level).let { (if (shiny) it * 108 / 100 else it) }.let { (it * nature.mult(1)).toInt() }
-    val spd: Int get() = Dex.spd(species, level).let { (if (shiny) it * 108 / 100 else it) }.let { (it * nature.mult(2)).toInt() }
+    val maxHp: Int get() = Dex.maxHp(species, level) * statPct / 100
+    val atk: Int get() = (Dex.atk(species, level) * statPct / 100).let { (it * nature.mult(0)).toInt() }
+    val def: Int get() = (Dex.def(species, level) * statPct / 100).let { (it * nature.mult(1)).toInt() }
+    val spd: Int get() = (Dex.spd(species, level) * statPct / 100).let { (it * nature.mult(2)).toInt() }
     val moves: List<Move> get() = Dex.movesAt(species, level)
     val name: String get() = nick.ifBlank { species.name }
     /** "Ember the Cindrel" once named, plain species name before. */

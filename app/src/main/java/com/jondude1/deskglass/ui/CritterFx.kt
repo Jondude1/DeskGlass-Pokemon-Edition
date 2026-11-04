@@ -179,6 +179,7 @@ private fun DrawScope.drawWildCritter(w: Wild, cart: CritterArt, art: CivArt, g:
     }
     if (alpha < 0.98f) riftFx(w.x, w.y, sin(alpha.coerceIn(0f, 1f) * PI.toFloat()), g)
     critShadow(art, img, cx, base, wd, ht, sun, ps, alpha)
+    if (w.c.alpha && alpha > 0.4f) alphaAura(cx, base, wd, ht, t, ps, w.c.uid, alpha)
     spr(img, cx, base - hop, wd, ht, w.facing, alpha)
     if (w.c.shiny && alpha > 0.4f) shinySparkle(cx, base, wd, ht, t, ps, w.c.uid, alpha)
     if (species.rarity >= 3 && alpha > 0.5f) {
@@ -190,6 +191,22 @@ private fun DrawScope.drawWildCritter(w: Wild, cart: CritterArt, art: CivArt, g:
             drawRect(Color(0xFFFFF4B0).copy(alpha = 0.3f + 0.6f * tw), Offset(px - ps * 0.7f, py - ps * 0.7f), Size(ps * 1.4f, ps * 1.4f))
         }
     }
+}
+
+/** A pulsing red ground ring, rising embers and a pair of burning eyes that mark an alpha pack leader. */
+private fun DrawScope.alphaAura(cx: Float, base: Float, wd: Float, ht: Float, t: Float, ps: Float, seed: Int, alpha: Float) {
+    val pulse = 0.5f + 0.5f * sin(t * 3f + seed)
+    val red = Color(0xFFFF4A3A)
+    drawOval(red.copy(alpha = (0.16f + 0.14f * pulse) * alpha), Offset(cx - wd * 0.8f, base - ps * 2.5f), Size(wd * 1.6f, ps * 5f))
+    drawOval(red.copy(alpha = (0.30f + 0.2f * pulse) * alpha), Offset(cx - wd * 0.6f, base - ps * 1.5f), Size(wd * 1.2f, ps * 3f), style = Stroke(width = ps * 0.6f))
+    for (k in 0 until 4) {
+        val u = (t * 0.45f + k * 0.25f + seed * 0.13f) % 1f
+        val px = cx + sin(t * 2f + k * 1.7f + seed) * wd * 0.45f
+        val py = base - u * ht * 1.3f
+        drawRect(Color(0xFFFFB13C).copy(alpha = (1f - u) * 0.85f * alpha), Offset(px - ps * 0.5f, py), Size(ps, ps))
+    }
+    drawRect(Color(0xFFFF2A1A).copy(alpha = alpha), Offset(cx - wd * 0.18f, base - ht * 0.72f), Size(ps * 1.2f, ps * 1.2f))
+    drawRect(Color(0xFFFF2A1A).copy(alpha = alpha), Offset(cx + wd * 0.06f, base - ht * 0.72f), Size(ps * 1.2f, ps * 1.2f))
 }
 
 /** Twinkling four-point glints that circle a shiny critter. */
@@ -230,6 +247,7 @@ private fun DrawScope.drawKeptCritter(
         spr(img, cx, base - hop, wd, ht, facing)
     }
     if (c.shiny) shinySparkle(cx, base, wd, ht, t, ps, c.uid, 1f)
+    if (c.alpha) alphaAura(cx, base, wd, ht, t, ps, c.uid, 0.8f)
     if (c.companion && !tired) {
         // a little bright mark above a companion, so you can tell who walks with whom
         val bx = cx

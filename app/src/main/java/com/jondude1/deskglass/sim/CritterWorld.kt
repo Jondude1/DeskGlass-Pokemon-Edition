@@ -142,6 +142,12 @@ class CritterWorld(private val sim: CivSim) {
     var eggsHatched = 0
     var goldenHatched = 0
     var shinySeen = 0
+    /** Alpha pack leaders that slipped through a rift, and how many were bound. */
+    var alphaSeen = 0
+    var alphaTamed = 0
+    var alphaBeaten = 0
+    var alphaLosses = 0
+    fun alphaKept(): Int = critters.count { it.alpha }
     var shinyHatched = 0
     private val shinyAnnounced = HashSet<Int>()
     fun shinyKept(): Int = critters.count { it.shiny }
@@ -299,7 +305,7 @@ class CritterWorld(private val sim: CivSim) {
         summonReady.clear()
         mages.clear()
         swaps.clear()
-        eggs.clear(); eggsLaid = 0; eggsHatched = 0; goldenHatched = 0; nextEggAt = -1.0; shinySeen = 0; shinyHatched = 0; shinyAnnounced.clear()
+        eggs.clear(); eggsLaid = 0; eggsHatched = 0; goldenHatched = 0; nextEggAt = -1.0; shinySeen = 0; shinyHatched = 0; alphaSeen = 0; alphaTamed = 0; alphaBeaten = 0; alphaLosses = 0; shinyAnnounced.clear()
         errands.clear()
         lessonReady.clear()
         scribeReady.clear()
@@ -679,14 +685,21 @@ class CritterWorld(private val sim: CivSim) {
         val sp = Dex.pickWild(rnd, sim.age, night, winter)
         val cell = spawnCell(sp, winter)
         if (cell < 0) return
-        val c = Critter(nextUid++, sp.id, Dex.wildLevel(rnd, sp, sim.age))
+        val alpha = sim.age >= 1 && sp.stage <= 2 && rnd.nextInt(12) == 0
+        val c = Critter(nextUid++, sp.id, Dex.wildLevel(rnd, sp, sim.age) + (if (alpha) 2 else 0))
+        if (alpha) { c.alpha = true; alphaSeen++ }
         c.heal()
-        val shiny = rnd.nextInt(22) == 0
+        val shiny = !alpha && rnd.nextInt(22) == 0
         if (shiny) { c.shiny = true; shinySeen++ }
         val w = Wild(c, cell % GW + 0.5f, cell / GW + 0.5f)
         w.life = 140f + rnd.nextFloat() * 90f + (if (shiny) 90f else 0f)
         w.pause = 1f + rnd.nextFloat() * 2f
         wilds.add(w)
+        if (alpha) {
+            w.life += 60f
+            sim.note("A hulking alpha ${sp.name} (Lv ${c.level}) prowls out of a rift, its pack-mark glowing red. It will be a hard bind.")
+            pop(w.x, w.y - 0.9f, "alpha!", 0xFFFF6A5A)
+        }
         if (shiny) {
             sim.note("A shimmering shiny ${sp.name} slips through the rift! Quick, befriend it!")
             pop(w.x, w.y - 0.9f, "shiny!", 0xFFFFF0A0)
@@ -1115,6 +1128,10 @@ class CritterWorld(private val sim: CivSim) {
 
     /** Villagers only snare a species when the village has room and fewer than two of it already. */
     private fun wantsMore(v: Villager, foe: Critter): Boolean {
+        if (foe.alpha) {
+            // a pack leader is always worth a try, if the summoner has a place for it
+            return critters.count { it.alpha } < 4 && (critters.count { it.owner == v.id } < MAX_TEAM || weakestSwappable(v) != null)
+        }
         if (foe.species.rarity >= 5) {
             // a legend is always worth a pact, if the summoner has a place for it
             return critters.none { it.sp == foe.sp } &&
@@ -1161,13 +1178,13 @@ class CritterWorld(private val sim: CivSim) {
             if (maybeLesson(v, mage)) return
             val comp = companionOf(v)
             if (summonWanted(v, mage, comp) && startSummon(v, mage)) return
-            val wild = wilds.filter { it.claimed < 0 && it.fade >= 1f && !it.leaving && hypot(it.x - v.x, it.y - v.y) < (if (it.c.species.rarity >= 5) 45f else 16f) }
+            val wild = wilds.filter { it.claimed < 0 && it.fade >= 1f && !it.leaving && (!it.c.alpha || (comp != null && comp.level + 3 >= it.c.level)) && hypot(it.x - v.x, it.y - v.y) < (if (it.c.species.rarity >= 5) 45f else 16f) }
                 .minByOrNull { hypot(it.x - v.x, it.y - v.y) }
             if (wild != null) {
                 val bold = v.job == "Hunter" || v.job == "Scout" || v.job == "Forager"
                 val legend = wild.c.species.rarity >= 5
-                val p = if (legend) 0.9f else if (bold) 0.55f else 0.3f
-                if (comp != null && ready(comp) && (!legend || comp.level >= wild.c.level) && rnd.nextFloat() < p) {
+                val p = if (legend) 0.9f else if (wild.c.alpha) 0.7f else if (bold) 0.55f else 0.3f
+                if (comp != null && ready(comp) && (!legend || comp.level >= wild.c.level) && (!wild.c.alpha || comp.level + 3 >= wild.c.level) && rnd.nextFloat() < p) {
                     startWild(v, comp, wild)
                     return
                 }
@@ -1577,6 +1594,7 @@ class CritterWorld(private val sim: CivSim) {
         val d = Critter(-1, c.sp, c.level)
         d.nick = c.nick
         d.natureIdx = Nature.ALL.indexOf(c.nature)
+        d.alpha = c.alpha
         d.heal()
         return d
     }
@@ -1791,7 +1809,7 @@ class CritterWorld(private val sim: CivSim) {
     private fun continueAfter(e: Enc, t: Turn?) {
         val b = e.b!!
         val foe = e.foe
-        if (e.kind == "wild" && foe != null && t != null && t.side == 0 && b.hpFrac <= 0.45f && e.snareTry < (if (foe.species.rarity >= 5) 6 else 3) &&
+        if (e.kind == "wild" && foe != null && t != null && t.side == 0 && b.hpFrac <= 0.45f && e.snareTry < (if (foe.species.rarity >= 5) 6 else if (foe.alpha) 5 else 3) &&
             mageOf(e.v).mana >= BIND_COST && wantsMore(e.v, foe)
         ) {
             startSnare(e)
@@ -1878,7 +1896,7 @@ class CritterWorld(private val sim: CivSim) {
         // a summoner well above the critter's level binds it more easily
         val bonus = min(0.25f, max(0, mage.lv - foe.level) * 0.03f) + (if (e.v.job == "Hunter" || e.v.job == "Scout") 0.06f else 0f)
         // a legend tests a summoner but does not turn away one who keeps trying: each attempt sways it more
-        val pact = if (foe.species.rarity >= 5) 0.3f + 0.2f * (e.snareTry - 1) else 0f
+        val pact = if (foe.species.rarity >= 5) 0.3f + 0.2f * (e.snareTry - 1) else if (foe.alpha) 0.1f * e.snareTry else 0f
         e.snareWon = rnd.nextFloat() < (Dex.catchChance(foe.species, foe.level, foe.hpFrac, bonus) + pact).coerceAtMost(0.97f)
         e.banner = "${e.v.name} calls up binding runes!"
         e.bannerT = 1.6f
@@ -1976,6 +1994,14 @@ class CritterWorld(private val sim: CivSim) {
             sim.mark("${v.name} sealed a pact with the legend ${foe.species.name}.")
             for (o in sim.villagers) o.happiness = min(100f, o.happiness + 15f)
         }
+        if (foe.alpha) {
+            alphaTamed++
+            foe.bond += 8
+            sim.note("${v.name} has bound an alpha ${foe.species.name}! ${foe.nick} bows its head, and the village cheers.")
+            sim.mark("${v.name} bound an alpha ${foe.species.name}.")
+            for (o in sim.villagers) if (hypot(o.x - v.x, o.y - v.y) < 14f) o.happiness = min(100f, o.happiness + 8f)
+            pop(e.bx, e.by - 1.0f, "alpha bound!", 0xFFFF6A5A)
+        }
         val newSpecies = caught.add(foe.sp)
         seen.add(foe.sp)
         val role = if (foe.companion) "as a companion" else "infused into the pack"
@@ -2013,8 +2039,9 @@ class CritterWorld(private val sim: CivSim) {
             "wild" -> {
                 val mine = e.mine!!
                 val foe = e.foe!!
+                if (foe.alpha) { if (winner == 0) alphaBeaten++ else alphaLosses++ }
                 if (winner == 0) {
-                    val gain = 14 + foe.level * 5 + foe.species.stage * 6
+                    val gain = (14 + foe.level * 5 + foe.species.stage * 6) * (if (foe.alpha) 2 else 1)
                     val lv = mine.gainXp(gain)
                     mine.wins++
                     mine.bond++
@@ -2029,7 +2056,7 @@ class CritterWorld(private val sim: CivSim) {
                     v.remember("won a battle with ${mine.name}")
                     v.say = "Well fought, ${mine.name}!"
                     v.sayLeft = 4f
-                    sim.note("${v.name}'s ${mine.name} beats a wild ${foe.species.name}.")
+                    sim.note("${v.name}'s ${mine.name} beats a wild ${if (foe.alpha) "alpha " else ""}${foe.species.name}.")
                     e.wild?.let {
                         it.claimed = -1
                         it.leaving = true
@@ -2221,7 +2248,7 @@ class CritterWorld(private val sim: CivSim) {
         for (c in critters) {
             arr.put(
                 JSONObject().put("id", c.uid).put("sp", c.sp).put("lv", c.level).put("xp", c.xp).put("hp", c.hp)
-                    .put("own", c.owner).put("comp", c.companion).put("nick", c.nick).put("wins", c.wins).put("bond", c.bond).put("shiny", c.shiny)
+                    .put("own", c.owner).put("comp", c.companion).put("nick", c.nick).put("wins", c.wins).put("bond", c.bond).put("shiny", c.shiny).put("alpha", c.alpha)
             )
         }
         o.put("critters", arr)
@@ -2231,7 +2258,7 @@ class CritterWorld(private val sim: CivSim) {
             ea.put(JSONObject().put("sp", e.sp).put("x", e.x.toDouble()).put("y", e.y.toDouble()).put("laid", e.laid).put("at", e.hatchAt).put("own", e.owner).put("g", e.golden).put("par", e.parents))
         }
         o.put("eggs", ea)
-        o.put("eggN", eggsLaid).put("eggH", eggsHatched).put("eggG", goldenHatched).put("shinyN", shinySeen).put("shinyH", shinyHatched)
+        o.put("eggN", eggsLaid).put("eggH", eggsHatched).put("eggG", goldenHatched).put("alphaN", alphaSeen).put("alphaT", alphaTamed).put("shinyN", shinySeen).put("shinyH", shinyHatched)
         o.put("seen", JSONArray(seen.toList()))
         o.put("caught", JSONArray(caught.toList()))
         return o
@@ -2272,6 +2299,8 @@ class CritterWorld(private val sim: CivSim) {
                     if (sp !in 1..Dex.COUNT) continue
                     val c = Critter(j.getInt("id"), sp, j.optInt("lv", 5).coerceIn(1, Dex.MAX_LEVEL))
                     c.xp = j.optInt("xp", 0)
+                    c.alpha = j.optBoolean("alpha", false)
+                    c.shiny = j.optBoolean("shiny", false)
                     c.hp = j.optInt("hp", c.maxHp).coerceIn(1, c.maxHp)
                     c.owner = j.optInt("own", -1)
                     c.companion = j.optBoolean("comp", false)
@@ -2285,7 +2314,7 @@ class CritterWorld(private val sim: CivSim) {
                     nextUid = max(nextUid, c.uid + 1)
                 }
             }
-            eggsLaid = o.optInt("eggN", 0); eggsHatched = o.optInt("eggH", 0); goldenHatched = o.optInt("eggG", 0); shinySeen = o.optInt("shinyN", 0); shinyHatched = o.optInt("shinyH", 0)
+            eggsLaid = o.optInt("eggN", 0); eggsHatched = o.optInt("eggH", 0); goldenHatched = o.optInt("eggG", 0); alphaSeen = o.optInt("alphaN", 0); alphaTamed = o.optInt("alphaT", 0); shinySeen = o.optInt("shinyN", 0); shinyHatched = o.optInt("shinyH", 0)
             o.optJSONArray("eggs")?.let { ea ->
                 for (i in 0 until ea.length()) {
                     val j = ea.getJSONObject(i)

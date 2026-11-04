@@ -6262,6 +6262,8 @@ class CivSim(
             Deed("egg1", "Warm Nest", "A critter egg hatched in the village.", "+20 food") { critters.eggsHatched >= 1 },
             Deed("shiny1", "A Glimmer in the Ether", "Befriended a shiny critter.", "+15 food, +8 stone") { critters.shinyKept() >= 1 },
             Deed("shiny3", "Rainbow Menagerie", "Kept three shiny critters at once.", "+25 food, +12 wood") { critters.shinyKept() >= 3 },
+            Deed("alpha1", "Pack Leader", "Bound an alpha critter from the wild.", "+20 food, +10 stone") { critters.alphaTamed >= 1 },
+            Deed("alpha3", "Alpha Whisperer", "Bound three alpha critters.", "+25 wood, +12 stone") { critters.alphaTamed >= 3 },
             Deed("egg6", "Cradle of Critters", "Six critter eggs hatched.", "+20 food, +10 wood") { critters.eggsHatched >= 6 },
             Deed("zoo", "Critter Keepers", "Own 10 critters.", "+20 food") { critters.critters.size >= 10 },
             Deed("fork1", "A Fork in the Road", "A critter took its rare second form.", "+20 food, +10 stone") { critters.caught.any { it in 90..95 } },
