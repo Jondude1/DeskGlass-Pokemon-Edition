@@ -318,6 +318,12 @@ class CivArt {
         's' to 0xFF9A9AA2.toInt(), 'S' to 0xFF6C6C76.toInt(),
         'g' to 0xFF4F9E3F.toInt(), 'G' to 0xFF3A7A30.toInt(),
     ))
+    val guild = sprite(GUILD, mapOf(
+        'h' to 0xFF9B4A32.toInt(), 'H' to 0xFF6E3322.toInt(), 'y' to 0xFFE8C547.toInt(),
+        'W' to 0xFF6E4A24.toInt(), 'w' to 0xFFB98A4E.toInt(), 'b' to 0xFF8CC4E8.toInt(), 'd' to 0xFF2A1E1A.toInt(),
+        'r' to 0xFFC8473A.toInt(), 't' to 0xFFB0A89A.toInt(),
+        'g' to 0xFF4F9E3F.toInt(), 'G' to 0xFF3A7A30.toInt(),
+    ))
     val museum = sprite(MUSEUM, mapOf(
         'y' to 0xFFE8C547.toInt(), 'Y' to 0xFFB8932A.toInt(), 'p' to 0xFFE6E0D2.toInt(), 'P' to 0xFFB9B2A2.toInt(),
         'c' to 0xFFF4F0E6.toInt(), 'C' to 0xFFC9C2B2.toInt(), 'b' to 0xFF3F5E86.toInt(), 'd' to 0xFF3A2A1E.toInt(),
@@ -1177,6 +1183,18 @@ class CivArt {
             ".cCbbcddcbbCc.",
             ".cCbbcddcbbCc.",
             "ffffffffffffff",
+            "gGggGgggGggGgg",
+        )
+        val GUILD = listOf(
+            "......yy......",
+            ".....hhhh.....",
+            "....hHhhHh....",
+            "...hHhhhhHh...",
+            "..hhhhhhhhhh..",
+            "..WwwWwwWwwW..",
+            ".rWbbWddWbbWr.",
+            ".rWbbWddWbbWr.",
+            "tttttttttttttt",
             "gGggGgggGggGgg",
         )
         val SCARECROW = listOf(

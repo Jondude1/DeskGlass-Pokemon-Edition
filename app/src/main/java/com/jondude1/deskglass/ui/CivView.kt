@@ -609,6 +609,7 @@ private fun DrawScope.drawWorld(
                 "smokehouse" -> art.smokehouse
                 "scarecrow" -> art.scarecrow
                 "museum" -> art.museum
+                "guild" -> art.guild
                 "observatory" -> art.observatory
                 "yard" -> art.yard
                 "loom" -> art.loom
@@ -1110,6 +1111,22 @@ private fun DrawScope.drawWorld(
                 for (k in 0 until visitors * 3) {
                     val ph = (t * 1.2f + k * 0.31f) % 1f
                     drawCircle(Color(0xFFFFE9A0).copy(alpha = 0.9f * (1f - ph)), radius = ps * 0.5f, center = Offset(cx + (k - visitors * 1.5f) * ps * 1.4f, baseY - hh * 0.55f - ph * hh * 0.6f))
+                }
+                if (dark > 0.1f) drawCircle(Color(0xFFFFD27A).copy(alpha = min(0.3f, dark * 0.5f)), radius = ts * 0.9f, center = Offset(cx, baseY - hh * 0.4f))
+            }
+            if (b.type == "guild") {
+                // a gold pennant on its own pole for every guild rank, hammer sparks while members train, warm window glow at night
+                val trainers = sim.villagers.count { it.action == "guild_work" && it.phase == "working" && kotlin.math.hypot(it.x - (b.x + 0.5f), it.y - (b.y + 0.5f)) < 2.5f }
+                for (k in 0 until sim.guildRank) {
+                    val px = cx - w * 0.36f + k * w * 0.36f
+                    val wave = kotlin.math.sin(t * 3f + k * 1.7f) * ps * 0.9f
+                    drawLine(Color(0xFF6E4A24), Offset(px, baseY - hh * 0.98f), Offset(px, baseY - hh * 1.4f), strokeWidth = ps * 0.8f)
+                    drawLine(Color(0xFFE8C547), Offset(px, baseY - hh * 1.36f), Offset(px + ps * 3.2f + wave, baseY - hh * 1.3f), strokeWidth = ps * 1.6f)
+                    drawLine(Color(0xFFC8473A), Offset(px, baseY - hh * 1.28f), Offset(px + ps * 2.4f + wave, baseY - hh * 1.24f), strokeWidth = ps * 1.2f)
+                }
+                for (k in 0 until trainers * 3) {
+                    val ph = (t * 1.5f + k * 0.29f) % 1f
+                    drawCircle(Color(0xFFFFC857).copy(alpha = 0.9f * (1f - ph)), radius = ps * 0.5f, center = Offset(cx + (k - trainers * 1.5f) * ps * 1.5f, baseY - hh * 0.4f - ph * hh * 0.45f))
                 }
                 if (dark > 0.1f) drawCircle(Color(0xFFFFD27A).copy(alpha = min(0.3f, dark * 0.5f)), radius = ts * 0.9f, center = Offset(cx, baseY - hh * 0.4f))
             }
