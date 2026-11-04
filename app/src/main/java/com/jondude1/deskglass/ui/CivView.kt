@@ -607,6 +607,7 @@ private fun DrawScope.drawWorld(
                 "bath" -> art.bath
                 "kiln" -> art.kiln
                 "smokehouse" -> art.smokehouse
+                "museum" -> art.museum
                 "yard" -> art.yard
                 "loom" -> art.loom
                 "fountain" -> art.fountain
@@ -1049,6 +1050,27 @@ private fun DrawScope.drawWorld(
                 val ember = 0.45f + 0.25f * kotlin.math.sin(t * 7f)
                 drawCircle(Color(0xFFFF8A2E).copy(alpha = ember), radius = ps * 1.1f, center = Offset(cx + w * 0.26f, baseY - hh * 0.22f))
                 if (dark > 0.1f) drawCircle(Color(0xFFFFB45A).copy(alpha = min(0.3f, dark * 0.5f)), radius = ts * 0.8f, center = Offset(cx, baseY - hh * 0.35f))
+            }
+            if (b.type == "museum") {
+                // a row of trophy cases lights up for every exhibit on show, golden glints twinkle over them, visitors add sparkles, windows glow at night
+                val visitors = sim.villagers.count { it.action == "visit_museum" && it.phase == "working" && kotlin.math.hypot(it.x - (b.x + 0.5f), it.y - (b.y + 0.5f)) < 2.5f }
+                val shownMask = sim.museumShown
+                val pipCols = intArrayOf(0xFF7ADCF0.toInt(), 0xFFE8C547.toInt(), 0xFFE8E0C8.toInt(), 0xFFD9453A.toInt(), 0xFF7BC86C.toInt(), 0xFFB98A4E.toInt(), 0xFFF2A7C8.toInt(), 0xFF9A7BE0.toInt(), 0xFFFF8A2E.toInt(), 0xFFBFC8D8.toInt(), 0xFFE0A060.toInt(), 0xFFFFF3A0.toInt(), 0xFF5FB8E8.toInt())
+                for (k in 0 until 13) {
+                    if (shownMask and (1 shl k) == 0) continue
+                    val px = cx - w * 0.42f + k * (w * 0.84f / 12f)
+                    val tw = 0.55f + 0.45f * kotlin.math.sin(t * 2.4f + k * 1.3f)
+                    drawCircle(Color(pipCols[k]).copy(alpha = 0.5f + 0.4f * tw), radius = ps * 0.55f, center = Offset(px, baseY - hh * 0.5f))
+                }
+                if (shownMask != 0) {
+                    val ph = (t * 0.5f) % 1f
+                    drawCircle(Color(0xFFFFE9A0).copy(alpha = 0.8f * (1f - ph)), radius = ps * 0.5f, center = Offset(cx + kotlin.math.sin(t * 1.7f) * w * 0.3f, baseY - hh * (0.35f + ph * 0.5f)))
+                }
+                for (k in 0 until visitors * 3) {
+                    val ph = (t * 1.2f + k * 0.31f) % 1f
+                    drawCircle(Color(0xFFFFE9A0).copy(alpha = 0.9f * (1f - ph)), radius = ps * 0.5f, center = Offset(cx + (k - visitors * 1.5f) * ps * 1.4f, baseY - hh * 0.55f - ph * hh * 0.6f))
+                }
+                if (dark > 0.1f) drawCircle(Color(0xFFFFD27A).copy(alpha = min(0.3f, dark * 0.5f)), radius = ts * 0.9f, center = Offset(cx, baseY - hh * 0.4f))
             }
             if (b.type == "yard") {
                 // the straw dummy shudders under each blow, dust and wood chips fly, a pennant waves; trainers add stars and a night lantern
