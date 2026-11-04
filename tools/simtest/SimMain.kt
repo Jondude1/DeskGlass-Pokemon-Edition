@@ -150,6 +150,7 @@ fun main(args: Array<String>) {
     println("LOOM built=${sim.buildings.count { it.type == "loom" }} weaves=${sim.loomWeaves} cloaks=${sim.loomCloaks} hides=${sim.hides} adults=${sim.villagers.count { !sim.isChild(it) }}")
     println("YARD built=${sim.buildings.count { it.type == "yard" }} sessions=${sim.yardSessions} trained=${sim.critters.yardTrained} spars=${sim.yardSpars} levelUps=${sim.critters.yardLevelUps} xp=${sim.critters.yardXp}")
     println("MUSEUM built=${sim.buildings.count { it.type == "museum" }} visits=${sim.museumVisits} talks=${sim.museumTalks} shown=${Integer.bitCount(sim.museumShown)}/${Integer.bitCount(sim.exhibitMask())} age=${sim.age}")
+    println("OBSERVATORY built=${sim.buildings.count { it.type == "observatory" }} watches=${sim.obsWatches} forecasts=${sim.obsForecasts} hits=${sim.obsHits} prepared=${sim.obsPrepared} now=${sim.forecastKind}")
     println("SMOKE built=${sim.buildings.count { it.type == "smokehouse" }} batches=${sim.smokeBatches} big=${sim.smokeRations} cheers=${sim.smokeCheers} food=${sim.food}")
     println("KILN built=${sim.buildings.count { it.type == "kiln" }} fires=${sim.kilnFires} glazed=${sim.kilnGlazed} cheers=${sim.kilnCheers}")
     println("BELL built=${sim.buildings.count { it.type == "belfry" }} rings=${sim.bellRings} alarms=${sim.bellAlarms} reach=${sim.bellReach}")

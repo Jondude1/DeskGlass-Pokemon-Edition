@@ -1066,6 +1066,23 @@ fun DrawScope.seasonChip(sim: CivSim, g: Geo, namePaint: android.graphics.Paint)
         namePaint.textSize = g.ts * 0.5f
         nc.drawText(label, left + w / 2f, top + h * 0.7f, namePaint)
     }
+    // the observatory's forecast: a second small chip under the first while weather is announced and still to come
+    if (sim.forecastKind.isNotEmpty() && sim.time < sim.forecastDue) {
+        val fw = g.ts * 7.4f
+        val fh = g.ts * 0.95f
+        val ftop = top + h + g.ts * 0.15f
+        drawRect(Color(0xFF14243C).copy(alpha = 0.6f), Offset(left, ftop), Size(fw, fh))
+        drawRect(Color(0xFF7ABBF0), Offset(left, ftop), Size(g.ps * 1.4f, fh))
+        val secs = (sim.forecastDue - sim.time).toInt().coerceAtLeast(1)
+        val ftxt = "Forecast: " + sim.forecastKind + " in " + (if (secs >= 60) "${secs / 60 + 1} min" else "<1 min")
+        drawIntoCanvas { c ->
+            val nc = c.nativeCanvas
+            namePaint.textAlign = android.graphics.Paint.Align.CENTER
+            namePaint.color = android.graphics.Color.argb(235, 200, 228, 255)
+            namePaint.textSize = g.ts * 0.46f
+            nc.drawText(ftxt, left + fw / 2f, ftop + fh * 0.7f, namePaint)
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------------------------

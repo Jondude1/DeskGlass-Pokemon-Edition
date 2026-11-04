@@ -608,6 +608,7 @@ private fun DrawScope.drawWorld(
                 "kiln" -> art.kiln
                 "smokehouse" -> art.smokehouse
                 "museum" -> art.museum
+                "observatory" -> art.observatory
                 "yard" -> art.yard
                 "loom" -> art.loom
                 "fountain" -> art.fountain
@@ -1071,6 +1072,25 @@ private fun DrawScope.drawWorld(
                     drawCircle(Color(0xFFFFE9A0).copy(alpha = 0.9f * (1f - ph)), radius = ps * 0.5f, center = Offset(cx + (k - visitors * 1.5f) * ps * 1.4f, baseY - hh * 0.55f - ph * hh * 0.6f))
                 }
                 if (dark > 0.1f) drawCircle(Color(0xFFFFD27A).copy(alpha = min(0.3f, dark * 0.5f)), radius = ts * 0.9f, center = Offset(cx, baseY - hh * 0.4f))
+            }
+            if (b.type == "observatory") {
+                // the dome slit sweeps a pale beam across the sky, stars wink above it at night, observers send up bright sparks, window glows
+                val watchers = sim.villagers.count { it.action == "observe" && it.phase == "working" && kotlin.math.hypot(it.x - (b.x + 0.5f), it.y - (b.y + 0.5f)) < 2.5f }
+                val ang = -1.2f + 0.9f * kotlin.math.sin(t * 0.5f)
+                val bx = cx + w * 0.02f
+                val by = baseY - hh * 0.98f
+                val len = ts * (1.2f + watchers * 0.5f)
+                val beam = (0.12f + dark * 0.35f + watchers * 0.15f).coerceAtMost(0.6f)
+                drawLine(Color(0xFFCFE4FF).copy(alpha = beam), Offset(bx, by), Offset(bx + kotlin.math.cos(ang) * len, by + kotlin.math.sin(ang) * len), strokeWidth = ps * 1.2f)
+                if (dark > 0.2f) for (k in 0 until 4) {
+                    val tw = 0.5f + 0.5f * kotlin.math.sin(t * 2.1f + k * 1.9f)
+                    drawCircle(Color(0xFFFFFFFF).copy(alpha = 0.7f * tw), radius = ps * 0.45f, center = Offset(cx + (k - 1.5f) * w * 0.22f, baseY - hh * (1.15f + 0.1f * (k % 2))))
+                }
+                for (k in 0 until watchers * 3) {
+                    val ph = (t * 0.9f + k * 0.37f) % 1f
+                    drawCircle(Color(0xFFBFE0FF).copy(alpha = 0.9f * (1f - ph)), radius = ps * 0.5f, center = Offset(cx + (k - watchers * 1.5f) * ps * 1.3f, baseY - hh * 1.0f - ph * hh * 0.7f))
+                }
+                if (dark > 0.1f) drawCircle(Color(0xFFFFD27A).copy(alpha = min(0.3f, dark * 0.5f)), radius = ts * 0.8f, center = Offset(cx, baseY - hh * 0.35f))
             }
             if (b.type == "yard") {
                 // the straw dummy shudders under each blow, dust and wood chips fly, a pennant waves; trainers add stars and a night lantern
