@@ -228,6 +228,12 @@ fun main(args: Array<String>) {
         fun pct(w: Int, f: Int) = if (f == 0) "n/a" else "${w * 100 / f}%"
         println("CHARMS found=${cw.charmsFound} given=${cw.charmsGiven} spare=${cw.charmsSpare} held=${cw.critters.count { it.charm != 0 }}/${cw.critters.size} $kinds fired=${Battle.abilCount.filterKeys { it in listOf("Sunberry", "Guard Pebble", "Fang Charm", "Lucky Clover") }} winrate with=${pct(st[1], st[0])}(${st[0]}) without=${pct(st[3], st[2])}(${st[2]})")
     }
+    run {
+        val cw = sim.critters
+        val w = cw.senseWon; val st = cw.senseStarted
+        fun r(i: Int) = if (st[i] == 0) "n/a" else "${w[i] * 100 / st[i]}%(${st[i]})"
+        println("SENSE scouts=${cw.senseScouts} declined=${cw.senseDeclined} swaps=${cw.senseSwaps} lessons=${cw.senseLessons} actualWin easy=${r(0)} even=${r(1)} risky=${r(2)} longshot=${r(3)}")
+    }
     println("ABIL talents fired=${Battle.abilCount.values.sum()} kinds=${Battle.abilCount.size} ${Battle.abilCount.toSortedMap()}")
     sim.log.filter { it.contains("aider") || it.contains("ogre") || it.contains("wraith") || it.contains("drake") || it.contains("warlord") || it.contains("golem") || it.contains("shaman") || it.contains("Golden") }.takeLast(8).forEach { println("  LOG $it") }
     run { val cs = sim.critters.critters; val lv = cs.map { it.level }.sortedDescending(); println("CRITLEVELS n=${cs.size} sum=${lv.sum()} max=${lv.firstOrNull() ?: 0} top5=${lv.take(5)} lv10+=${lv.count { it >= 10 }} lv20+=${lv.count { it >= 20 }} lv30+=${lv.count { it >= 30 }} stage3=${cs.count { it.species.stage >= 2 }}") }

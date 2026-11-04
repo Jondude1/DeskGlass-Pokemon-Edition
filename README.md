@@ -50,3 +50,6 @@ Bonded critters that share a type now lay speckled eggs (sometimes golden) on a 
 
 ## Village dogs
 Strays wander in from the edge of the map every couple of village days (up to four) and a villager, often a child, takes each one in and names it. Dogs trot after their owner, sit and wag, curl up beside them when they sleep, stand between them and a raider barking, and play fetch (new "walk_dog" action) with a thrown stick while friends and children cheer. Two new deeds: A Dog's Welcome and Good Dog.
+
+## Battle sense
+Before taking on a wild critter, a summoner now sizes it up with a practice bout. The odds show as a line on the fight screen (easy, even, risky, a long shot). If the companion is outmatched the summoner may call a better-suited critter out of the pack, or walk away ("too strong, we train first") and drill at the yard instead. A lost bout still teaches a little and sends the summoner to train.

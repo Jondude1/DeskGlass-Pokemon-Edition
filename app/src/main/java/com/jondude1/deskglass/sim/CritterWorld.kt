@@ -73,6 +73,8 @@ class Enc(val kind: String, val v: Villager) {
     var mine2: Critter? = null
     var foe: Critter? = null
     var wild: Wild? = null
+    /** The practice-bout win chance the summoner worked out before the fight, or -1 when not sized up. */
+    var odds = -1f
 
     /** walk | intro | ritual | turn | cast | snare | result */
     var state = "walk"
@@ -308,6 +310,8 @@ class CritterWorld(private val sim: CivSim) {
         caught.clear()
         cooldown.clear()
         lastSwap.clear()
+        drillNext.clear()
+        scoutUntil.clear()
         summonReady.clear()
         mages.clear()
         swaps.clear()
@@ -1192,13 +1196,39 @@ class CritterWorld(private val sim: CivSim) {
                 val legend = wild.c.species.rarity >= 5
                 val p = if (legend) 0.9f else if (wild.c.alpha) 0.7f else if (bold) 0.55f else 0.3f
                 if (comp != null && ready(comp) && (!legend || comp.level >= wild.c.level) && (!wild.c.alpha || comp.level + 3 >= wild.c.level) && rnd.nextFloat() < p) {
-                    startWild(v, comp, wild)
+                    if (legend) {
+                        startWild(v, comp, wild)
+                        return
+                    }
+                    if (sim.time < (scoutUntil[v.id] ?: 0.0)) continue
+                    // size the foe up first: a practice bout decides whether to fight, who fights, or to walk away and train
+                    val (pick, odds) = bestPartner(v, comp, wild.c)
+                    if (odds < 0.3f && !wild.c.alpha || odds < 0.2f) {
+                        senseDeclined++
+                        drillNext.add(v.id)
+                        pop(v.x, v.y - 1.6f, "Too strong!", 0xFFFF9A3C)
+                        v.say = "${wild.c.species.name} is too strong for ${comp.name}. We train first."
+                        v.sayLeft = 3.5f
+                        scoutUntil[v.id] = sim.time + 25.0
+                        continue
+                    }
+                    if (odds < 0.5f && rnd.nextFloat() < 0.5f) {
+                        scoutUntil[v.id] = sim.time + 15.0
+                        continue
+                    }
+                    if (pick !== comp) {
+                        senseSwaps++
+                        bringOut(v, pick, comp)
+                    }
+                    startWild(v, pick, wild, odds)
                     return
                 }
             }
+            val drill = drillNext.contains(v.id)
             if (comp != null && ready(comp) && comp.level < Dex.MAX_LEVEL &&
-                sim.time >= (cooldown[v.id] ?: 0.0) && rnd.nextFloat() < 0.12f
+                (drill || sim.time >= (cooldown[v.id] ?: 0.0)) && rnd.nextFloat() < (if (drill) 0.7f else 0.12f)
             ) {
+                drillNext.remove(v.id)
                 val partner = idle.firstOrNull {
                     it !== v && companionOf(it)?.let { pc -> ready(pc) } == true && hypot(it.x - v.x, it.y - v.y) < 12f
                 }
@@ -1211,10 +1241,77 @@ class CritterWorld(private val sim: CivSim) {
         }
     }
 
-    private fun startWild(v: Villager, comp: Critter, w: Wild) {
+    // ---- battle sense: size up a wild foe with a practice bout before committing ----
+
+    /** Headless-test counters: foes sized up, turned down, swapped for a better partner, and fights started per odds band. */
+    var senseScouts = 0
+    var senseDeclined = 0
+    var senseSwaps = 0
+    var senseLessons = 0
+    val senseStarted = IntArray(4)
+    val senseWon = IntArray(4)
+    private val drillNext = HashSet<Int>()
+    private val scoutUntil = HashMap<Int, Double>()
+
+    /** 0 easy, 1 even, 2 risky, 3 long shot. */
+    private fun oddsBand(p: Float): Int = if (p >= 0.75f) 0 else if (p >= 0.5f) 1 else if (p >= 0.25f) 2 else 3
+
+    private fun bandName(b: Int): String = arrayOf("easy", "even", "risky", "a long shot")[b]
+
+    private fun practiceCopy(c: Critter, real: Boolean): Critter {
+        val d = dupe(c)
+        d.shiny = c.shiny
+        d.bond = c.bond
+        if (real) d.hp = max(1, (d.maxHp * c.hpFrac).toInt())
+        return d
+    }
+
+    /** Plays the bout out a few times on copies and returns the share the critter wins. Leaves the test counters untouched. */
+    fun scoutOdds(mine: Critter, foe: Critter): Float {
+        val field = fieldNow()
+        val abil = HashMap(Battle.abilCount)
+        val cnt = Battle.count.copyOf()
+        val inf = Battle.inflictedCount.copyOf()
+        val tick = Battle.tickTotal
+        val fb = Battle.fieldBoosts
+        val fw = Battle.fieldWeakens
+        var wins = 0
+        val n = 7
+        for (i in 0 until n) {
+            val bt = Battle(practiceCopy(mine, true), practiceCopy(foe, false), rnd)
+            bt.field = field
+            var guard = 0
+            while (guard++ < 400 && bt.next() != null) { }
+            if (bt.winner == 0) wins++
+        }
+        Battle.abilCount.clear()
+        Battle.abilCount.putAll(abil)
+        for (i in cnt.indices) { Battle.count[i] = cnt[i]; Battle.inflictedCount[i] = inf[i] }
+        Battle.tickTotal = tick
+        Battle.fieldBoosts = fb
+        Battle.fieldWeakens = fw
+        senseScouts++
+        return wins / n.toFloat()
+    }
+
+    /** The best partner the summoner has at hand for this foe: the companion, or a rested critter from the pack. */
+    private fun bestPartner(v: Villager, comp: Critter, foe: Critter): Pair<Critter, Float> {
+        var best = comp
+        var bestP = scoutOdds(comp, foe)
+        if (bestP >= 0.75f) return Pair(best, bestP)
+        val pack = critters.filter { it.owner == v.id && !it.companion && ready(it) && it.hpFrac >= 0.8f }.sortedByDescending { it.level }.take(2)
+        for (c in pack) {
+            val p = scoutOdds(c, foe)
+            if (p > bestP + 0.15f) { best = c; bestP = p }
+        }
+        return Pair(best, bestP)
+    }
+
+    private fun startWild(v: Villager, comp: Critter, w: Wild, odds: Float = -1f) {
         val goal = cellNear(w.x, w.y, v.x, v.y)
         if (goal < 0) return
         val e = Enc("wild", v)
+        e.odds = odds
         e.mine = comp
         e.foe = w.c
         e.wild = w
@@ -1533,6 +1630,12 @@ class CritterWorld(private val sim: CivSim) {
                 e.vy = w.y + 0.25f
                 e.banner = "A rift opens: a wild ${w.c.name} (Lv ${w.c.level}) appears!"
                 e.bannerT = 1.5f
+                if (e.odds >= 0f) {
+                    val band = oddsBand(e.odds)
+                    senseStarted[band]++
+                    e.sub = "${v.name} sizes it up: ${bandName(band)} (${(e.odds * 100).toInt()}%)"
+                    e.subT = 3.2f
+                }
                 seeFoe(e)
             }
             "spar" -> {
@@ -2048,6 +2151,7 @@ class CritterWorld(private val sim: CivSim) {
                 val mine = e.mine!!
                 val foe = e.foe!!
                 if (foe.alpha) { if (winner == 0) alphaBeaten++ else alphaLosses++ }
+                if (e.odds >= 0f && winner == 0) senseWon[oddsBand(e.odds)]++
                 run { val k = if (mine.charm != 0) 0 else 2; charmStats[k]++; if (winner == 0) charmStats[k + 1]++ }
                 if (winner == 0) {
                     val gain = (14 + foe.level * 5 + foe.species.stage * 6) * (if (foe.alpha) 2 else 1)
@@ -2077,6 +2181,14 @@ class CritterWorld(private val sim: CivSim) {
                     mine.faintedUntil = sim.time + 50.0
                     e.result = "lost"
                     e.banner = "${mine.name} is too tired to go on."
+                    // a lost bout still teaches: a little experience, and a drill session next
+                    val lesson = mine.gainXp(5 + foe.level * 2)
+                    senseLessons++
+                    drillNext.add(v.id)
+                    if (lesson > 0) {
+                        e.sub = "${mine.name} learns from the loss and grows to level ${mine.level}!"
+                        e.subT = 2.6f
+                    }
                     v.say = "Rest up, ${mine.name}."
                     v.sayLeft = 4f
                     sim.note("A wild ${foe.species.name} drives off ${v.name}'s ${mine.name}.")
