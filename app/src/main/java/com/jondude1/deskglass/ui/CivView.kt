@@ -1052,6 +1052,31 @@ private fun DrawScope.drawWorld(
                 drawCircle(Color(0xFFFF8A2E).copy(alpha = ember), radius = ps * 1.1f, center = Offset(cx + w * 0.26f, baseY - hh * 0.22f))
                 if (dark > 0.1f) drawCircle(Color(0xFFFFB45A).copy(alpha = min(0.3f, dark * 0.5f)), radius = ts * 0.8f, center = Offset(cx, baseY - hh * 0.35f))
             }
+            if (b.type == "market" && sim.marketDay()) {
+                // Market Day: a sagging line of bunting, two striped stall awnings with wares, and coins that wink over busy shoppers
+                val shoppers = sim.villagers.count { it.action == "browse_stalls" && it.phase == "working" && kotlin.math.hypot(it.x - (b.x + 0.5f), it.y - (b.y + 0.5f)) < 3f }
+                val flag = intArrayOf(0xFFD9453A.toInt(), 0xFFE8C547.toInt(), 0xFF5FB8E8.toInt(), 0xFF7BC86C.toInt(), 0xFFF2A7C8.toInt())
+                val x0 = cx - w * 0.75f; val x1 = cx + w * 0.75f; val yTop = baseY - hh * 1.0f
+                for (k in 0 until 9) {
+                    val f = k / 8f
+                    val fx0 = x0 + (x1 - x0) * f
+                    val fy = yTop + kotlin.math.sin(f * 3.14159f) * ps * 2.2f
+                    val flutter = kotlin.math.sin(t * 3f + k) * ps * 0.25f
+                    drawRect(Color(flag[k % 5]), Offset(fx0 - ps * 0.5f, fy + flutter), Size(ps * 1.1f, ps * 1.5f))
+                }
+                for (side in 0..1) {
+                    val sx = if (side == 0) cx - w * 0.62f else cx + w * 0.62f - ps * 4f
+                    val sy = baseY - ps * 0.2f
+                    for (k in 0 until 4) drawRect(Color(if ((k + side) % 2 == 0) 0xFFD9453A.toInt() else 0xFFF4EBD8.toInt()), Offset(sx + k * ps, sy - ps * 3.2f), Size(ps + 0.5f, ps * 1.3f))
+                    drawRect(Color(0xFF6B4A2B), Offset(sx, sy - ps * 1.9f), Size(ps * 4f, ps * 1.9f))
+                    val ware = intArrayOf(0xFFE8C547.toInt(), 0xFF7BC86C.toInt(), 0xFFD9453A.toInt(), 0xFF5FB8E8.toInt())
+                    for (k in 0 until 4) drawCircle(Color(ware[(k + side * 2) % 4]), radius = ps * 0.38f, center = Offset(sx + ps * (0.5f + k * 1.0f), sy - ps * 2.1f))
+                }
+                for (k in 0 until shoppers * 2) {
+                    val ph = (t * 1.1f + k * 0.37f) % 1f
+                    drawCircle(Color(0xFFFFE27A).copy(alpha = 0.9f * (1f - ph)), radius = ps * 0.45f, center = Offset(cx + (k - shoppers) * ps * 1.5f, baseY - hh * 0.4f - ph * hh * 0.5f))
+                }
+            }
             if (b.type == "museum") {
                 // a row of trophy cases lights up for every exhibit on show, golden glints twinkle over them, visitors add sparkles, windows glow at night
                 val visitors = sim.villagers.count { it.action == "visit_museum" && it.phase == "working" && kotlin.math.hypot(it.x - (b.x + 0.5f), it.y - (b.y + 0.5f)) < 2.5f }
