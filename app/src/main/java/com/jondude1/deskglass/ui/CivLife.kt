@@ -395,6 +395,28 @@ fun DrawScope.drawVillagers(sim: CivSim, art: CivArt, g: Geo, sun: Sun) {
                 drawCircle(Color(0xFFE8F6FF).copy(alpha = 0.8f * (1f - p)), radius = ps * 0.6f, center = Offset(cx + fx * ps * (2f + k), feetY - ps * (2f + 7f * sin(p * PI.toFloat()))))
             }
         }
+        if (working && v.action == "ice_fish") {
+            // a round hole cut in the ice, a short rod with a bobber, a tug when a fish bites, and a puff of cold breath
+            val hx = cx + fx * ps * 5f
+            val hy = feetY + ps * 0.8f
+            drawOval(Color(0xFFDCEEFA), Offset(hx - ps * 3.4f, hy - ps * 1.6f), Size(ps * 6.8f, ps * 3.2f))
+            drawOval(Color(0xFF16324A), Offset(hx - ps * 2.6f, hy - ps * 1.1f), Size(ps * 5.2f, ps * 2.2f))
+            val cycle = (t * 0.45f + v.id * 0.37f) % 1f
+            val bite = cycle > 0.78f
+            val dip = if (bite) ps * (1.2f + 1.6f * sin((cycle - 0.78f) * 45f)) else ps * 0.3f * sin(t * 3f)
+            val tipX = cx + fx * ps * 3.2f
+            val tipY = feetY - ps * 7.5f
+            drawLine(Color(0xFF6B4A2B), Offset(cx + fx * ps * 1.2f, feetY - ps * 4.2f), Offset(tipX, tipY), strokeWidth = ps * 0.7f)
+            drawLine(Color.White.copy(alpha = 0.7f), Offset(tipX, tipY), Offset(hx, hy + dip), strokeWidth = ps * 0.25f)
+            drawCircle(Color(0xFFE2503A), radius = ps * 0.7f, center = Offset(hx, hy + dip - ps * 0.3f))
+            if (bite) {
+                val q = ((cycle - 0.78f) / 0.22f).coerceIn(0f, 1f)
+                drawCircle(Color.White.copy(alpha = 0.8f * (1f - q)), radius = ps * (1.2f + 3f * q), center = Offset(hx, hy), style = Stroke(width = ps * 0.5f))
+                drawRect(Color(0xFFFFE9A8).copy(alpha = 1f - q), Offset(hx - ps * 0.5f, hy - ps * (3f + 5f * q)), Size(ps * 1.0f, ps * 1.0f))
+            }
+            val b = (t * 0.8f + v.id * 0.21f) % 1f
+            drawCircle(Color.White.copy(alpha = 0.5f * (1f - b)), radius = ps * (0.6f + 1.2f * b), center = Offset(cx + fx * ps * 1.5f, feetY - ps * (9f + 3f * b)))
+        }
         if (working && v.action == "forage_herbs") {
             for (k in 0 until 3) {
                 val p = (t * 0.9f + k * 0.34f + v.id * 0.17f) % 1f
