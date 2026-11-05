@@ -108,6 +108,7 @@ fun main(args: Array<String>) {
         val sim2 = CivSim(f, CoroutineScope(Dispatchers.Default)) { null }
         println("NIGHTSKY save round trip ok=${sim2.skyShows.toList() == sim.skyShows.toList() && sim2.skyWatches == sim.skyWatches && sim2.skyWishes == sim.skyWishes && sim2.skyLastNight == sim.skyLastNight}")
         println("REALMS save round trip ok=${sim2.realmRuns.toList() == sim.realmRuns.toList() && sim2.realmWins.toList() == sim.realmWins.toList() && sim2.lastTheme == sim.lastTheme && sim2.realmHazards == sim.realmHazards}")
+        println("PAGEANT save round trip ok=${sim2.pageants == sim.pageants && sim2.pageantRibbons == sim.pageantRibbons && sim2.pageantEntryN == sim.pageantEntryN && sim2.pageantWinName == sim.pageantWinName}")
         println("CARAVAN save round trip ok=${sim2.caravans == sim.caravans && sim2.carFinds == sim.carFinds && sim2.carAmbush == sim.carAmbush && sim2.carBeaten == sim.carBeaten && sim2.carSpent == sim.carSpent}")
         println("SCHOOL save round trip ok=${sim2.schoolLessons == sim.schoolLessons && sim2.schoolLevel == sim.schoolLevel && sim2.schoolStars == sim.schoolStars} (${sim2.schoolLessons} lessons)")
         println("CATS save round trip ok=${sim2.catMice == sim.catMice && sim2.catPets == sim.catPets && sim2.catsArrived == sim.catsArrived} mice=${sim.catMice}")
@@ -195,6 +196,7 @@ fun main(args: Array<String>) {
     println("SCHOOL built=${sim.buildings.count { it.type == "school" }} lessons=${sim.schoolLessons} level=${sim.schoolLevel} stars=${sim.schoolStars} kids=${sim.villagers.count { sim.isChild(it) }}")
     println("ARMORY built=${sim.buildings.count { it.type == "armory" }} forged=${sim.gearForged} sets L/B/S=${sim.gearLeather}/${sim.gearBronze}/${sim.gearSteel} blocks=${sim.gearBlocks} saved=${sim.gearSaved.toInt()} metal=${sim.metal} wood=${sim.wood} stone=${sim.stone} adults=${sim.villagers.count { it.job != "Child" }} age=${sim.age}")
     println("MUSEUM built=${sim.buildings.count { it.type == "museum" }} visits=${sim.museumVisits} talks=${sim.museumTalks} shown=${Integer.bitCount(sim.museumShown)}/${Integer.bitCount(sim.exhibitMask())} age=${sim.age}")
+    println("PAGEANT held=${sim.pageants} entries=${sim.pageantEntryN} ribbons=${sim.pageantRibbons} last=${sim.pageantWinName} theme=${sim.pageantThemeName(sim.pageantWinTheme)}")
     println("MARKETDAY market=${sim.buildings.count { it.type == "market" }} visits=${sim.stallVisits} days=${sim.stallDays} deals=${sim.stallDeals} bargains=${sim.stallBargains}")
     println("OBSERVATORY built=${sim.buildings.count { it.type == "observatory" }} watches=${sim.obsWatches} forecasts=${sim.obsForecasts} hits=${sim.obsHits} prepared=${sim.obsPrepared} now=${sim.forecastKind}")
     println("HAIL storms=${sim.hailStorms} knocks=${sim.hailHits} shelterTicks=${sim.hailSaved} grainLost=${sim.hailCrop} childrenIce=${sim.hailIce} stormsAll=${sim.wxStats["storm"] ?: 0} minHp=${sim.villagers.minOfOrNull { it.hp }?.toInt()}")

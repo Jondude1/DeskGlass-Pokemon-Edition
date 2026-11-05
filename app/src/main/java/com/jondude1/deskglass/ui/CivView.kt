@@ -1073,6 +1073,7 @@ private fun DrawScope.drawWorld(
                 drawCircle(Color(0xFFFF8A2E).copy(alpha = ember), radius = ps * 1.1f, center = Offset(cx + w * 0.26f, baseY - hh * 0.22f))
                 if (dark > 0.1f) drawCircle(Color(0xFFFFB45A).copy(alpha = min(0.3f, dark * 0.5f)), radius = ts * 0.8f, center = Offset(cx, baseY - hh * 0.35f))
             }
+            if (b.type == "campfire") drawPageant(sim, cx, baseY, ps, ts, t)
             if (b.type == "market" && sim.marketDay()) {
                 // Market Day: a sagging line of bunting, two striped stall awnings with wares, and coins that wink over busy shoppers
                 val shoppers = sim.villagers.count { it.action == "browse_stalls" && it.phase == "working" && kotlin.math.hypot(it.x - (b.x + 0.5f), it.y - (b.y + 0.5f)) < 3f }
