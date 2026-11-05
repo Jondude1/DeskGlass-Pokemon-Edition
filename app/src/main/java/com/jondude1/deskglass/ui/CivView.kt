@@ -1921,20 +1921,8 @@ private fun DrawScope.drawWorld(
     // the wind: gust streaks and whatever the season sends flying
     windBorne(sim, geo, vx0, vx1, vy0, vy1)
 
-    // drifting cloud shadows in daylight
-    val cloudAlpha = 0.10f * (1f - dark / 0.55f)
-    if (cloudAlpha > 0.005f) {
-        val span = GW * ts + 14f * ts
-        for (k in 0 until 4) {
-            val cx = ox - 7f * ts + ((t * 0.9f * ts * 0.12f + k * span / 4f) % span)
-            val cy = oy + ((GH * (0.18f + 0.22f * k)) % GH) * ts
-            drawOval(
-                Color.Black.copy(alpha = cloudAlpha),
-                topLeft = Offset(cx - ts * 5f, cy - ts * 1.6f),
-                size = Size(ts * 10f, ts * 3.2f),
-            )
-        }
-    }
+    // the sky: lumpy cloud shadows by real cover, sunlit patches, overcast wash and sunbeams
+    skyLight(sim, geo)
 
     // drifting smoke from fires and forges
     for (b in sim.buildings) {
