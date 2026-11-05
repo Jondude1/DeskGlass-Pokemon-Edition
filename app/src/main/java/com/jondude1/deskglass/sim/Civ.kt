@@ -527,6 +527,7 @@ class CivSim(
     val critters = CritterWorld(this)
     /** Dawn digests of the last 40 days (see Almanac.kt). */
     val almanac = Almanac()
+    val divine = Divine()
     /** Ordinary animals that make the land feel alive. Not saved. */
     val fauna = Fauna(this)
     /** A travelling guest (merchant, bard or pilgrim) who walks in, visits the fire and walks on. */
@@ -1081,6 +1082,7 @@ class CivSim(
         age = 0
         chronicle.clear()
         almanac.reset()
+        divine.reset()
         predators.clear()
         time = DAY_LEN * 0.08
         lastBirth = time
@@ -1422,6 +1424,81 @@ class CivSim(
         }
         lastNarrateAt = 0L
         narrate("A voice from the sky: $t")
+    }
+
+    // ---- divine favour: powers the player calls down from the sky ----
+
+    /** Spend favour on one of the five powers. Returns the line shown to the player (also stored in divine.lastMsg). */
+    fun godPower(id: String): String {
+        val pw = Divine.find(id) ?: return ""
+        val d = divine
+        fun refuse(msg: String): String { d.refused++; d.lastMsg = msg; return msg }
+        if (villagers.isEmpty()) return refuse("Nobody is here to answer.")
+        if (!d.canAfford(pw)) return refuse("Not enough favour yet for ${pw.name} (${d.favour.toInt()} of ${pw.cost}).")
+        var cx = 0f; var cy = 0f
+        for (v in villagers) { cx += v.x; cy += v.y }
+        cx /= villagers.size; cy /= villagers.size
+        val msg: String
+        when (id) {
+            "sun" -> {
+                if (!(time < rainUntil || time < stormUntil || time < fogUntil || time < snowUntil)) return refuse("The village sky is already clear.")
+                val what = if (time < stormUntil) "storm" else if (time < rainUntil) "rain" else if (time < snowUntil) "snow" else "fog"
+                rainUntil = 0.0; stormUntil = 0.0; fogUntil = 0.0; snowUntil = 0.0; hailUntil = 0.0
+                for (v in villagers) v.happiness = min(100f, v.happiness + 6f)
+                fx.add(Fx("sunburst", cx, cy, time, 2.6f))
+                msg = "A sunburst parts the clouds and the $what is gone."
+            }
+            "rain" -> {
+                if (time < rainUntil || time < stormUntil) return refuse("It is already raining.")
+                val dry = drought()
+                rainUntil = time + 75.0
+                for (b in buildings) if (b.type == "farm") b.boostUntil = max(b.boostUntil, time + 90.0)
+                fx.add(Fx("bless", cx, cy, time, 1.4f))
+                msg = if (dry) "A gentle rain falls and the long dry spell breaks." else "A gentle rain falls and the farms drink it in."
+            }
+            "heal" -> {
+                val hurt = villagers.filter { it.hp < 90f }
+                val sick = time < plagueUntil
+                if (hurt.isEmpty() && !sick) return refuse("Nobody is hurt or sick.")
+                for (v in villagers) {
+                    if (v.hp < 100f) { v.hp = min(100f, v.hp + 45f); v.happiness = min(100f, v.happiness + 4f); fx.add(Fx("mend", v.x, v.y, time, 1.6f)) }
+                }
+                plagueUntil = 0.0
+                d.healed += hurt.size
+                msg = if (sick && hurt.isEmpty()) "A warm light passes over the village and the sickness lifts." else "A warm light mends ${hurt.size} wounded villager${if (hurt.size == 1) "" else "s"}${if (sick) " and lifts the sickness" else ""}."
+            }
+            "grow" -> {
+                val farms = buildings.filter { it.type == "farm" }
+                if (farms.isEmpty()) return refuse("There are no farms to bless.")
+                for (b in farms) b.boostUntil = max(b.boostUntil, time + 150.0)
+                food += 8 + 4 * farms.size
+                for (b in farms.take(6)) fx.add(Fx("mend", b.x + 0.5f, b.y + 0.5f, time, 1.8f))
+                msg = "The fields ripple green: ${farms.size} farm${if (farms.size == 1) "" else "s"} ripen fast and the barns fill."
+            }
+            else -> {
+                val foes = predators.filter { !(it.kind == "burrower" && it.aux > 0f) }.sortedByDescending { predatorMaxHp(it.kind) }.take(4)
+                if (foes.isEmpty()) return refuse("No foe threatens the village.")
+                for (f in foes) {
+                    f.hp -= 75f
+                    f.bySmite = true
+                    fx.add(Fx("bolt", f.x, f.y, time, 0.7f))
+                    fx.add(Fx("quake", f.x, f.y, time, 0.9f))
+                }
+                d.smitten += foes.size
+                for (v in villagers) v.happiness = min(100f, v.happiness + 3f)
+                strikeAt = time; strikeX = foes[0].x; strikeY = foes[0].y
+                msg = "Lightning from a clear sky strikes ${foes.size} foe${if (foes.size == 1) "" else "s"}: ${foes.map { it.kind }.distinct().joinToString(", ")}."
+            }
+        }
+        val idx = Divine.POWERS.indexOf(pw)
+        d.favour -= pw.cost
+        d.uses[idx]++
+        d.lastUseAt = time
+        d.lastId = id
+        d.lastMsg = msg
+        wx("god_$id")
+        event("The villagers feel it: $msg")
+        return msg
     }
 
     // ---- paths ----
@@ -6582,6 +6659,7 @@ class CivSim(
             if (p.hp <= 0f) {
                 predators.remove(p)
                 if (p.byBallista) ballistaKills++
+                if (p.bySmite) divine.smiteKills++
                 val meat = when (p.kind) { "bear" -> 8; "boar" -> 6; "ogre" -> 12; "drake" -> 14; "frostwolf" -> 3; "lich", "skeleton", "raider", "wraith", "shaman", "warlord", "golem", "pilferer", "hornet", "troll", "spider", "harpy", "burrower", "scorpion", "ram", "stormling" -> 0; "toad" -> 3; "stag" -> 7; else -> 4 }
                 val hide = when (p.kind) { "bear" -> 3; "boar" -> 2; "ogre" -> 5; "drake" -> 8; "frostwolf" -> 3; "lich", "skeleton", "raider", "wraith", "shaman", "warlord", "golem", "pilferer", "hornet", "troll", "harpy", "burrower", "scorpion", "toad", "ram", "stormling" -> 0; "spider" -> 2; "stag" -> 3; else -> 1 }
                 if (meat + hide > 0) drops.add(Drop(p.kind, p.x, p.y, time, meat, hide))
@@ -7185,6 +7263,9 @@ class CivSim(
             Deed("raise30", "A Town Takes Shape", "Raised thirty new buildings.", "joy for all") { raised >= 30 },
             Deed("guests6", "Every Road Leads Here", "Met a knight, a scholar and a toymaker as well.", "+15 food, +10 stone") { listOf("knight", "scholar", "toymaker").all { (visitStats[it] ?: 0) >= 1 } },
             Deed("guests9", "A Full Guest Book", "Welcomed all nine kinds of travelling guest: merchant, bard, pilgrim, knight, scholar, toymaker, tinker, sower and seer.", "+20 food, +10 wood, +10 stone") { listOf("merchant", "bard", "pilgrim", "knight", "scholar", "toymaker", "tinker", "sower", "seer").all { (visitStats[it] ?: 0) >= 1 } },
+            Deed("div1", "Heaven Answers", "Called down a divine power for the first time.", "+15 food") { divine.totalUses() >= 1 },
+            Deed("div2", "Voice of Thunder", "Smote three foes dead with bolts from the sky.", "+20 wood, +10 stone") { divine.smiteKills >= 3 },
+            Deed("div3", "Every Gift of Heaven", "Used all five divine powers.", "joy for all") { divine.kinds() >= 5 },
             Deed("seer1", "Told by the Sky", "A fortune seer read the coming weather in a crystal.", "+15 food") { seerReadings >= 1 },
             Deed("guests", "Every Kind of Guest", "Met a merchant, a bard and a pilgrim.", "joy for all") { listOf("merchant", "bard", "pilgrim").all { (visitStats[it] ?: 0) >= 1 } },
             Deed("egg1", "Warm Nest", "A critter egg hatched in the village.", "+20 food") { critters.eggsHatched >= 1 },
@@ -8608,6 +8689,7 @@ class CivSim(
         weatherTick()
         councilTick()
         almanac.check(this)
+        divine.tick(this, dt)
         gloryTick()
         starTick()
         shroomTick()
@@ -8869,6 +8951,7 @@ class CivSim(
             o.put("log", JSONArray(log.takeLast(20)))
             o.put("critters", critters.toJson())
             o.put("almanac", almanac.encode())
+            o.put("divine", divine.encode())
             val tmp = File(saveFile.parentFile, saveFile.name + ".tmp")
             tmp.writeText(o.toString())
             tmp.renameTo(saveFile)
@@ -8930,6 +9013,7 @@ class CivSim(
             val ch = o.optJSONArray("chron")
             if (ch != null) for (i in 0 until ch.length()) chronicle.add(ch.getString(i))
             almanac.decode(o.optString("almanac", ""))
+            divine.decode(o.optString("divine", ""))
             villagers.clear()
             val vs = o.getJSONArray("villagers")
             for (i in 0 until vs.length()) {

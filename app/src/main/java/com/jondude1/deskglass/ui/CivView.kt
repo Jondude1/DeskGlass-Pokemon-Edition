@@ -1631,6 +1631,29 @@ private fun DrawScope.drawWorld(
                     )
                 }
             }
+            "sunburst" -> {
+                // golden rays fan out from a bright core and a warm ring rolls across the village
+                val fade = if (p < 0.6f) 1f else (1f - p) / 0.4f
+                drawCircle(Color(0xFFFFF3B0).copy(alpha = 0.30f * fade), radius = ts * (1.5f + p * 9f), center = Offset(cx, cy))
+                drawCircle(Color(0xFFFFE066).copy(alpha = 0.55f * fade), radius = ts * (0.8f + p * 6f), center = Offset(cx, cy), style = androidx.compose.ui.graphics.drawscope.Stroke(width = ps * 1.4f))
+                for (k in 0 until 16) {
+                    val ang = k * 0.3927f + age * 0.35f
+                    val r0 = ts * (0.6f + p * 1.5f)
+                    val r1 = ts * (2.2f + p * 7f) * (0.7f + (k % 3) * 0.15f)
+                    drawLine(Color(0xFFFFF0A0).copy(alpha = 0.7f * fade), Offset(cx + kotlin.math.cos(ang) * r0, cy + kotlin.math.sin(ang) * r0 * 0.7f), Offset(cx + kotlin.math.cos(ang) * r1, cy + kotlin.math.sin(ang) * r1 * 0.7f), strokeWidth = ps * 1.2f)
+                }
+            }
+            "mend" -> {
+                // green-gold motes rise from the healed, with a little cross of light
+                val fade = if (p < 0.7f) 1f else (1f - p) / 0.3f
+                for (k in 0 until 9) {
+                    val q = ((age * 0.7f + k * 0.11f) % 1f)
+                    val mx = cx + (((k * 53) % 100) / 100f - 0.5f) * ts * 1.4f + kotlin.math.sin(q * 6f + k) * ps * 2f
+                    drawRect((if (k % 2 == 0) Color(0xFFA6E3A1) else Color(0xFFFFF0A0)).copy(alpha = fade * (1f - q)), Offset(mx, cy - q * ts * 1.8f), Size(ps * 1.6f, ps * 1.6f))
+                }
+                drawRect(Color(0xFFFFF6C0).copy(alpha = 0.9f * fade), Offset(cx - ps * 0.6f, cy - ts * 1.1f - ps * 2.2f), Size(ps * 1.2f, ps * 4.4f))
+                drawRect(Color(0xFFFFF6C0).copy(alpha = 0.9f * fade), Offset(cx - ps * 2.2f, cy - ts * 1.1f - ps * 0.6f), Size(ps * 4.4f, ps * 1.2f))
+            }
             "coming" -> {
                 // a coming-of-age day: a ring of petals and confetti, bunting overhead and a sun-gold glow
                 val fade = if (p < 0.8f) 1f else (1f - p) / 0.2f
@@ -2327,6 +2350,7 @@ fun VillageScreen(vm: MainViewModel, fullscreen: Boolean, onFullscreen: (Boolean
             ZoomButtons(cam, Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 88.dp))
             VillageMinimap(sim, cam, tick, Modifier.align(Alignment.BottomStart).padding(start = 16.dp, bottom = 64.dp))
             VillageSights(sim, cam, tick, Modifier.align(Alignment.TopStart).padding(start = 16.dp, top = 64.dp))
+            DivinePanel(sim, tick, true, Modifier.align(Alignment.CenterEnd).padding(end = 10.dp))
             if (cam.followId >= 0) RpgHud(sim, cam.followId, tick, Modifier.fillMaxSize())
             if (cam.followId >= 0) VillagerPanel(sim, cam.followId, tick, Modifier.align(Alignment.TopEnd).padding(top = 52.dp, end = 16.dp))
             GlassButton("Exit fullscreen", { onFullscreen(false) }, modifier = Modifier.align(Alignment.TopStart).padding(16.dp))
@@ -2471,6 +2495,7 @@ fun VillageScreen(vm: MainViewModel, fullscreen: Boolean, onFullscreen: (Boolean
                         Text("• $line", color = newsTint(line), fontSize = 13.sp)
                     }
                 }
+                DivinePanel(sim, tick, false, Modifier.fillMaxWidth())
                 OutlinedTextField(
                     value = whisper,
                     onValueChange = { whisper = it },

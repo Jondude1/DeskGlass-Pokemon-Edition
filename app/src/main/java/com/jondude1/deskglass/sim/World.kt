@@ -63,6 +63,7 @@ class Predator(val kind: String, var x: Float, var y: Float) {
     var lootW = 0
     var looted = false
     var byBallista = false
+    var bySmite = false
     var hurtAt = -99f
     var lashX = 0f
     var lashY = 0f

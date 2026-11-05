@@ -33,9 +33,15 @@ fun main(args: Array<String>) {
     var nextReport = 0
     val foeKinds = HashMap<String, Int>(); val huddleWhy = HashMap<String, Int>(); var foeSamples = 0; var foeTotal = 0
     val t0 = System.currentTimeMillis()
+    val godBot = System.getenv("NOGOD") == null; val godLog = ArrayList<String>()
     val sightKinds = HashMap<String, Int>(); var sightSamples = 0; var sightAny = 0; var sightMax = 0
     for (i in 0 until steps) {
         sim.tick(dt)
+        if (godBot && i % 200 == 0) {
+            val hurtN = sim.villagers.count { it.hp < 70f }
+            val order = if (sim.predators.size >= 2 || (sim.predators.isNotEmpty() && sim.predators.any { isThreat(it.kind) })) listOf("smite", "heal", "rain", "grow", "sun") else if (hurtN >= 2) listOf("heal", "grow", "sun", "rain") else listOf("grow", "sun", "rain", "heal")
+            for (id in order) { val pw = Divine.find(id)!!; if (sim.divine.canAfford(pw)) { val m = sim.godPower(id); if (godLog.size < 12 && !m.startsWith("Not") && !m.startsWith("The village sky") && !m.startsWith("It is") && !m.startsWith("Nobody") && !m.startsWith("There") && !m.startsWith("No foe")) godLog.add(m); break } }
+        }
         if (i % 40 == 0) { val sl = Sights.find(sim); sightSamples++; if (sl.isNotEmpty()) sightAny++; if (sl.size > sightMax) sightMax = sl.size; for (s in sl) sightKinds.merge(s.kind, 1, Int::plus) }
         if (forkTest && i % 600 == 0) for (c in cw.critters) if (c.owner >= 0 && com.jondude1.deskglass.sim.Dex.branchOf(c.sp) != null && c.level < 28) { c.level = 28; c.bond = 40 }
         if (sim.age != lastAge) { lastAge = sim.age; ageAt.add("age${sim.age}@%.2fh".format(sim.time / 3600.0)) }
@@ -86,6 +92,19 @@ fun main(args: Array<String>) {
         for (x in pg.takeLast(3)) println("   ALM " + x)
         val enc = sim.almanac.encode(); val copy = com.jondude1.deskglass.sim.Almanac(); copy.decode(enc)
         println("ALMANAC save round trip ok=${copy.pages == pg}")
+    }
+    run {
+        val d = sim.divine
+        println("DIVINE powersUsed=${d.totalUses()} byKind=${Divine.POWERS.mapIndexed { k, p -> p.id + "=" + d.uses[k] }} distinctPowers=${d.kinds()} favourEarned=${"%.0f".format(d.earned)} favourNow=${"%.0f".format(d.favour)} refused=${d.refused} healed=${d.healed} foesStruck=${d.smitten} smiteKills=${d.smiteKills}")
+        for (m in godLog.take(6)) println("   GOD $m")
+        val enc = d.encode(); val c2 = Divine(); c2.decode(enc)
+        println("DIVINE codec round trip ok=${c2.encode() == enc} enc=$enc")
+        sim.divine.favour = 100f; sim.villagers[0].hp = 30f
+        val hm = sim.godPower("heal"); println("DIVINE forced heal -> hp=${sim.villagers[0].hp.toInt()} msg=$hm")
+        sim.divine.favour = 5f; println("DIVINE broke -> ${sim.godPower("smite")}")
+        sim.save()
+        val sim2 = CivSim(f, CoroutineScope(Dispatchers.Default)) { null }
+        println("DIVINE full save round trip ok=${sim2.divine.encode() == sim.divine.encode()} loadedUses=${sim2.divine.totalUses()}")
     }
     println("SURPLUS wastedGathers=${sim.wastedGathers} carved=${sim.carved} posies=${sim.posies}")
     println("FOEUPTIME ${"%.1f".format(100.0 * foeSamples / foeTotal)}% huddleShare=${"%.1f".format(100.0 * (actHist["huddle"] ?: 0) / samples)}% attackShare=${"%.2f".format(100.0 * (actHist["attack"] ?: 0) / samples)}%")
