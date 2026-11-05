@@ -108,6 +108,7 @@ fun main(args: Array<String>) {
         val sim2 = CivSim(f, CoroutineScope(Dispatchers.Default)) { null }
         println("NIGHTSKY save round trip ok=${sim2.skyShows.toList() == sim.skyShows.toList() && sim2.skyWatches == sim.skyWatches && sim2.skyWishes == sim.skyWishes && sim2.skyLastNight == sim.skyLastNight}")
         println("REALMS save round trip ok=${sim2.realmRuns.toList() == sim.realmRuns.toList() && sim2.realmWins.toList() == sim.realmWins.toList() && sim2.lastTheme == sim.lastTheme && sim2.realmHazards == sim.realmHazards}")
+        println("TREANT save round trip ok=${sim2.treantSlain == sim.treantSlain && sim2.treantBursts == sim.treantBursts && sim2.treantSnares == sim.treantSnares && sim2.treantMisses == sim.treantMisses && sim2.treantGroves == sim.treantGroves}")
         println("PAGEANT save round trip ok=${sim2.pageants == sim.pageants && sim2.pageantRibbons == sim.pageantRibbons && sim2.pageantEntryN == sim.pageantEntryN && sim2.pageantWinName == sim.pageantWinName}")
         println("CARAVAN save round trip ok=${sim2.caravans == sim.caravans && sim2.carFinds == sim.carFinds && sim2.carAmbush == sim.carAmbush && sim2.carBeaten == sim.carBeaten && sim2.carSpent == sim.carSpent}")
         println("SCHOOL save round trip ok=${sim2.schoolLessons == sim.schoolLessons && sim2.schoolLevel == sim.schoolLevel && sim2.schoolStars == sim.schoolStars} (${sim2.schoolLessons} lessons)")
@@ -163,6 +164,7 @@ fun main(args: Array<String>) {
     println("STORMLINGS slain=${sim.stormlingsSlain} bolts=${sim.stormlingBolts} hits=${sim.stormlingHits} dodged=${sim.stormlingDodges} spent=${sim.stormlingSpent} faded=${sim.stormlingFades} foeStats=${sim.foeStats["stormling"]}")
     println("REALMS runs=${sim.realmRuns.toList()} wins=${sim.realmWins.toList()} kinds=${sim.realmRuns.count { it > 0 }} hazards=${sim.realmHazards} spoils=${sim.realmBonus}")
     println("YETIS slain=${sim.yetisSlain} throws=${sim.yetiThrows} smashes=${sim.yetiSmashes} herds=${sim.yetiHerds} foeStats=${sim.foeStats["yeti"]}")
+    println("TREANTS slain=${sim.treantSlain} bursts=${sim.treantBursts} snares=${sim.treantSnares} airMisses=${sim.treantMisses} groves=${sim.treantGroves} foeStats=${sim.foeStats["treant"]}")
     println("DUSTDEVILS slain=${sim.dustSlain} flings=${sim.dustFlings} grainLost=${sim.dustGrain} tired=${sim.dustTires} storms=${sim.dustStorms} foeStats=${sim.foeStats["dustdevil"]}")
     println("SLIMES splits=${sim.slimeSplits} bites=${sim.slimeBites} slimelingsSlain=${sim.slimelingsSlain} clears=${sim.slimeClears} foeStats=${sim.foeStats["slime"]}")
     println("STAGS slain=${sim.stagsSlain} charges=${sim.stagCharges} gores=${sim.stagGores} missed=${sim.stagMisses} ruts=${sim.stagRuts} foeStats=${sim.foeStats["stag"]}")

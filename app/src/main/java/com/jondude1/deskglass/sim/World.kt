@@ -44,7 +44,7 @@ class Drop(val kind: String, val x: Float, val y: Float, val born: Double, val f
 }
 
 fun predatorMaxHp(kind: String): Float = when (kind) {
-    "bear" -> 90f; "boar" -> 60f; "raider" -> 55f; "ogre" -> 180f; "wraith" -> 70f; "drake" -> 300f; "shaman" -> 42f; "warlord" -> 230f; "golem" -> 280f; "frostwolf" -> 36f; "lich" -> 210f; "skeleton" -> 30f; "pilferer" -> 26f; "hornet" -> 10f; "reaver" -> 64f; "troll" -> 240f; "spider" -> 48f; "harpy" -> 34f; "burrower" -> 150f; "scorpion" -> 56f; "toad" -> 44f; "stag" -> 96f; "yeti" -> 130f; "stormling" -> 96f; "dustdevil" -> 120f; "slime" -> 140f; "slimeling" -> 36f; "ram" -> 230f; else -> 40f
+    "bear" -> 90f; "boar" -> 60f; "raider" -> 55f; "ogre" -> 180f; "wraith" -> 70f; "drake" -> 300f; "shaman" -> 42f; "warlord" -> 230f; "golem" -> 280f; "frostwolf" -> 36f; "lich" -> 210f; "skeleton" -> 30f; "pilferer" -> 26f; "hornet" -> 10f; "reaver" -> 64f; "troll" -> 240f; "spider" -> 48f; "harpy" -> 34f; "burrower" -> 150f; "scorpion" -> 56f; "toad" -> 44f; "stag" -> 96f; "yeti" -> 130f; "stormling" -> 96f; "dustdevil" -> 120f; "treant" -> 170f; "slime" -> 140f; "slimeling" -> 36f; "ram" -> 230f; else -> 40f
 }
 
 /** Human raiders, ogres, rift wraiths and rift drakes are the village's real enemies. */

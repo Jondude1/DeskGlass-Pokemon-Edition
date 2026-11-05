@@ -513,6 +513,10 @@ class CivArt {
         'w' to 0xFFF2F6FA.toInt(), 'f' to 0xFFC4D4E4.toInt(), 'F' to 0xFF8FA6BE.toInt(), 'c' to 0xFF9CC4DE.toInt(),
         'e' to 0xFFE83A3A.toInt(), 'k' to 0xFF1C2430.toInt(),
     ))
+    val treant = sprite(TREANT, mapOf(
+        'b' to 0xFF7A5230.toInt(), 'B' to 0xFF4A2E18.toInt(), 'g' to 0xFF4F9A3C.toInt(), 'G' to 0xFF2F6A2A.toInt(),
+        'y' to 0xFFFFC857.toInt(), 'm' to 0xFF6FA84A.toInt(),
+    ))
     val dustdevil = sprite(DUSTDEVIL, mapOf(
         'd' to 0xFFD2B070.toInt(), 'D' to 0xFF9C7A3C.toInt(), 'l' to 0xFFEBD9A6.toInt(), 'k' to 0xFF3A2A14.toInt(),
     ))
@@ -1821,6 +1825,22 @@ class CivArt {
             "cc.wwwwwwww.cc",
             "...wwf..fww...",
             "..FFFF..FFFF..",
+        )
+        val TREANT = listOf(
+            "...gGggGgg....",
+            "..gggGgggGgg..",
+            ".gGggbbbbgggG.",
+            "..gg.bBBbb.gg.",
+            "b..mbbyBybbm.b",
+            "bb.bbbBBBbbb.b",
+            ".bbbbBbbbBbbb.",
+            "bb.mbbbbbbbm.b",
+            "b..bbbmbmbb..b",
+            "...bbbbbbbb...",
+            "...bbBbbBbb...",
+            "..bbb.bb.bbb..",
+            ".bbB..bb..Bbb.",
+            "bBb..mBBm..bBb",
         )
         val DUSTDEVIL = listOf(
             "..lddddddddl..",

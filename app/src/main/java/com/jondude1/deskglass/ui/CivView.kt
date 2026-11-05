@@ -1935,9 +1935,9 @@ private fun DrawScope.drawWorld(
         if (p.kind == "burrower" && p.aux > 0f) { wormMound(ox + p.x * ts, oy + (p.y + 0.45f) * ts, ps, t, p.x, p.aux < 1.4f); continue }
         val sp = when (p.kind) {
             "bear" -> art.bear; "boar" -> art.boar; "raider" -> art.raider; "ogre" -> art.ogre
-            "wraith" -> art.wraith; "drake" -> art.drake; "shaman" -> art.shaman; "warlord" -> art.warlord; "golem" -> art.golem; "frostwolf" -> art.frostwolf; "lich" -> art.lich; "skeleton" -> art.skeleton; "pilferer" -> art.pilferer; "hornet" -> art.hornet; "reaver" -> art.reaver; "troll" -> art.troll; "spider" -> art.spider; "burrower" -> art.worm; "scorpion" -> art.scorpion; "toad" -> art.toad; "stag" -> art.stag; "yeti" -> art.yeti; "dustdevil" -> art.dustdevil; "slime" -> art.slime; "slimeling" -> art.slimeling; "stormling" -> art.stormling; "ram" -> art.ram; "harpy" -> art.harpy[((t * 7f + p.x) % 2f).toInt().coerceIn(0, 1)]; else -> art.wolf
+            "wraith" -> art.wraith; "drake" -> art.drake; "shaman" -> art.shaman; "warlord" -> art.warlord; "golem" -> art.golem; "frostwolf" -> art.frostwolf; "lich" -> art.lich; "skeleton" -> art.skeleton; "pilferer" -> art.pilferer; "hornet" -> art.hornet; "reaver" -> art.reaver; "troll" -> art.troll; "spider" -> art.spider; "burrower" -> art.worm; "scorpion" -> art.scorpion; "toad" -> art.toad; "stag" -> art.stag; "yeti" -> art.yeti; "dustdevil" -> art.dustdevil; "treant" -> art.treant; "slime" -> art.slime; "slimeling" -> art.slimeling; "stormling" -> art.stormling; "ram" -> art.ram; "harpy" -> art.harpy[((t * 7f + p.x) % 2f).toInt().coerceIn(0, 1)]; else -> art.wolf
         }
-        val sc = when (p.kind) { "bear" -> 1.15f; "boar" -> 0.95f; "ogre" -> 1.5f; "drake" -> 1.7f; "raider" -> 1.1f; "warlord" -> 1.45f; "golem" -> 1.55f; "shaman" -> 1.1f; "lich" -> 1.35f; "skeleton" -> 1.05f; "frostwolf" -> 1.05f; "pilferer" -> 1.05f; "hornet" -> 0.8f; "reaver" -> 1.15f; "troll" -> 1.6f; "spider" -> 1.25f; "burrower" -> 1.5f; "scorpion" -> 1.15f; "toad" -> 1.2f; "stag" -> 1.35f; "yeti" -> 1.7f; "dustdevil" -> 1.6f; "slime" -> 1.55f; "slimeling" -> 0.85f; "stormling" -> 1.3f; "ram" -> 1.6f; "harpy" -> 1.1f; else -> 1f }
+        val sc = when (p.kind) { "bear" -> 1.15f; "boar" -> 0.95f; "ogre" -> 1.5f; "drake" -> 1.7f; "raider" -> 1.1f; "warlord" -> 1.45f; "golem" -> 1.55f; "shaman" -> 1.1f; "lich" -> 1.35f; "skeleton" -> 1.05f; "frostwolf" -> 1.05f; "pilferer" -> 1.05f; "hornet" -> 0.8f; "reaver" -> 1.15f; "troll" -> 1.6f; "spider" -> 1.25f; "burrower" -> 1.5f; "scorpion" -> 1.15f; "toad" -> 1.2f; "stag" -> 1.35f; "yeti" -> 1.7f; "dustdevil" -> 1.6f; "treant" -> 1.7f; "slime" -> 1.55f; "slimeling" -> 0.85f; "stormling" -> 1.3f; "ram" -> 1.6f; "harpy" -> 1.1f; else -> 1f }
         val w = sp.lw * ps * sc
         val h = sp.lh * ps * sc
         val feet = oy + (p.y + 0.45f) * ts
@@ -1960,6 +1960,7 @@ private fun DrawScope.drawWorld(
         if (p.kind == "toad") toadFx(ox + p.x * ts, feet, ox, oy, ts, w, h, ps, t, p.x, p.aux > 0f, sim.time.toFloat() - p.lashT, p.lashX, p.lashY, p.x, p.y)
         if (p.kind == "ram") ramFx(ox + p.x * ts, feet, w, h, ps, t, p.x, p.phase, p.cool, sim.predators.any { it.kind == "raider" })
         if (p.kind == "stormling") stormlingFx(ox + p.x * ts, feet - lift, w, h, ps, t, p.x, p.phase, ox + p.lashX * ts, oy + p.lashY * ts, ts, p.aux > 5f)
+        if (p.kind == "treant") treantFx(ox + p.x * ts, feet, ox, oy, ts, w, h, ps, t, p.x, p.aux, p.phase, p.lashX, p.lashY)
         if (p.kind == "dustdevil") dustDevilFx(ox + p.x * ts, feet, w, h, ps, t, p.x, p.phase > 0f)
         if (p.kind == "yeti") yetiFx(ox + p.x * ts, feet, ox, oy, ts, w, h, ps, t, p.x, sim.time.toFloat() - p.lashT, p.lashX, p.lashY)
         if (p.kind == "stag") stagFx(ox + p.x * ts, feet, w, h, ps, t, p.x, p.aux, p.phase, p.angle, ts)
@@ -2388,7 +2389,7 @@ private fun ThreatChip(sim: CivSim, tick: Long, modifier: Modifier = Modifier) {
 private fun newsTint(line: String): Color {
     val l = line.lowercase()
     return when {
-        listOf("killed", "war", "wolves", "wolf", "bear", "boar", "raider", "ogre", "wraith", "drake", "shaman", "warlord", "golem", "frost", "lich", "skeleton", "pilferer", "hornet", "reaver", "troll", "spider", "scorpion", "toad", "yeti", "dust devil", "stag", "antler", "stormling", "siege ram", "shield wall", "harpy", "burrow", "longship", "rift", "falls", "plague", "attack", "slain", "mourns").any { l.contains(it) } -> Color(0xFFFF9C8A)
+        listOf("killed", "war", "wolves", "wolf", "bear", "boar", "raider", "ogre", "wraith", "drake", "shaman", "warlord", "golem", "frost", "lich", "skeleton", "pilferer", "hornet", "reaver", "troll", "spider", "scorpion", "toad", "yeti", "dust devil", "treant", "stag", "antler", "stormling", "siege ram", "shield wall", "harpy", "burrow", "longship", "rift", "falls", "plague", "attack", "slain", "mourns").any { l.contains(it) } -> Color(0xFFFF9C8A)
         listOf("built", "palisade", "raise", "born", "feast", "berries", "welcome", "alliance", "trade").any { l.contains(it) } -> Color(0xFFA6E3A1)
         else -> Glass.InkDim
     }
