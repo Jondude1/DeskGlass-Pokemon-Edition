@@ -394,6 +394,15 @@ class CivArt {
         'f' to 0xFFFF8A2A.toInt(), 'y' to 0xFFFFC94A.toInt(), 'Y' to 0xFFFFF0A0.toInt(), 'm' to 0xFF6B4A2B.toInt(),
         'k' to 0xFF2A2A34.toInt(), 's' to 0xFFB9BCC6.toInt(), 'S' to 0xFF8D909C.toInt(), 'd' to 0xFF3A2614.toInt(),
     ))
+    val wonderColossus = sprite(WONDER_COLOSSUS, mapOf(
+        'g' to 0xFFE0B032.toInt(), 'G' to 0xFFFFE27A.toInt(), 'y' to 0xFFB8862A.toInt(), 'r' to 0xFFC0392B.toInt(),
+        's' to 0xFFC9CED6.toInt(), 'S' to 0xFF8D909C.toInt(),
+    ))
+    val wonderClock = sprite(WONDER_CLOCK, mapOf(
+        'w' to 0xFFE7DCC2.toInt(), 'W' to 0xFFC9B99A.toInt(), 'c' to 0xFFFFF3D0.toInt(), 'k' to 0xFF2A2A34.toInt(),
+        'g' to 0xFFE0B032.toInt(), 'G' to 0xFFFFE27A.toInt(), 'b' to 0xFF3C5FA8.toInt(), 'B' to 0xFF2B3A67.toInt(),
+        'd' to 0xFF4A2E1B.toInt(), 'S' to 0xFF8D909C.toInt(),
+    ))
     val raider = sprite(RAIDER, mapOf(
         's' to 0xFFE0B48A.toInt(), 'h' to 0xFF3A2A1E.toInt(), 'r' to 0xFFB02A2A.toInt(), 'R' to 0xFF7A1C1C.toInt(),
         'l' to 0xFF5A4630.toInt(), 'c' to 0xFF6B4A2B.toInt(), 'm' to 0xFFC9CED6.toInt(), 'k' to 0xFF1E1A16.toInt(),
@@ -1438,6 +1447,42 @@ class CivArt {
             "...sssddss......",
             "..sssssddsss....",
             ".SSSSSSSSSSSS...",
+        )
+        val WONDER_COLOSSUS = listOf(
+            "..G...G.G...G...",
+            "..gG..gGg..Gg...",
+            "...gG.gGg.Gg....",
+            "....gGgGgGg.....",
+            ".....gggggg.....",
+            "......yrry......",
+            "......gggg......",
+            ".......gg.......",
+            "....ssssssss....",
+            "....sSssssSs....",
+            "....sssGGsss....",
+            "...ssssssssss...",
+            "...sSssssssSs...",
+            "..ssssssssssss..",
+            ".sSSSSSSSSSSSSs.",
+            "SSSSSSSSSSSSSSSS",
+        )
+        val WONDER_CLOCK = listOf(
+            ".......g........",
+            "......gGg.......",
+            ".....bbbbb......",
+            "....bBbbbBb.....",
+            "...bbbbbbbbb....",
+            "....wwwwwww.....",
+            "...wwcccccww....",
+            "...wcccckccw....",
+            "...wcckkkccw....",
+            "...wcccccccw....",
+            "...wwcccccww....",
+            "....wWwwwWw.....",
+            "....wwwddwww....",
+            "...wWwwddwwWw...",
+            "..wwwwwddwwwww..",
+            "SSSSSSSddSSSSSSS",
         )
         val RAIDER = listOf(
             "...hhhh...m.",

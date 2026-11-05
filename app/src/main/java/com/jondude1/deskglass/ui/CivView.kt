@@ -622,7 +622,7 @@ private fun DrawScope.drawWorld(
                 "quarry" -> art.quarry
                 "mill" -> art.mill
                 "shrine" -> art.shrine
-                "wonder" -> when (b.era) { 0 -> art.wonderSpire; 1 -> art.wonderFountain; else -> art.wonderBeacon }
+                "wonder" -> when (b.era) { 0 -> art.wonderSpire; 1 -> art.wonderFountain; 2 -> art.wonderBeacon; 3 -> art.wonderColossus; else -> art.wonderClock }
                 else -> art.fire[fireFrame]
             }
             val big = if (b.type == "wonder") 1.35f else 1f
@@ -1458,6 +1458,25 @@ private fun DrawScope.drawWorld(
                         drawCircle(Color.White.copy(alpha = 0.35f * (1f - rr)), radius = w * (0.18f + 0.22f * rr), center = Offset(cx, baseY - hh * 0.16f),
                             style = androidx.compose.ui.graphics.drawscope.Stroke(width = ps * 0.5f))
                         if (dark > 0.1f) drawCircle(Color(0xFF8FD8FF).copy(alpha = min(0.25f, dark * 0.4f)), radius = ts * 1.6f, center = Offset(cx, baseY - hh * 0.4f))
+                    }
+                    3 -> {
+                        // golden grain motes drift up from the great sheaf, glowing warmly at night
+                        val top = Offset(cx, baseY - hh * 0.75f)
+                        drawCircle(Color(0xFFFFE27A).copy(alpha = 0.14f + 0.06f * sh + min(0.2f, dark * 0.3f)), radius = ts * (0.9f + 0.1f * sh), center = top)
+                        for (k in 0 until 6) {
+                            val ph = (t * 0.35f + k * 0.17f) % 1f
+                            val sx = kotlin.math.sin(k * 2.1f + t * 0.6f) * ts * 0.7f * ph
+                            drawCircle(Color(0xFFFFE9A0).copy(alpha = (1f - ph) * 0.85f), radius = ps * 0.5f,
+                                center = Offset(top.x + sx, top.y - ph * ts * 1.3f))
+                        }
+                    }
+                    4 -> {
+                        // the great clock: a slow sweeping hand on the face and a golden glint on the spire
+                        val face = Offset(cx - w * 0.03f, baseY - hh * 0.47f)
+                        val ang = t * 0.5f
+                        drawLine(Color(0xFF2A2A34), face, Offset(face.x + kotlin.math.cos(ang) * ts * 0.28f, face.y + kotlin.math.sin(ang) * ts * 0.28f), strokeWidth = ps * 0.7f)
+                        drawCircle(Color(0xFFFFE27A).copy(alpha = 0.2f + 0.15f * sh), radius = ps * 1.3f, center = Offset(cx - w * 0.03f, baseY - hh * 0.96f))
+                        if (dark > 0.1f) drawCircle(Color(0xFFFFF0B0).copy(alpha = min(0.22f, dark * 0.35f)), radius = ts * 1.2f, center = face)
                     }
                     else -> {
                         // the beacon fire flickers; at night it throws a wide warm glow and a beam of light

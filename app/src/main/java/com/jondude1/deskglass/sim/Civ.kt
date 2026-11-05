@@ -1621,7 +1621,7 @@ class CivSim(
         "infirmary" -> wood >= 16 && stone >= 8
         "barracks" -> wood >= 16 && stone >= 14 && metal >= 2
         "lamp" -> wood >= 2 && stone >= 2
-        "wonder" -> wood >= 50 && stone >= 40 && metal >= 5
+        "wonder" -> wood >= wonderWood() && stone >= wonderStone() && metal >= wonderMetal()
         else -> false
     }
 
@@ -1847,7 +1847,7 @@ class CivSim(
             "tavern" -> if (age < 2 || n < 8) 0 else min(2, max(1, n / 12))
             "infirmary" -> if (age < 3 || n < 8) 0 else min(2, 1 + n / 20)
             "ballista" -> if (age < 3 || n < 8) 0 else min(if (age >= 4) 3 else 2, 1 + n / 10)
-            "wonder" -> if (age < 4 || n < 14) 0 else min(3, 1 + (n - 14) / 6)
+            "wonder" -> if (age < 4 || n < 14) 0 else min(5, 1 + (n - 14) / 6)
             else -> 99
         }
     }
@@ -1863,7 +1863,7 @@ class CivSim(
 
     /** City Age: the village puts spare stone aside for its next great wonder instead of spending it on small things. */
     private fun wonderSaving(): Boolean = age >= 4 && villagers.size >= 14 && counting("wonder") < capFor("wonder") &&
-        stone < 50 && wood >= 40 && metal >= 5 && tiles.any { it == T.ROCK }
+        stone < wonderStone() && wood >= min(40, wonderWood()) && metal >= wonderMetal() && tiles.any { it == T.ROCK }
 
     /** A short "what is built and what could be" line for the panels. */
     fun buildSummary(): String {
@@ -2025,7 +2025,7 @@ class CivSim(
                     "build_quarry" -> wood >= 16
                     "build_mill" -> wood >= 14 && stone >= 4
                     "build_shrine" -> wood >= 20 && stone >= 30
-                    "build_wonder" -> wood >= 50 && stone >= 40 && metal >= 5
+                    "build_wonder" -> wood >= wonderWood() && stone >= wonderStone() && metal >= wonderMetal()
                     else -> stone >= 3
                 }
                 if (!ok) return false
@@ -2068,7 +2068,7 @@ class CivSim(
                     "build_quarry" -> wood -= 16
                     "build_mill" -> { wood -= 14; stone -= 4 }
                     "build_shrine" -> { wood -= 20; stone -= 30 }
-                    "build_wonder" -> { wood -= 50; stone -= 40; metal -= 5 }
+                    "build_wonder" -> { wood -= wonderWood(); stone -= wonderStone(); metal -= wonderMetal() }
                     else -> stone -= 3
                 }
                 reserved.add(site)
@@ -3007,7 +3007,7 @@ class CivSim(
                 val type = v.action.removePrefix("build_")
                 val label = if (type == "hut" && age == 0) "tent" else if (type == "smelter") "forge" else if (type == "lamp") "lantern post" else if (type == "totem") "totem pole" else if (type == "ranch") "critter ranch" else if (type == "pasture") "pasture" else if (type == "apiary") "apiary" else if (type == "range") "archery range" else if (type == "bath") "hot spring" else if (type == "belfry") "bell tower" else if (type == "stage") "puppet theatre" else if (type == "kiln") "potter's kiln" else if (type == "observatory") "observatory" else if (type == "guild") "guildhall" else if (type == "lighthouse") "lighthouse" else if (type == "smokehouse") "smokehouse" else if (type == "scarecrow") "scarecrow" else if (type == "yard") "critter training yard" else if (type == "loom") "weaver's loom" else if (type == "orchard") "orchard" else if (type == "dock") "fishing dock" else if (type == "quarry") "stone quarry" else if (type == "mill") "windmill" else if (type == "shrine") "legend shrine" else type
                 if (type == "wonder" && i >= 0 && !occupied[i] && tiles[i] == T.GRASS) {
-                    val kind = (0..2).firstOrNull { k -> buildings.none { it.type == "wonder" && it.era == k } } ?: 0
+                    val kind = (0..4).firstOrNull { k -> buildings.none { it.type == "wonder" && it.era == k } } ?: 0
                     addBuilding("wonder", i % GW, i / GW, kind)
                     buildings.last().built = time; raised++
                     val nm = wonderName(kind)
@@ -5627,7 +5627,7 @@ class CivSim(
         if (wood >= 20 && stone >= 10 && canBuild("tavern") && (builder || rnd.nextInt(8) == 0)) return "build_tavern" to ""
         if (wood >= 16 && stone >= 8 && canBuild("infirmary") && (builder || rnd.nextInt(8) == 0)) return "build_infirmary" to ""
         if (wood >= 16 && stone >= 14 && metal >= 2 && canBuild("barracks") && (builder || isFighter(v) && rnd.nextInt(4) == 0)) return "build_barracks" to ""
-        if (wood >= 50 && stone >= 40 && metal >= 5 && canBuild("wonder") && (builder || rnd.nextInt(5) == 0)) return "build_wonder" to ""
+        if (wood >= wonderWood() && stone >= wonderStone() && metal >= wonderMetal() && canBuild("wonder") && (builder || rnd.nextInt(5) == 0)) return "build_wonder" to ""
         if (wood >= 2 && stone >= 2 && canBuild("lamp") && (builder || rnd.nextInt(8) == 0)) return "build_lamp" to ""
 
         if (graves.isNotEmpty() && !isChild(v) && !starving && !alert() && !isNight() && !raining() &&
@@ -5979,7 +5979,7 @@ class CivSim(
         if (canBuild("workshop") && wood >= 10 && stone >= 4) a.add("build_workshop")
         if (canBuild("market") && wood >= 12 && stone >= 6) a.add("build_market")
         if (canBuild("lamp") && wood >= 2 && stone >= 2) a.add("build_lamp")
-        if (canBuild("wonder") && wood >= 50 && stone >= 40 && metal >= 5) a.add("build_wonder")
+        if (canBuild("wonder") && wood >= wonderWood() && stone >= wonderStone() && metal >= wonderMetal()) a.add("build_wonder")
         if (count("well") > 0) a.add("fetch_water")
         if (count("workshop") > 0 && wood >= 6 && stone >= 2) a.add("craft")
         if (count("market") > 0 && goods >= 2) a.add("trade")
@@ -7898,6 +7898,7 @@ class CivSim(
             Deed("wall3", "Hold the Line", "Foes lost a full minute climbing the wall.", "+6 metal") { wallHoldSecs >= 60f },
             Deed("wonder1", "Wonder of the Land", "Raised a great wonder.", "joy for all") { count("wonder") >= 1 },
             Deed("wonder3", "Three Wonders", "All three great wonders stand together.", "+60 wood, +60 stone") { count("wonder") >= 3 },
+            Deed("wonder5", "Five Wonders", "The Harvest Colossus and the Sunclock Tower join the other three.", "+80 wood, +80 stone") { count("wonder") >= 5 },
             Deed("golden", "Golden Age", "Completed every legacy goal.", "joy for all") { goldenAt >= 0.0 },
         )
     }
@@ -7943,11 +7944,19 @@ class CivSim(
     var wonderFxKind = 0
     private var nextWonderAt = 0.0
 
-    fun wonderName(k: Int): String = when (k) { 0 -> "Star Spire"; 1 -> "Grand Fountain"; else -> "Beacon Tower" }
+    /** The first three wonders are cheap; the Harvest Colossus and the Sunclock Tower are real late-game treasure sinks. */
+    private fun wonderWood(): Int = when (counting("wonder")) { 0, 1, 2 -> 50; 3 -> 300; else -> 600 }
+    private fun wonderStone(): Int = when (counting("wonder")) { 0, 1, 2 -> 40; 3 -> 250; else -> 500 }
+    private fun wonderMetal(): Int = when (counting("wonder")) { 0, 1, 2 -> 5; 3 -> 20; else -> 40 }
+    var wonderPulses = 0
+
+    fun wonderName(k: Int): String = when (k) { 0 -> "Star Spire"; 1 -> "Grand Fountain"; 2 -> "Beacon Tower"; 3 -> "Harvest Colossus"; else -> "Sunclock Tower" }
     private fun wonderBlurb(k: Int): String = when (k) {
         0 -> "its crystal drinks starlight and lifts every heart."
         1 -> "its waters mend the hurt and the weary."
-        else -> "its fire guides travellers, who leave tribute of wood and stone."
+        2 -> "its fire guides travellers, who leave tribute of wood and stone."
+        3 -> "its golden sheaf eases every hungry belly and feeds the stores."
+        else -> "its great clock keeps the hours, and scholars study faster in its shadow."
     }
 
     private fun techPaid(id: String): Boolean = when (id) {
@@ -8024,7 +8033,9 @@ class CivSim(
             when (b.era) {
                 0 -> for (v in villagers) v.happiness = min(100f, v.happiness + (if (isNight()) 2.5f else 1f) * sc)
                 1 -> for (v in villagers) { if (v.hp < 100f) v.hp = min(100f, v.hp + 6f * sc); v.happiness = min(100f, v.happiness + 0.5f * sc) }
-                else -> { wood += 2 * sc.toInt(); stone += 2 * sc.toInt(); if (rnd.nextInt(4) == 0) metal = min(200, metal + 1) }
+                2 -> { wood += 2 * sc.toInt(); stone += 2 * sc.toInt(); if (rnd.nextInt(4) == 0) metal = min(200, metal + 1) }
+                3 -> { for (v in villagers) v.hunger = max(0f, v.hunger - 5f * sc); food += 6 * sc.toInt(); wonderPulses++ }
+                else -> { research += 12 * sc.toInt(); for (v in villagers) v.happiness = min(100f, v.happiness + (if (isNight()) 0.5f else 1.5f) * sc); wonderPulses++ }
             }
         }
     }
