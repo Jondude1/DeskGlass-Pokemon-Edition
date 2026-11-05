@@ -516,6 +516,13 @@ class CivArt {
     val dustdevil = sprite(DUSTDEVIL, mapOf(
         'd' to 0xFFD2B070.toInt(), 'D' to 0xFF9C7A3C.toInt(), 'l' to 0xFFEBD9A6.toInt(), 'k' to 0xFF3A2A14.toInt(),
     ))
+    val slime = sprite(SLIME, mapOf(
+        'g' to 0xFF7BC96A.toInt(), 'G' to 0xFF3F8A52.toInt(), 'l' to 0xFFD8F5B8.toInt(), 'k' to 0xFF173020.toInt(),
+        'w' to 0xFFF4FFE8.toInt(), 'b' to 0xFF9EE0C8.toInt(),
+    ))
+    val slimeling = sprite(SLIMELING, mapOf(
+        'g' to 0xFF8ED87C.toInt(), 'G' to 0xFF3F8A52.toInt(), 'l' to 0xFFE4F9C8.toInt(), 'k' to 0xFF173020.toInt(),
+    ))
     val stag = sprite(STAG, mapOf(
         'b' to 0xFF9A6234.toInt(), 'B' to 0xFF603A1E.toInt(), 'c' to 0xFFE8D2A0.toInt(), 'm' to 0xFFD0802C.toInt(),
         'a' to 0xFFEFE4BC.toInt(), 'A' to 0xFFB6A474.toInt(), 'k' to 0xFF1E140C.toInt(), 'r' to 0xFFFF5A3A.toInt(),
@@ -1829,6 +1836,31 @@ class CivArt {
             ".......ddl....",
             "........dd....",
             "........l.....",
+        )
+        val SLIME = listOf(
+            ".....GGGGG....",
+            "...GGgggggGG..",
+            "..GgllgggggggG",
+            ".GgllgggggbggG",
+            ".GglgggggggggG",
+            "GgggwkgggwkggG",
+            "GggwkkgggwkkgG",
+            "GgggggggggggbG",
+            "GggggkkkkgggbG",
+            "GgbgggggggggGG",
+            ".GGgggbggggGG.",
+            "..GGGGGGGGGG..",
+        )
+        val SLIMELING = listOf(
+            "....GGGG....",
+            "..GGggggGG..",
+            ".Gglggggggg.",
+            "Ggllgggggggg",
+            "Gggkgggkgggg",
+            "Gggkgggkgggg",
+            "GgggggggggGG",
+            ".GGggggggGG.",
+            "..GGGGGGGG..",
         )
         val STAG = listOf(
             "a..a.a.........",

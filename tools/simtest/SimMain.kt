@@ -161,6 +161,7 @@ fun main(args: Array<String>) {
     println("REALMS runs=${sim.realmRuns.toList()} wins=${sim.realmWins.toList()} kinds=${sim.realmRuns.count { it > 0 }} hazards=${sim.realmHazards} spoils=${sim.realmBonus}")
     println("YETIS slain=${sim.yetisSlain} throws=${sim.yetiThrows} smashes=${sim.yetiSmashes} herds=${sim.yetiHerds} foeStats=${sim.foeStats["yeti"]}")
     println("DUSTDEVILS slain=${sim.dustSlain} flings=${sim.dustFlings} grainLost=${sim.dustGrain} tired=${sim.dustTires} storms=${sim.dustStorms} foeStats=${sim.foeStats["dustdevil"]}")
+    println("SLIMES splits=${sim.slimeSplits} bites=${sim.slimeBites} slimelingsSlain=${sim.slimelingsSlain} clears=${sim.slimeClears} foeStats=${sim.foeStats["slime"]}")
     println("STAGS slain=${sim.stagsSlain} charges=${sim.stagCharges} gores=${sim.stagGores} missed=${sim.stagMisses} ruts=${sim.stagRuts} foeStats=${sim.foeStats["stag"]}")
     println("TOADS slain=${sim.toadsSlain} lashes=${sim.toadLashes} leaps=${sim.toadLeaps} choruses=${sim.toadChoruses} foeStats=${sim.foeStats["toad"]}")
     println("WORMS slain=${sim.wormsSlain} erupts=${sim.wormErupts} flung=${sim.wormHits} cratersNow=${sim.craters.size}")

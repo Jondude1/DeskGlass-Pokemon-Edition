@@ -196,7 +196,7 @@ private val ACTIONS = setOf(
 )
 
 /** Foes a few healthy fighters will chase down on their own. */
-private val HUNTABLE_FOES = setOf("boar", "wolf", "bear", "pilferer", "frostwolf", "raider", "skeleton", "shaman", "reaver", "spider", "harpy", "burrower", "scorpion", "toad", "stag", "stormling", "yeti", "dustdevil")
+private val HUNTABLE_FOES = setOf("boar", "wolf", "bear", "pilferer", "frostwolf", "raider", "skeleton", "shaman", "reaver", "spider", "harpy", "burrower", "scorpion", "toad", "stag", "stormling", "yeti", "dustdevil", "slime", "slimeling")
 
 private val DX = intArrayOf(1, -1, 0, 0)
 private val DY = intArrayOf(0, 0, 1, -1)
@@ -257,6 +257,8 @@ class CivSim(
     private var lastYetiAt = -999.0
     var dustSlain = 0; var dustFlings = 0; var dustGrain = 0; var dustTires = 0; var dustStorms = 0
     private var lastDustAt = -999.0
+    var slimeSplits = 0; var slimeClears = 0; var slimeBites = 0; var slimelingsSlain = 0
+    private var lastSlimeAt = -999.0
     var stagsSlain = 0; var stagGores = 0; var stagCharges = 0; var stagMisses = 0; var stagRuts = 0
     private var lastStagAt = -999.0
     var stormlingsSlain = 0; var stormlingBolts = 0; var stormlingHits = 0; var stormlingDodges = 0; var stormlingFades = 0; var stormlingSpent = 0
@@ -1314,7 +1316,7 @@ class CivSim(
         hides = 0
         puddleJumps = 0; fireflyJars = 0; hideSeekGames = 0; hideFinds = 0; friendVisits = 0; friendVisitsMet = 0; hearthGames = 0; hearthMatches = 0; hearthMends = 0; hearthPlays = 0; schoolLessons = 0; schoolLevel = 0; schoolStars = 0; lastSchoolAt = -999.0; guildWorks = 0; guildRank = 0; guildSpent = 0; gearLeather = 0; gearBronze = 0; gearSteel = 0; gearForged = 0; gearBlocks = 0; gearSaved = 0f; gearFirsts = 0; lastForgeAt = -999.0; smokeBatches = 0; smokeRations = 0; smokeCheers = 0; otterGifts = 0; otterCheers = 0; hailUntil = 0.0; hailStorms = 0; hailHits = 0; hailCrop = 0; hailSaved = 0; hailIce = 0; hailEndAt = -999.0; hailStartAt = -999.0; hailOn = false; lastHailAt = 0.0; hailPops.clear(); crowsUntil = 0.0; crowFarmX = -1; crowFarmY = -1; crowFlocks = 0; crowsShooed = 0; crowsScared = 0; crowLoss = 0; crowSaved = 0; nextCrowAt = 0.0; voyReset(); lastSmokeAt = -999.0; fountainWishes = 0; fountainGranted = 0; fountainTier = 0; obsWatches = 0; obsForecasts = 0; obsHits = 0; obsPrepared = 0; forecastKind = ""; plannedKind = ""; plannedSeason = -1; lastObsAt = -999.0; museumVisits = 0; stallVisits = 0; stallDays = 0; stallDeals = 0; stallBargains = 0; stallBuzzDay = -1; lastStallAt = -999.0; museumTalks = 0; museumShown = 0; lastMuseumAt = -999.0; beaconTends = 0; beaconNightWatch = 0; beaconFogSails = 0; beaconNightSails = 0; beaconScares = 0; beaconGuided = 0; beaconUntil = 0.0; lastBeaconAt = -999.0; visitGoal.clear(); visitTries.clear(); kidGameKinds.clear()
         goods = 0
-        visitor = null; nextVisitAt = time + DAY_LEN * 1.2; visitStats.clear(); tinkerMends = 0; sowerFarms = 0; seerReadings = 0; knightDuels = 0; toysGiven = 0; raidsRepelled = 0; ogresSlain = 0; bossesSlain = 0; warlordsSlain = 0; golemsSlain = 0; shamansSlain = 0; frostPacksBroken = 0; pilfersFoiled = 0; pilfersLost = 0; swarmsBroken = 0; hornetsSwatted = 0; lichesSlain = 0; bonesRaised = 0; lastLichAt = -999.0; reaversSlain = 0; trollsSlain = 0; trollsStoned = 0; trollBoulders = 0; spidersSlain = 0; wormsSlain = 0; scorpionsSlain = 0; scorpionStings = 0; scorpionPincers = 0; scorpionSwarms = 0; lastScorpionAt = -999.0; toadsSlain = 0; toadLashes = 0; toadChoruses = 0; toadLeaps = 0; lastToadAt = -999.0; stagsSlain = 0; stagGores = 0; stagCharges = 0; stagMisses = 0; stagRuts = 0; lastStagAt = -999.0; ramsSlain = 0; ramSlams = 0; ramBreaks = 0; ramWrecked = 0; ramSieges = 0; lastRamAt = -999.0; wormErupts = 0; wormHits = 0; lastWormAt = -999.0; craters.clear(); harpiesSlain = 0; flocksScattered = 0; harpyDives = 0; harpyLoot = 0; lastHarpyAt = -999.0; websSpun = 0; webCatches = 0; spiderBites = 0; lastSpiderAt = -999.0; webs.clear(); poisoned.clear(); skillUps = 0; skillBonusLoads = 0; skillMasters = 0; lastTrollAt = -999.0; trollRocks.clear(); shipsSeized = 0; landings = 0; lastLandingAt = -999.0; shipUp = false; shipT = 0f; foeStats.clear(); lastWarlordAt = -999.0; goldenAt = -1.0; deeds.clear(); babiesBorn = 0; weds = 0; feudsStarted = 0; feudsEnded = 0; bffs.clear(); feudEnds.clear(); courting.clear(); weddingAt = -999.0; nextRelAt = 0.0; deedBannerAt = -999.0; nextDeedAt = 0.0; titlesEarned = 0; dreamsDone = 0; lastThreatAt = 0.0; crowns.clear(); comingAges = 0; comingGuests = 0; comingGifts = 0; comingParents = 0; tavDice = 0; tavWrestles = 0; tavTales = 0; tavSongs = 0; tavNights = 0; birthdays = 0; birthdayCakes = 0; birthdayGifts = 0; tavernFx = -100.0; yetisSlain = 0; yetiThrows = 0; yetiSmashes = 0; yetiHerds = 0; lastYetiAt = -999.0; dustSlain = 0; dustFlings = 0; dustGrain = 0; dustTires = 0; dustStorms = 0; lastDustAt = -999.0
+        visitor = null; nextVisitAt = time + DAY_LEN * 1.2; visitStats.clear(); tinkerMends = 0; sowerFarms = 0; seerReadings = 0; knightDuels = 0; toysGiven = 0; raidsRepelled = 0; ogresSlain = 0; bossesSlain = 0; warlordsSlain = 0; golemsSlain = 0; shamansSlain = 0; frostPacksBroken = 0; pilfersFoiled = 0; pilfersLost = 0; swarmsBroken = 0; hornetsSwatted = 0; lichesSlain = 0; bonesRaised = 0; lastLichAt = -999.0; reaversSlain = 0; trollsSlain = 0; trollsStoned = 0; trollBoulders = 0; spidersSlain = 0; wormsSlain = 0; scorpionsSlain = 0; scorpionStings = 0; scorpionPincers = 0; scorpionSwarms = 0; lastScorpionAt = -999.0; toadsSlain = 0; toadLashes = 0; toadChoruses = 0; toadLeaps = 0; lastToadAt = -999.0; stagsSlain = 0; stagGores = 0; stagCharges = 0; stagMisses = 0; stagRuts = 0; lastStagAt = -999.0; ramsSlain = 0; ramSlams = 0; ramBreaks = 0; ramWrecked = 0; ramSieges = 0; lastRamAt = -999.0; wormErupts = 0; wormHits = 0; lastWormAt = -999.0; craters.clear(); harpiesSlain = 0; flocksScattered = 0; harpyDives = 0; harpyLoot = 0; lastHarpyAt = -999.0; websSpun = 0; webCatches = 0; spiderBites = 0; lastSpiderAt = -999.0; webs.clear(); poisoned.clear(); skillUps = 0; skillBonusLoads = 0; skillMasters = 0; lastTrollAt = -999.0; trollRocks.clear(); shipsSeized = 0; landings = 0; lastLandingAt = -999.0; shipUp = false; shipT = 0f; foeStats.clear(); lastWarlordAt = -999.0; goldenAt = -1.0; deeds.clear(); babiesBorn = 0; weds = 0; feudsStarted = 0; feudsEnded = 0; bffs.clear(); feudEnds.clear(); courting.clear(); weddingAt = -999.0; nextRelAt = 0.0; deedBannerAt = -999.0; nextDeedAt = 0.0; titlesEarned = 0; dreamsDone = 0; lastThreatAt = 0.0; crowns.clear(); comingAges = 0; comingGuests = 0; comingGifts = 0; comingParents = 0; tavDice = 0; tavWrestles = 0; tavTales = 0; tavSongs = 0; tavNights = 0; birthdays = 0; birthdayCakes = 0; birthdayGifts = 0; tavernFx = -100.0; yetisSlain = 0; yetiThrows = 0; yetiSmashes = 0; yetiHerds = 0; lastYetiAt = -999.0; dustSlain = 0; dustFlings = 0; dustGrain = 0; dustTires = 0; dustStorms = 0; lastDustAt = -999.0; slimeSplits = 0; slimeClears = 0; slimeBites = 0; slimelingsSlain = 0; lastSlimeAt = -999.0
         riftTheme = 0; lastTheme = -1; realmRuns.fill(0); realmWins.fill(0); realmHazards = 0; realmBonus = 0; skyShows.fill(0); skyWatches = 0; skyWishes = 0; skyLastNight = -1; skyLastShowAt = -999.0; riftState = 0; party.clear(); expeditions = 0; expWins = 0; expRetreats = 0; roomsCleared = 0; relics = 0; deepestRoom = 0; wardensSlain = 0; sideRooms = 0; sideTraps = 0; sideVaults = 0; sideSprings = 0; sideShrines = 0; riftRallies = 0; riftSide = false; nextRiftAt = time + DAY_LEN
         campUp = false; campsRazed = 0; campHits = 0; campSorties = 0; campRazedAt = -999.0; campHitAt = -999.0; campNextAt = time + DAY_LEN * 1.5
         nextThreatAt = DAY_LEN * 1.4; lastBossAt = -999.0; stormlingsSlain = 0; stormlingBolts = 0; stormlingHits = 0; stormlingDodges = 0; stormlingFades = 0; stormlingSpent = 0; lastStormlingAt = -999.0
@@ -5879,6 +5881,7 @@ class CivSim(
             "toad" -> "bog toads are leaping about, lashing out sticky tongues"
             "stag" -> "a rutting antler stag is charging at people"
             "dustdevil" -> "a dust devil is whirling across the farms and flinging people"
+            "slime", "slimeling" -> "gloom slime is oozing in and splitting into smaller slimes"
             "yeti" -> "a shaggy yeti is pelting people with snowballs"
             "stormling" -> "a living thundercloud is calling lightning bolts down on people"
             "ram" -> "a raider siege ram is battering at the stores behind a shield wall"
@@ -6721,7 +6724,7 @@ class CivSim(
             var prey: Villager? = null
             var best = 15f
             for (v in villagers) {
-                val safe = fires.any { hypot(it.x + 0.5f - v.x, it.y + 0.5f - v.y) < (if (p.kind == "ogre" || p.kind == "drake" || p.kind == "golem" || p.kind == "warlord" || p.kind == "lich" || p.kind == "troll" || p.kind == "ram") 1.6f else 3.2f) }
+                val safe = fires.any { hypot(it.x + 0.5f - v.x, it.y + 0.5f - v.y) < (if (p.kind == "ogre" || p.kind == "drake" || p.kind == "golem" || p.kind == "warlord" || p.kind == "lich" || p.kind == "troll" || p.kind == "ram" || p.kind == "slime" || p.kind == "slimeling") 1.6f else 3.2f) }
                 if (safe) continue
                 val d = hypot(v.x - p.x, v.y - p.y)
                 if (d < best) {
@@ -6729,7 +6732,7 @@ class CivSim(
                     prey = v
                 }
             }
-            val speed = (when (p.kind) { "bear" -> 1.5f; "boar" -> 2.4f; "raider" -> 2.0f; "ogre" -> 1.3f; "wraith" -> 2.7f; "drake" -> 1.8f; "shaman" -> 1.7f; "warlord" -> 1.7f; "golem" -> 0.9f; "frostwolf" -> 2.9f; "lich" -> 1.3f; "skeleton" -> 1.7f; "pilferer" -> 3.1f; "hornet" -> 3.0f; "reaver" -> 2.2f; "troll" -> 1.25f; "scorpion" -> 2.1f; "stag" -> 1.7f; "yeti" -> 1.5f; "dustdevil" -> 1.7f; "stormling" -> 1.6f; "ram" -> 1.15f; "toad" -> (if (p.aux > 0f) 4.4f else 0.15f); "spider" -> 2.3f; "burrower" -> (if (p.aux > 0f) 3.6f else 1.4f); "harpy" -> (if (p.aux > 0f) 2.6f else 4.6f); else -> 2.1f }) * dt * (if (p.buffUntil > p.life) 1.5f else 1f) * wallSlow(p, dt)
+            val speed = (when (p.kind) { "bear" -> 1.5f; "boar" -> 2.4f; "raider" -> 2.0f; "ogre" -> 1.3f; "wraith" -> 2.7f; "drake" -> 1.8f; "shaman" -> 1.7f; "warlord" -> 1.7f; "golem" -> 0.9f; "frostwolf" -> 2.9f; "lich" -> 1.3f; "skeleton" -> 1.7f; "pilferer" -> 3.1f; "hornet" -> 3.0f; "reaver" -> 2.2f; "troll" -> 1.25f; "scorpion" -> 2.1f; "stag" -> 1.7f; "yeti" -> 1.5f; "dustdevil" -> 1.7f; "slime" -> 1.35f; "slimeling" -> 2.5f; "stormling" -> 1.6f; "ram" -> 1.15f; "toad" -> (if (p.aux > 0f) 4.4f else 0.15f); "spider" -> 2.3f; "burrower" -> (if (p.aux > 0f) 3.6f else 1.4f); "harpy" -> (if (p.aux > 0f) 2.6f else 4.6f); else -> 2.1f }) * dt * (if (p.buffUntil > p.life) 1.5f else 1f) * wallSlow(p, dt)
             var gone = false
             when (p.kind) {
                 "pilferer" -> {
@@ -7134,7 +7137,7 @@ class CivSim(
                 } else if ((p.kind == "shaman" || p.kind == "lich") && d < 4.2f) stepPredator(p, -dx / d * speed * 0.6f, -dy / d * speed * 0.6f)
                 else if (d > 0.8f && !((p.kind == "shaman" || p.kind == "lich") && d < 5f)) stepPredator(p, dx / d * speed, dy / d * speed)
                 else if (p.kind != "shaman" && p.kind != "lich" && p.cool <= 0f) {
-                    val dmg = (when (p.kind) { "bear" -> 22f; "boar" -> 16f; "raider" -> 9f; "ogre" -> 24f; "wraith" -> 11f; "drake" -> 28f; "warlord" -> 18f; "golem" -> 30f; "frostwolf" -> 8f; "skeleton" -> 10f; "hornet" -> 4f; "reaver" -> 14f; "troll" -> 20f; "spider" -> 7f; "scorpion" -> 9f; "stag" -> 11f; "ram" -> 22f; "harpy" -> 5f; "burrower" -> 15f; "toad" -> 6f; "yeti" -> 17f; else -> 12f }) * (if (isChild(prey)) 1.5f else 1f)
+                    val dmg = (when (p.kind) { "bear" -> 22f; "boar" -> 16f; "raider" -> 9f; "ogre" -> 24f; "wraith" -> 11f; "drake" -> 28f; "warlord" -> 18f; "golem" -> 30f; "frostwolf" -> 8f; "skeleton" -> 10f; "hornet" -> 4f; "reaver" -> 14f; "troll" -> 20f; "spider" -> 7f; "scorpion" -> 9f; "stag" -> 11f; "ram" -> 22f; "harpy" -> 5f; "burrower" -> 15f; "toad" -> 6f; "yeti" -> 17f; "slime" -> 9f; "slimeling" -> 3f; else -> 12f }) * (if (isChild(prey)) 1.5f else 1f)
                     if (p.kind == "harpy") {
                         // a dive: talons rake the target and snatch a little food, then the harpy climbs away to circle
                         val f = min(food, 3)
@@ -7146,6 +7149,11 @@ class CivSim(
                         prey.say = "Get off, you bird!"; prey.sayLeft = 2.2f
                         fx.add(Fx("arrow", p.x, p.y, time, 0.5f))
                         if (harpyDives <= 2 || rnd.nextInt(8) == 0) addLog("A harpy dives at ${prey.name}" + (if (f > 0) " and snatches $f food!" else "!"))
+                    }
+                    if (p.kind == "slime" || p.kind == "slimeling") {
+                        slimeBites++
+                        fx.add(Fx("splash", prey.x, prey.y, time, 0.6f))
+                        if (slimeBites <= 2 || rnd.nextInt(8) == 0) addLog("The ${if (p.kind == "slime") "gloom slime" else "slimeling"} engulfs ${prey.name} in sticky goo!")
                     }
                     if (p.kind == "yeti") {
                         yetiSmashes++
@@ -7256,12 +7264,30 @@ class CivSim(
                     addLog("The shield wall is broken! The siege ram stands bare. Strike it now!")
                 }
             }
+            if (p.kind == "slime" && p.hp < 70f) {
+                // the big slime bursts into three small, quick slimelings
+                predators.remove(p)
+                slimeSplits++
+                for (k in 0 until 3) {
+                    val ang = p.angle + k * 2.09f
+                    val sx = (p.x + cos(ang) * 0.8f).coerceIn(0.6f, GW - 0.7f)
+                    val sy = (p.y + sin(ang) * 0.8f).coerceIn(0.6f, GH - 0.7f)
+                    val ok = tiles[sy.toInt() * GW + sx.toInt()] != T.WATER
+                    val ling = Predator("slimeling", if (ok) sx else p.x, if (ok) sy else p.y)
+                    ling.angle = ang
+                    predators.add(ling)
+                }
+                fx.add(Fx("splash", p.x, p.y, time, 1.0f))
+                fx.add(Fx("quake", p.x, p.y, time, 0.6f))
+                if (slimeSplits <= 2 || rnd.nextInt(3) == 0) addLog("The gloom slime bursts into three slimelings!")
+                continue
+            }
             if (p.hp <= 0f) {
                 predators.remove(p)
                 if (p.byBallista) ballistaKills++
                 if (p.bySmite) divine.smiteKills++
-                val meat = when (p.kind) { "bear" -> 8; "boar" -> 6; "ogre" -> 12; "drake" -> 14; "frostwolf" -> 3; "lich", "skeleton", "raider", "wraith", "shaman", "warlord", "golem", "pilferer", "hornet", "troll", "spider", "harpy", "burrower", "scorpion", "ram", "stormling", "dustdevil" -> 0; "toad" -> 3; "stag" -> 7; "yeti" -> 6; else -> 4 }
-                val hide = when (p.kind) { "bear" -> 3; "boar" -> 2; "ogre" -> 5; "drake" -> 8; "frostwolf" -> 3; "lich", "skeleton", "raider", "wraith", "shaman", "warlord", "golem", "pilferer", "hornet", "troll", "harpy", "burrower", "scorpion", "toad", "ram", "stormling", "dustdevil" -> 0; "spider" -> 2; "stag" -> 3; "yeti" -> 4; else -> 1 }
+                val meat = when (p.kind) { "bear" -> 8; "boar" -> 6; "ogre" -> 12; "drake" -> 14; "frostwolf" -> 3; "lich", "skeleton", "raider", "wraith", "shaman", "warlord", "golem", "pilferer", "hornet", "troll", "spider", "harpy", "burrower", "scorpion", "ram", "stormling", "dustdevil", "slime", "slimeling" -> 0; "toad" -> 3; "stag" -> 7; "yeti" -> 6; else -> 4 }
+                val hide = when (p.kind) { "bear" -> 3; "boar" -> 2; "ogre" -> 5; "drake" -> 8; "frostwolf" -> 3; "lich", "skeleton", "raider", "wraith", "shaman", "warlord", "golem", "pilferer", "hornet", "troll", "harpy", "burrower", "scorpion", "toad", "ram", "stormling", "dustdevil", "slime", "slimeling" -> 0; "spider" -> 2; "stag" -> 3; "yeti" -> 4; else -> 1 }
                 if (meat + hide > 0) drops.add(Drop(p.kind, p.x, p.y, time, meat, hide))
                 onThreatDown(p)
                 val hero = fighters.maxByOrNull { it.hp }
@@ -7391,6 +7417,18 @@ class CivSim(
                     for (v in villagers) v.happiness = min(100f, v.happiness + 8f)
                     event("The last dust devil is gone and the air clears. The villagers rake some grain back out of the dust and find wood scattered by the wind.")
                 } else for (v in villagers) v.happiness = min(100f, v.happiness + 3f)
+            }
+            "slime", "slimeling" -> {
+                slimelingsSlain++
+                goods += 1
+                if (predators.none { it.kind == "slime" || it.kind == "slimeling" }) {
+                    slimeClears++
+                    goods += 3
+                    stone += 2
+                    for (v in villagers) v.happiness = min(100f, v.happiness + 8f)
+                    event("The last of the gloom slime is mopped up and the night air is clean again. The potters pay for the jelly. (+4 goods, +2 stone)")
+                    mark("A gloom slime was cleared away.")
+                } else for (v in villagers) v.happiness = min(100f, v.happiness + 1f)
             }
             "yeti" -> {
                 yetisSlain++
@@ -7566,6 +7604,21 @@ class CivSim(
         return 1f
     }
 
+    /** On foggy or damp evenings (and now and then on clear ones) a gloom slime oozes out of the marsh. */
+    private fun slimeTick() {
+        if (age < 1 || villagers.size < 7 || time - lastSlimeAt < DAY_LEN * 2.2) return
+        val f = frac()
+        if (f < 0.74 || f > 0.8) return
+        if (storm() || predators.any { isThreat(it.kind) && it.kind != "pilferer" && it.kind != "hornet" }) return
+        if (!(foggy() || raining()) && rnd.nextInt(3) != 0) { lastSlimeAt = time - DAY_LEN * 1.5; return }
+        lastSlimeAt = time
+        val k = if (villagers.size >= 16) 2 else 1
+        spawnPredators("slime", k)
+        alertUntil = time + 100.0
+        for (v in villagers) v.happiness = max(0f, v.happiness - 3f)
+        event(if (k == 1) "A gloom slime has oozed out of the marsh in the dark! It engulfs whoever it touches, and every hard blow splits it into smaller, quicker slimelings. Finish every last one." else "Two gloom slimes have oozed out of the marsh in the dark! Every hard blow splits them into smaller, quicker slimelings. Finish every last one.")
+    }
+
     private fun trollTick() {
         if (age < 2 || villagers.size < 7 || time - lastTrollAt < DAY_LEN * 3.5) return
         val f = frac()
@@ -7592,6 +7645,7 @@ class CivSim(
             "burrower" to (if (age >= 1 && villagers.size >= 8 && time - lastWormAt > DAY_LEN * 3) 4 else 0),
             "spider" to (if (villagers.size >= 6 && time - lastSpiderAt > DAY_LEN * 1.5) 6 else 0),
             "dustdevil" to (if (age >= 1 && villagers.size >= 7 && time - lastDustAt > DAY_LEN * 1.6 && !raining() && !storm() && buildings.any { it.type == "farm" } && (seasonName() == "summer" || seasonName() == "autumn" || drought())) (if (drought()) 18 else if (seasonName() == "summer") 14 else 8) else 0),
+            "slime" to (if (age >= 1 && villagers.size >= 7 && time - lastSlimeAt > DAY_LEN * 1.8 && (isNight() || foggy()) && !storm()) (if (foggy() && isNight()) 24 else if (foggy()) 14 else if (raining()) 18 else 12) else 0),
             "yeti" to (if (age >= 1 && villagers.size >= 7 && time - lastYetiAt > DAY_LEN * 1.5 && seasonName() == "winter") 12 else 0),
             "toad" to (if (villagers.size >= 6 && time - lastToadAt > DAY_LEN * 1.5 && (seasonName() == "spring" || raining())) (if (seasonName() == "spring" && raining()) 14 else 8) else 0),
             "ram" to (if (age >= 3 && villagers.size >= 14 && time - lastRamAt > DAY_LEN * 3.5) 5 else 0),
@@ -7644,6 +7698,12 @@ class CivSim(
                 val k = if (n >= 16) 2 else 1
                 spawnPredators("dustdevil", k)
                 event(if (k == 1) "A dust devil has spun up out of the dry fields! It drifts over the farms scattering grain and flings anyone it touches. Wait until it sputters and thins out, then strike." else "Two dust devils have spun up out of the dry fields! They scatter grain and fling anyone they touch. Wait until they sputter, then strike.")
+            }
+            "slime" -> {
+                lastSlimeAt = time
+                val k = if (n >= 16) 2 else 1
+                spawnPredators("slime", k)
+                event(if (k == 1) "A gloom slime has oozed out of the marsh in the dark! It engulfs whoever it touches, and every hard blow splits it into smaller, quicker slimelings. Finish every last one." else "Two gloom slimes have oozed out of the marsh in the dark! Every hard blow splits them into smaller, quicker slimelings. Finish every last one.")
             }
             "yeti" -> {
                 lastYetiAt = time
@@ -7772,6 +7832,8 @@ class CivSim(
             Deed("stag2", "Matador Village", "Let five charges miss and strike the stuck stag.", "+20 wood, +10 stone") { stagMisses >= 5 },
             Deed("dust1", "Dust Settler", "Beat a dust devil.", "+15 food, +5 goods") { dustSlain >= 1 },
             Deed("dust2", "Whirlwind Wranglers", "Calmed two dust devil storms.", "+25 wood, +10 stone") { dustStorms >= 2 },
+            Deed("slime1", "Jelly Mopper", "Cleared away a gloom slime and all its slimelings.", "+15 food, +5 goods") { slimeClears >= 1 },
+            Deed("slime2", "Splitting Headache", "Cut down twelve slimelings.", "+20 wood, +10 stone") { slimelingsSlain >= 12 },
             Deed("yeti1", "Snow Beast Slayer", "Slew a yeti.", "+15 food, +5 goods") { yetisSlain >= 1 },
             Deed("yeti2", "Winter Wardens", "Broke two whole yeti herds.", "+25 wood, +10 metal") { yetiHerds >= 2 },
             Deed("toad1", "Ribbit Ender", "Slew a bog toad.", "+15 food, +5 goods") { toadsSlain >= 1 },
@@ -9485,6 +9547,7 @@ class CivSim(
         planTick()
         threatTick()
         trollTick()
+        slimeTick()
         spiderTick(dt)
         expeditionTick(dt)
         campTick(dt)
@@ -9634,7 +9697,7 @@ class CivSim(
             o.put("hides", hides)
             o.put("goods", goods)
             o.put("slS", stormlingsSlain).put("slB", stormlingBolts).put("slH", stormlingHits).put("slD", stormlingDodges).put("slF", stormlingFades).put("slP", stormlingSpent).put("obsW", obsWatches).put("obsF", obsForecasts).put("obsH", obsHits).put("obsP", obsPrepared).put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("campUp", if (campUp) 1 else 0).put("campX", campX.toDouble()).put("campY", campY.toDouble()).put("campHp", campHp.toDouble()).put("campMax", campMax.toDouble()).put("campR", campsRazed).put("campH", campHits).put("campS", campSorties).put("expN", expeditions).put("expW", expWins).put("expR", expRetreats).put("expRooms", roomsCleared).put("relics", relics).put("expDeep", deepestRoom).put("wardens", wardensSlain).put("golems", golemsSlain).put("frostPacks", frostPacksBroken).put("pilfF", pilfersFoiled).put("pilfL", pilfersLost).put("swarms", swarmsBroken).put("hornets", hornetsSwatted).put("liches", lichesSlain).put("bones", bonesRaised).put("reavers", reaversSlain).put("spiderS", spidersSlain).put("wormS", wormsSlain).put("wormE", wormErupts).put("wormH", wormHits).put("harpyS", harpiesSlain).put("harpyF", flocksScattered).put("harpyD", harpyDives).put("harpyL", harpyLoot).put("spiderW", websSpun).put("spiderC", webCatches).put("spiderB", spiderBites).put("trollS", trollsSlain).put("trollR", trollsStoned).put("trollB", trollBoulders).put("trollRocks", trollRocks.joinToString(",") { "${it[0].toInt()}:${it[1].toInt()}" }).put("ships", shipsSeized).put("landings", landings).put("shamans", shamansSlain).put("golden", goldenAt).put("visits", visitStats.entries.joinToString(",") { "${it.key}:${it.value}" }).put("deeds", deeds.joinToString(",")).put("tavern", tavernVisits).put("snacks", hungerSnacks).put("pets", pets.joinToString(",") { "${it.name}:${it.owner}:${it.bond}" }).put("dogA", dogsAdopted).put("dogW", dogWalks).put("dogB", dogBarks).put("fetes", fetesHeld).put("feteR", feteRevels).put("feteL", lastFeteSeason).put("feteK", feteKinds.joinToString(",")).put("snowmen", snowmenBuilt).put("leafR", leafPilesRaked).put("starsF", starsFallen).put("starG", starShardsGot).put("kites", kitesFlown).put("sprops", seasonProps.joinToString(",") { "${it.kind}:${it.x.toInt()}:${it.y.toInt()}" }).put("statues", statues.joinToString(";") { "${it.name}|${it.title}|${it.kind}|${it.x.toInt()}|${it.y.toInt()}|${it.tier}" }).put("statueC", statueCheers).put("graves", graves.joinToString(";") { "${it.name}|${it.job}|${it.x.toInt()}|${it.y.toInt()}|${it.ageYears}|${it.cause}|${it.day}" }).put("graveX", graveX).put("graveY", graveY).put("buried", buried).put("mournN", mournVisits).put("totemV", totemVisits).put("raised", raised).put("omens", omens).put("recov", recoveries).put("balS", ballistaShots).put("balK", ballistaKills).put("ranchV", ranchVisits).put("pastV", pastureVisits).put("sailN", sailTrips).put("millN", millGrinds).put("millF", flourMade).put("millL", loavesBaked).put("quarryN", quarryHauls).put("quarryS", quarryStone).put("quarryV", quarryVeins).put("vigN", vigils).put("vigP", vigilPoints).put("trMask", trialMask).put("legCalls", legendCalls).put("dockC", dockCatch).put("iceT", iceTrips).put("iceC", iceCatch).put("iceP", icePike).put("bottles", bottlesFound).put("flockS", flockSheep).put("flockH", flockHens).put("eggsG", eggsGathered).put("fleece", fleeces).put("techs", techs.joinToString(",")).put("research", research).put("studyN", studyCount).put("babies", babiesBorn).put("dreams", dreamsDone).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" }).put("wallN", wallsRaised).put("wallX", wallCx).put("wallY", wallCy).put("wallD", if (wallDone) 1 else 0).put("wallH", wallHoldSecs.toDouble()).put("lessons", lessonsGiven).put("appMade", apprenticesMade).put("apprentice", apprentice.entries.joinToString(";") { "${it.key}:${it.value}" }).put("cathX", cathX).put("cathY", cathY).put("cathW", cathWork).put("cathT", cathTrips).put("cathB", cathBells).put("jubU", jubileeUntil).put("honeyN", honeyHarvests).put("honeyJ", honeyJars).put("honeyS", beeStings).put("honeyM", meadFeasts).put("honeyT", honeyMark).put("soakN", soaks).put("soakH", soakHeals).put("soakP", soakParties).put("soakG", soakGossips).put("shotN", shotsFired).put("shotB", bullseyes).put("shotM", archeryMatches).put("shotBest", archeryBest).put("fruitN", fruitPicks).put("fruitB", fruitBaskets).put("fruitC", ciderFeasts).put("fruitF", fruitFalls).put("fruitT", fruitMark).put("councN", councilsHeld).put("councS", councilSeats).put("councNext", councilNextAt).put("policy", policy).put("policyU", policyUntil).put("policyS", policyStart).put("policyB", policyBase.toDouble()).put("policyV", policyVotes).put("policyO", policyOf).put("policyA", policyActs).put("policyW", policiesWon).put("policyL", policiesLost).put("policyK", policyKinds.joinToString(",")).put("skUp", skillUps).put("skB", skillBonusLoads).put("skM", skillMasters).put("fireS", firesStarted).put("fireD", firesDoused).put("fireW", fireDouses).put("fireB", fireBurnedOut).put("fireL", fireLoss).put("sideN", sideRooms).put("sideT", sideTraps).put("sideV", sideVaults).put("sideS", sideSprings).put("sideH", sideShrines).put("riftRal", riftRallies).put("kgPud", puddleJumps).put("kgFly", fireflyJars).put("kgHide", hideSeekGames).put("kgFound", hideFinds).put("knightD", knightDuels).put("toysG", toysGiven).put("gDec", decrees).put("gNext", gloryNextAt).put("gKind", decreeKind).put("gUntil", decreeUntil).put("gStart", decreeStart).put("gGild", gildings).put("gKinds", decreeKinds.joinToString(",")).put("gLast", lastDecree).put("dryN", droughts).put("dryE", droughtsEnded).put("dryW", droughtWaterings).put("dryS", droughtSaved).put("dryX", droughtWithered).put("dryR", droughtRainEnds).put("scorpS", scorpionsSlain).put("scorpT", scorpionStings).put("scorpP", scorpionPincers).put("scorpN", scorpionSwarms).put("toadS", toadsSlain).put("toadL", toadLashes).put("toadC", toadChoruses).put("toadH", toadLeaps).put("stagS", stagsSlain).put("stagG", stagGores).put("stagC", stagCharges).put("stagM", stagMisses).put("stagR", stagRuts).put("mushN", mushPicked).put("mushG", glowcapsFound).put("mushS", mushStews).put("smkN", smokeBatches).put("smkR", smokeRations).put("smkC", smokeCheers).put("otG", otterGifts).put("otC", otterCheers).put("musN", museumVisits).put("stlN", stallVisits).put("stlD", stallDays).put("stlT", stallDeals).put("stlB", stallBargains).put("musT", museumTalks).put("musS", museumShown).put("visN", friendVisits).put("visM", friendVisitsMet).put("hgN", hearthGames).put("hgM", hearthMatches).put("hgT", hearthMends).put("hgP", hearthPlays).put("voyN", voyages).put("voyF", voyFinds).put("voyS", voyScares).put("voyC", voyCrowd).put("crowN", crowFlocks).put("crowS", crowsShooed).put("crowC", crowsScared).put("crowL", crowLoss).put("crowV", crowSaved).put("schL", schoolLessons).put("schV", schoolLevel).put("schS", schoolStars).put("gldW", guildWorks).put("gldR", guildRank).put("gldS", guildSpent).put("gLe", gearLeather).put("gBr", gearBronze).put("gSt", gearSteel).put("gFo", gearForged).put("gBl", gearBlocks).put("gSv", gearSaved.toDouble()).put("gFi", gearFirsts).put("lhT", beaconTends).put("lhN", beaconNightWatch).put("lhF", beaconFogSails).put("lhV", beaconNightSails).put("lhS", beaconScares).put("lhG", beaconGuided).put("hailN", hailStorms).put("hailH", hailHits).put("hailC", hailCrop).put("hailV", hailSaved).put("hailI", hailIce).put("tnkM", tinkerMends).put("swrF", sowerFarms).put("seeR", seerReadings).put("yetS", yetisSlain).put("yetT", yetiThrows).put("yetM", yetiSmashes).put("yetH", yetiHerds).put("rlmRun", realmRuns.joinToString(",")).put("rlmWin", realmWins.joinToString(",")).put("rlmT", riftTheme).put("rlmL", lastTheme).put("rlmH", realmHazards).put("rlmB", realmBonus).put("nsN", skyShows.joinToString(",")).put("nsW", skyWatches).put("nsK", skyWishes).put("nsL", skyLastNight).put("carN", caravans).put("carF", carFinds).put("carA", carAmbush).put("carB", carBeaten).put("carS", carSpent)
-            o.put("dsS", dustSlain).put("dsF", dustFlings).put("dsG", dustGrain).put("dsT", dustTires).put("dsM", dustStorms)
+            o.put("dsS", dustSlain).put("dsF", dustFlings).put("dsG", dustGrain).put("dsT", dustTires).put("dsM", dustStorms).put("slmP", slimeSplits).put("slmC", slimeClears).put("slmB", slimeBites).put("slmK", slimelingsSlain)
             o.put("lmN", landmarksFound).put("lmV", landmarkVisits).put("lmH", landmarkHeals).put("lmR", landmarkRelics)
             o.put("lmL", landmarks.joinToString(";") { "${it.kind}:${it.x}:${it.y}:${it.found}:${it.visits}" })
             o.put("ramS", ramsSlain).put("ramL", ramSlams).put("ramB", ramBreaks).put("ramW", ramWrecked).put("ramG", ramSieges)
@@ -9780,7 +9843,7 @@ class CivSim(
                 riftTheme = o.optInt("rlmT", 0).coerceIn(0, 4); lastTheme = o.optInt("rlmL", -1).coerceIn(-1, 4)
                 realmHazards = o.optInt("rlmH", 0); realmBonus = o.optInt("rlmB", 0); skyShows.fill(0); o.optString("nsN", "").split(",").forEachIndexed { i, x -> if (i < 4) skyShows[i] = x.trim().toIntOrNull() ?: 0 }; skyWatches = o.optInt("nsW", 0); skyWishes = o.optInt("nsK", 0); skyLastNight = o.optInt("nsL", -1); caravans = o.optInt("carN", 0); carFinds = o.optInt("carF", 0); carAmbush = o.optInt("carA", 0); carBeaten = o.optInt("carB", 0); carSpent = o.optInt("carS", 0)
             }
-            dustSlain = o.optInt("dsS", 0); dustFlings = o.optInt("dsF", 0); dustGrain = o.optInt("dsG", 0); dustTires = o.optInt("dsT", 0); dustStorms = o.optInt("dsM", 0)
+            dustSlain = o.optInt("dsS", 0); dustFlings = o.optInt("dsF", 0); dustGrain = o.optInt("dsG", 0); dustTires = o.optInt("dsT", 0); dustStorms = o.optInt("dsM", 0); slimeSplits = o.optInt("slmP", 0); slimeClears = o.optInt("slmC", 0); slimeBites = o.optInt("slmB", 0); slimelingsSlain = o.optInt("slmK", 0)
             landmarksFound = o.optInt("lmN", 0); landmarkVisits = o.optInt("lmV", 0); landmarkHeals = o.optInt("lmH", 0); landmarkRelics = o.optInt("lmR", 0)
             landmarks.clear()
             for (e in o.optString("lmL", "").split(";")) {

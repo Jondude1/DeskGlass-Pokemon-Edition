@@ -1894,9 +1894,9 @@ private fun DrawScope.drawWorld(
         if (p.kind == "burrower" && p.aux > 0f) { wormMound(ox + p.x * ts, oy + (p.y + 0.45f) * ts, ps, t, p.x, p.aux < 1.4f); continue }
         val sp = when (p.kind) {
             "bear" -> art.bear; "boar" -> art.boar; "raider" -> art.raider; "ogre" -> art.ogre
-            "wraith" -> art.wraith; "drake" -> art.drake; "shaman" -> art.shaman; "warlord" -> art.warlord; "golem" -> art.golem; "frostwolf" -> art.frostwolf; "lich" -> art.lich; "skeleton" -> art.skeleton; "pilferer" -> art.pilferer; "hornet" -> art.hornet; "reaver" -> art.reaver; "troll" -> art.troll; "spider" -> art.spider; "burrower" -> art.worm; "scorpion" -> art.scorpion; "toad" -> art.toad; "stag" -> art.stag; "yeti" -> art.yeti; "dustdevil" -> art.dustdevil; "stormling" -> art.stormling; "ram" -> art.ram; "harpy" -> art.harpy[((t * 7f + p.x) % 2f).toInt().coerceIn(0, 1)]; else -> art.wolf
+            "wraith" -> art.wraith; "drake" -> art.drake; "shaman" -> art.shaman; "warlord" -> art.warlord; "golem" -> art.golem; "frostwolf" -> art.frostwolf; "lich" -> art.lich; "skeleton" -> art.skeleton; "pilferer" -> art.pilferer; "hornet" -> art.hornet; "reaver" -> art.reaver; "troll" -> art.troll; "spider" -> art.spider; "burrower" -> art.worm; "scorpion" -> art.scorpion; "toad" -> art.toad; "stag" -> art.stag; "yeti" -> art.yeti; "dustdevil" -> art.dustdevil; "slime" -> art.slime; "slimeling" -> art.slimeling; "stormling" -> art.stormling; "ram" -> art.ram; "harpy" -> art.harpy[((t * 7f + p.x) % 2f).toInt().coerceIn(0, 1)]; else -> art.wolf
         }
-        val sc = when (p.kind) { "bear" -> 1.15f; "boar" -> 0.95f; "ogre" -> 1.5f; "drake" -> 1.7f; "raider" -> 1.1f; "warlord" -> 1.45f; "golem" -> 1.55f; "shaman" -> 1.1f; "lich" -> 1.35f; "skeleton" -> 1.05f; "frostwolf" -> 1.05f; "pilferer" -> 1.05f; "hornet" -> 0.8f; "reaver" -> 1.15f; "troll" -> 1.6f; "spider" -> 1.25f; "burrower" -> 1.5f; "scorpion" -> 1.15f; "toad" -> 1.2f; "stag" -> 1.35f; "yeti" -> 1.7f; "dustdevil" -> 1.6f; "stormling" -> 1.3f; "ram" -> 1.6f; "harpy" -> 1.1f; else -> 1f }
+        val sc = when (p.kind) { "bear" -> 1.15f; "boar" -> 0.95f; "ogre" -> 1.5f; "drake" -> 1.7f; "raider" -> 1.1f; "warlord" -> 1.45f; "golem" -> 1.55f; "shaman" -> 1.1f; "lich" -> 1.35f; "skeleton" -> 1.05f; "frostwolf" -> 1.05f; "pilferer" -> 1.05f; "hornet" -> 0.8f; "reaver" -> 1.15f; "troll" -> 1.6f; "spider" -> 1.25f; "burrower" -> 1.5f; "scorpion" -> 1.15f; "toad" -> 1.2f; "stag" -> 1.35f; "yeti" -> 1.7f; "dustdevil" -> 1.6f; "slime" -> 1.55f; "slimeling" -> 0.85f; "stormling" -> 1.3f; "ram" -> 1.6f; "harpy" -> 1.1f; else -> 1f }
         val w = sp.lw * ps * sc
         val h = sp.lh * ps * sc
         val feet = oy + (p.y + 0.45f) * ts
@@ -1906,6 +1906,14 @@ private fun DrawScope.drawWorld(
             else if (p.kind == "stormling") ps * (8f + 1.5f * kotlin.math.sin(t * 2.5f + p.x) - (if (p.aux > 5f) 4f else 0f))
             else if (p.kind == "stag" && p.aux < 0f) ps * 2f * kotlin.math.abs(kotlin.math.sin(t * 22f))
             else if (p.kind == "toad" && p.aux > 0f) ps * 8f * kotlin.math.sin(3.14159f * (1f - p.aux / 0.5f).coerceIn(0f, 1f)) else 0f
+        if (p.kind == "slime" || p.kind == "slimeling") {
+            // wobbling jelly: squashes wide, then stretches tall, hopping a touch when it moves
+            val sq = 0.09f * kotlin.math.sin(t * (if (p.kind == "slime") 4.5f else 9f) + p.x * 3f)
+            val sw = w * (1f + sq)
+            val sh = h * (1f - sq)
+            img(sp, ox + p.x * ts - sw / 2f, feet - sh, sw, sh)
+            slimeFx(ox + p.x * ts, feet, w, h, ps, t, p.x, p.kind == "slime", p.hp / com.jondude1.deskglass.sim.predatorMaxHp(p.kind))
+        } else
         img(sp, ox + p.x * ts - w / 2f, feet - h - lift, w, h)
         val maxHp = com.jondude1.deskglass.sim.predatorMaxHp(p.kind)
         if (p.kind == "toad") toadFx(ox + p.x * ts, feet, ox, oy, ts, w, h, ps, t, p.x, p.aux > 0f, sim.time.toFloat() - p.lashT, p.lashX, p.lashY, p.x, p.y)
