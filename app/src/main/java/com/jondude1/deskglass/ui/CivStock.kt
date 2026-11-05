@@ -247,7 +247,8 @@ fun DrawScope.riftSite(sim: CivSim, g: Geo) {
     val pulse = 0.8f + 0.2f * sin(g.t * 3.2f)
     val hh = g.ts * 1.7f * open
     val ww = g.ts * 0.85f * open
-    val tint = if (sim.riftState == 0 && !sim.riftWon) Color(0xFFB04A4A) else Color(0xFF9A5CFF)
+    val realmTint = when (sim.riftTheme) { 1 -> Color(0xFF6AD0FF); 2 -> Color(0xFF8FD65A); 3 -> Color(0xFFFF7A3A); 4 -> Color(0xFF2FC9B0); else -> Color(0xFF9A5CFF) }
+    val tint = if (sim.riftState == 0 && !sim.riftWon) Color(0xFFB04A4A) else realmTint
     drawOval(tint.copy(alpha = 0.22f * open * pulse), Offset(cx - g.ts * 1.5f, cy - g.ts * 0.45f), Size(g.ts * 3f, g.ts * 0.95f))
     drawOval(Color(0xFF2A1450).copy(alpha = 0.92f * open), Offset(cx - ww, cy - hh * 1.8f), Size(ww * 2f, hh * 1.8f))
     drawOval(tint.copy(alpha = 0.55f * open * pulse), Offset(cx - ww * 0.65f, cy - hh * 1.6f), Size(ww * 1.3f, hh * 1.4f))
@@ -258,17 +259,27 @@ fun DrawScope.riftSite(sim: CivSim, g: Geo) {
     drawRect(dark, Offset(cx - ww - u * 2.5f, cy - hh * 1.9f), Size(u * 0.8f, hh * 1.9f))
     drawRect(stone, Offset(cx + ww, cy - hh * 1.9f), Size(u * 2.5f, hh * 1.9f))
     drawRect(dark, Offset(cx + ww + u * 1.7f, cy - hh * 1.9f), Size(u * 0.8f, hh * 1.9f))
+    val mote = when (sim.riftTheme) { 1 -> Color(0xFFF2FBFF); 2 -> Color(0xFFD8F5A0); 3 -> Color(0xFFFFD27A); 4 -> Color(0xFFBFFFF0); else -> Color(0xFFE6D0FF) }
     for (k in 0 until 7) {
         val ph = (g.t * 0.6f + k * 0.37f) % 1f
         val sx = cx + sin(k * 2.1f + g.t) * ww * 0.8f
-        val sy = cy - ph * hh * 2f
-        drawRect(Color(0xFFE6D0FF).copy(alpha = (1f - ph) * 0.8f * open), Offset(sx, sy), Size(u * 1.2f, u * 1.2f))
+        // frost flakes fall, spores drift sideways, embers and bubbles rise
+        val sy = if (sim.riftTheme == 1) cy - hh * 2f + ph * hh * 2f else cy - ph * hh * 2f
+        val dx = if (sim.riftTheme == 2) sin(g.t * 1.3f + k) * u * 3f else 0f
+        val sz = if (sim.riftTheme == 4) u * (1.4f + (k % 3) * 0.5f) else u * 1.2f
+        drawRect(mote.copy(alpha = (1f - ph) * 0.8f * open), Offset(sx + dx, sy), Size(sz, sz))
+    }
+    if (sim.riftState != 0 && sim.riftTheme != 0) {
+        // a realm banner: a coloured pennant hung above the left rune stone
+        drawRect(Color(0xFF3A3040), Offset(cx - ww - u * 1.8f, cy - hh * 1.9f - u * 9f), Size(u * 0.8f, u * 7f))
+        drawRect(realmTint.copy(alpha = 0.9f), Offset(cx - ww - u * 1.0f, cy - hh * 1.9f - u * 9f), Size(u * 4.5f, u * 3.2f))
+        drawRect(Color.White.copy(alpha = 0.5f * pulse), Offset(cx - ww - u * 0.4f, cy - hh * 1.9f - u * 8.4f), Size(u * 1.4f, u * 1.4f))
     }
     if (sim.riftState == 2) {
         for (k in 1..4) {
             val on = k <= sim.riftRoomsDone
             val cur = k == sim.riftRoom
-            val c = if (on) Color(0xFF7FD6A8) else if (cur) Color(0xFFFFE08A).copy(alpha = pulse) else Color(0xFF5A5470)
+            val c = if (on) Color(0xFF7FD6A8) else if (cur) realmTint.copy(alpha = pulse) else Color(0xFF5A5470)
             drawRect(c, Offset(cx + (k - 2.5f) * u * 4f, cy - hh * 1.9f - u * 5f), Size(u * 3f, u * 3f))
         }
         if (sim.riftSideKind != 0 && sim.time - sim.riftSideAt < 25.0) {

@@ -17,7 +17,7 @@ object Sights {
             if (sim.shipUp) out.add(Sight("ship", "Reaver longship landing", sim.shipX, sim.shipY, 90))
             val fb = sim.blazes.firstOrNull()
             if (fb != null) out.add(Sight("fire", "Fire!", (fb.i % GW).toFloat(), (fb.i / GW).toFloat(), 75))
-            if (sim.riftState > 0) out.add(Sight("rift", if (sim.riftState == 2) "Rift expedition delving" else "Rift party gathering", sim.riftX, sim.riftY, 65))
+            if (sim.riftState > 0) out.add(Sight("rift", if (sim.riftState == 2) "Rift expedition delving the ${sim.realmName(sim.riftTheme)}" else "Rift party gathering", sim.riftX, sim.riftY, 65))
             if (sim.time - sim.weddingAt < 90.0) out.add(Sight("wedding", "Wedding: " + sim.weddingNames, sim.weddingX, sim.weddingY, 60))
             if (sim.feteOn) out.add(Sight("fete", "Village fete (" + sim.feteKind + ")", sim.feteX, sim.feteY, 55))
             for (e in sim.critters.encounters.toList()) {

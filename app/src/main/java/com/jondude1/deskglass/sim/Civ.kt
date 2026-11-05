@@ -507,6 +507,13 @@ class CivSim(
     var sideShrines = 0
     var riftRallies = 0
     var riftRoomsDone = 0
+    // rift realms: every expedition opens onto one of five themed realms with its own foes, hazards and spoils
+    var riftTheme = 0 // 0 violet deep, 1 frozen vault, 2 fungal warren, 3 ember forge, 4 drowned halls
+    var lastTheme = -1
+    val realmRuns = IntArray(5)
+    val realmWins = IntArray(5)
+    var realmHazards = 0
+    var realmBonus = 0
     val party = ArrayList<Int>()
     private var nextRiftAt = DAY_LEN * 1.0
     var expeditions = 0
@@ -1102,7 +1109,7 @@ class CivSim(
         puddleJumps = 0; fireflyJars = 0; hideSeekGames = 0; hideFinds = 0; friendVisits = 0; friendVisitsMet = 0; hearthGames = 0; hearthMatches = 0; hearthMends = 0; hearthPlays = 0; guildWorks = 0; guildRank = 0; guildSpent = 0; gearLeather = 0; gearBronze = 0; gearSteel = 0; gearForged = 0; gearBlocks = 0; gearSaved = 0f; gearFirsts = 0; lastForgeAt = -999.0; smokeBatches = 0; smokeRations = 0; smokeCheers = 0; hailUntil = 0.0; hailStorms = 0; hailHits = 0; hailCrop = 0; hailSaved = 0; hailIce = 0; hailEndAt = -999.0; hailStartAt = -999.0; hailOn = false; lastHailAt = 0.0; hailPops.clear(); crowsUntil = 0.0; crowFarmX = -1; crowFarmY = -1; crowFlocks = 0; crowsShooed = 0; crowsScared = 0; crowLoss = 0; crowSaved = 0; nextCrowAt = 0.0; voyReset(); lastSmokeAt = -999.0; fountainWishes = 0; fountainGranted = 0; fountainTier = 0; obsWatches = 0; obsForecasts = 0; obsHits = 0; obsPrepared = 0; forecastKind = ""; plannedKind = ""; plannedSeason = -1; lastObsAt = -999.0; museumVisits = 0; stallVisits = 0; stallDays = 0; stallDeals = 0; stallBargains = 0; stallBuzzDay = -1; lastStallAt = -999.0; museumTalks = 0; museumShown = 0; lastMuseumAt = -999.0; beaconTends = 0; beaconNightWatch = 0; beaconFogSails = 0; beaconNightSails = 0; beaconScares = 0; beaconGuided = 0; beaconUntil = 0.0; lastBeaconAt = -999.0; visitGoal.clear(); visitTries.clear(); kidGameKinds.clear()
         goods = 0
         visitor = null; nextVisitAt = time + DAY_LEN * 1.2; visitStats.clear(); tinkerMends = 0; sowerFarms = 0; seerReadings = 0; knightDuels = 0; toysGiven = 0; raidsRepelled = 0; ogresSlain = 0; bossesSlain = 0; warlordsSlain = 0; golemsSlain = 0; shamansSlain = 0; frostPacksBroken = 0; pilfersFoiled = 0; pilfersLost = 0; swarmsBroken = 0; hornetsSwatted = 0; lichesSlain = 0; bonesRaised = 0; lastLichAt = -999.0; reaversSlain = 0; trollsSlain = 0; trollsStoned = 0; trollBoulders = 0; spidersSlain = 0; wormsSlain = 0; scorpionsSlain = 0; scorpionStings = 0; scorpionPincers = 0; scorpionSwarms = 0; lastScorpionAt = -999.0; toadsSlain = 0; toadLashes = 0; toadChoruses = 0; toadLeaps = 0; lastToadAt = -999.0; stagsSlain = 0; stagGores = 0; stagCharges = 0; stagMisses = 0; stagRuts = 0; lastStagAt = -999.0; ramsSlain = 0; ramSlams = 0; ramBreaks = 0; ramWrecked = 0; ramSieges = 0; lastRamAt = -999.0; wormErupts = 0; wormHits = 0; lastWormAt = -999.0; craters.clear(); harpiesSlain = 0; flocksScattered = 0; harpyDives = 0; harpyLoot = 0; lastHarpyAt = -999.0; websSpun = 0; webCatches = 0; spiderBites = 0; lastSpiderAt = -999.0; webs.clear(); poisoned.clear(); skillUps = 0; skillBonusLoads = 0; skillMasters = 0; lastTrollAt = -999.0; trollRocks.clear(); shipsSeized = 0; landings = 0; lastLandingAt = -999.0; shipUp = false; shipT = 0f; foeStats.clear(); lastWarlordAt = -999.0; goldenAt = -1.0; deeds.clear(); babiesBorn = 0; weds = 0; feudsStarted = 0; feudsEnded = 0; bffs.clear(); feudEnds.clear(); courting.clear(); weddingAt = -999.0; nextRelAt = 0.0; deedBannerAt = -999.0; nextDeedAt = 0.0; titlesEarned = 0; dreamsDone = 0; lastThreatAt = 0.0; crowns.clear(); comingAges = 0; comingGuests = 0; comingGifts = 0; comingParents = 0; tavDice = 0; tavWrestles = 0; tavTales = 0; tavSongs = 0; tavNights = 0; birthdays = 0; birthdayCakes = 0; birthdayGifts = 0; tavernFx = -100.0; yetisSlain = 0; yetiThrows = 0; yetiSmashes = 0; yetiHerds = 0; lastYetiAt = -999.0
-        riftState = 0; party.clear(); expeditions = 0; expWins = 0; expRetreats = 0; roomsCleared = 0; relics = 0; deepestRoom = 0; wardensSlain = 0; sideRooms = 0; sideTraps = 0; sideVaults = 0; sideSprings = 0; sideShrines = 0; riftRallies = 0; riftSide = false; nextRiftAt = time + DAY_LEN
+        riftTheme = 0; lastTheme = -1; realmRuns.fill(0); realmWins.fill(0); realmHazards = 0; realmBonus = 0; riftState = 0; party.clear(); expeditions = 0; expWins = 0; expRetreats = 0; roomsCleared = 0; relics = 0; deepestRoom = 0; wardensSlain = 0; sideRooms = 0; sideTraps = 0; sideVaults = 0; sideSprings = 0; sideShrines = 0; riftRallies = 0; riftSide = false; nextRiftAt = time + DAY_LEN
         campUp = false; campsRazed = 0; campHits = 0; campSorties = 0; campRazedAt = -999.0; campHitAt = -999.0; campNextAt = time + DAY_LEN * 1.5
         nextThreatAt = DAY_LEN * 1.4; lastBossAt = -999.0; stormlingsSlain = 0; stormlingBolts = 0; stormlingHits = 0; stormlingDodges = 0; stormlingFades = 0; stormlingSpent = 0; lastStormlingAt = -999.0
         traffic.fill(0f)
@@ -5601,7 +5608,7 @@ class CivSim(
         "carve" -> "carving wooden toys"
         "pick_flowers" -> "picking wildflowers for a friend"
         "assault_camp" -> "storming the bandit camp"
-        "delve" -> if (riftState == 2) "fighting deep inside the rift" else "marching to the rift"
+        "delve" -> if (riftState == 2) "fighting deep inside the ${realmName(riftTheme)}" else "marching to the ${realmAdj(riftTheme)} rift"
         "haul" -> "filling the granary"
         "drill" -> "drilling with the guard"
         "study" -> "reading in the library"
@@ -7520,6 +7527,8 @@ class CivSim(
             Deed("camp1", "Camp Breaker", "Stormed and razed a bandit camp.", "+25 wood, +15 stone") { campsRazed >= 1 },
             Deed("camp3", "Outlaw Bane", "Razed three bandit camps.", "joy for all") { campsRazed >= 3 },
             Deed("delver", "Into the Rift", "A party cleared a rift.", "+30 stone, +20 wood") { expWins >= 1 },
+            Deed("realm2", "Realm Hopper", "Cleared two different rift realms.", "+20 stone, +10 metal") { realmWins.count { it > 0 } >= 2 },
+            Deed("realm5", "Master of Realms", "Cleared all five rift realms.", "joy for all") { realmWins.count { it > 0 } >= 5 },
             Deed("delver3", "Rift Walkers", "Cleared three rift expeditions.", "joy for all") { expWins >= 3 },
             Deed("relic", "Relic Keepers", "Brought home 3 rift relics.", "+40 food, +20 stone") { relics >= 3 },
             Deed("dream1", "A Dream Come True", "A villager lived out their personal dream.", "+15 food") { dreamsDone >= 1 },
@@ -7882,6 +7891,16 @@ class CivSim(
 
     private fun partyMembers(): List<Villager> = party.mapNotNull { id -> villagers.firstOrNull { it.id == id } }
 
+    fun realmName(t: Int): String = when (t) { 1 -> "Frozen Vault"; 2 -> "Fungal Warren"; 3 -> "Ember Forge"; 4 -> "Drowned Halls"; else -> "Violet Deep" }
+    fun realmAdj(t: Int): String = when (t) { 1 -> "frost-blue"; 2 -> "green-spored"; 3 -> "ember-red"; 4 -> "sea-green"; else -> "violet" }
+    private fun realmFoe(t: Int, room: Int): String = when (t) {
+        1 -> when (room) { 1 -> "ice sprites in the Hoarfrost Gallery"; 2 -> "frozen guardians in the Glacier Hall"; 3 -> "snow wraiths in the Whiteout Cavern"; else -> "the Frost Colossus" }
+        2 -> when (room) { 1 -> "spore beetles in the Mouldy Burrow"; 2 -> "mycelid thralls in the Rotwood Tunnels"; 3 -> "puffcap swarms in the Spore Cathedral"; else -> "the Mycelium Mother" }
+        3 -> when (room) { 1 -> "cinder imps in the Ashen Stair"; 2 -> "slag brutes at the Molten Anvil"; 3 -> "magma serpents in the Fire Gallery"; else -> "the Ember Tyrant" }
+        4 -> when (room) { 1 -> "brine crabs in the Flooded Gate"; 2 -> "drowned sentries in the Pearl Hall"; 3 -> "tide wraiths in the Whirlpool Vault"; else -> "the Drowned Leviathan" }
+        else -> when (room) { 1 -> "gloomwebs in Gloomweb Hollow"; 2 -> "shard crawlers in their nest"; 3 -> "echo wraiths in the Echo Hall"; else -> "the Rift Warden" }
+    }
+
     private fun delvePower(v: Villager): Float {
         var p = (if (isFighter(v)) 1.0f else 0.6f) * (v.hp / 100f).coerceIn(0.3f, 1f) + 0.1f * toolBonus()
         var lv = 0
@@ -7930,9 +7949,21 @@ class CivSim(
         riftRoom = 0
         riftRoomsDone = 0
         riftSide = false; riftSideKind = 0; riftRallied = false; riftBoost = 0f; riftWardenPhase = 0
+        // pick a realm that did not just open; winter favours the Frozen Vault, and unseen realms are favoured
+        var th = 0
+        if (age >= 1 || expeditions >= 1) {
+            val w = IntArray(5) { k -> if (k == lastTheme) 0 else 3 + (if (realmRuns[k] == 0) 4 else 0) + (if (k == 1 && seasonIdx() == 3) 4 else 0) }
+            var tot = 0
+            for (x in w) tot += x
+            var r = rnd.nextInt(max(1, tot))
+            for (k in 0 until 5) { if (r < w[k]) { th = k; break }; r -= w[k] }
+        }
+        riftTheme = th
+        lastTheme = th
+        realmRuns[th]++
         fx.add(Fx("spawn", riftX, riftY, time, 1.6f))
         val names = partyMembers().joinToString(", ") { it.name }
-        event("A violet rift flickers open beyond the village. $names grab their gear and march in to see what lies beyond.")
+        event("A ${realmAdj(th)} rift flickers open beyond the village, a way into the ${realmName(th)}. $names grab their gear and march in to see what lies beyond.")
     }
 
     private fun endRift(ok: Boolean, text: String) {
@@ -7963,11 +7994,12 @@ class CivSim(
     private fun resolveRoom(ms: List<Villager>) {
         val power = ms.sumOf { delvePower(it).toDouble() }.toFloat() + 0.12f * relics
         val diff = 1.3f + 0.75f * riftRoom + 0.25f * age + (if (riftRoom == 4) 0.8f else 0f)
-        val chance = (0.68f + (power - diff) * 0.22f + riftBoost).coerceIn(0.15f, 0.95f)
-        val foe = when (riftRoom) { 1 -> "gloomwebs in Gloomweb Hollow"; 2 -> "shard crawlers in their nest"; 3 -> "echo wraiths in the Echo Hall"; else -> "the Rift Warden" }
+        val chance = (0.68f + (power - diff) * 0.22f + riftBoost + (when (riftTheme) { 1 -> -0.03f; 3 -> -0.02f; 4 -> -0.01f; else -> 0f })).coerceIn(0.15f, 0.95f)
+        val foe = realmFoe(riftTheme, riftRoom)
         val win = rnd.nextFloat() < chance
         val hit = ms[rnd.nextInt(ms.size)]
         hit.hp = max(15f, hit.hp - (if (win) 6f + rnd.nextInt(10) else 18f + rnd.nextInt(14)))
+        if (riftTheme != 0 && riftWardenPhase == 0) realmHazard(ms, hit)
         fx.add(Fx("clash", riftX + (rnd.nextFloat() - 0.5f) * 1.6f, riftY + (rnd.nextFloat() - 0.5f), time, 1.0f))
         if (!win) {
             val avg = ms.sumOf { it.hp.toDouble() }.toFloat() / ms.size
@@ -7987,7 +8019,7 @@ class CivSim(
         if (riftRoom == 4 && riftWardenPhase == 0) {
             riftWardenPhase = 1
             riftRoomT = 4f
-            addLog("The Rift Warden's crystal shell cracks! It rises, burning violet, for a second round.")
+            addLog(if (riftTheme == 0) "The Rift Warden's crystal shell cracks! It rises, burning violet, for a second round." else "${foe.replaceFirstChar { it.uppercase() }} reels, then rises again, wreathed in ${realmAdj(riftTheme)} light, for a second round.")
             fx.add(Fx("clash", riftX, riftY, time, 1.4f))
             return
         }
@@ -7999,17 +8031,42 @@ class CivSim(
             2 -> { hides += 4; if (age >= 2) { ore += 5; "4 hides, 5 ore" } else { stone += 10; "4 hides, 10 stone" } }
             3 -> { food += 20; critters.scrolls[1] = critters.scrolls[1] + 1; if (age >= 2) { metal += 3; "20 food, 3 metal, a fine scroll" } else "20 food, a fine scroll" }
             else -> { relics++; wardensSlain++; critters.scrolls[2] = critters.scrolls[2] + 1; metal += 4; wood += 20; stone += 20; "a rift relic, a rare scroll, 4 metal" }
-        }
+        } + realmSpoils(ms)
         addLog("The party defeats $foe (room $riftRoom/4): $loot.")
         if (riftRoom >= 4) {
             for (v in villagers) v.happiness = min(100f, v.happiness + 4f)
             festivalUntil = max(festivalUntil, time + 20.0)
-            endRift(true, "The party slays the Rift Warden and carries home a glowing relic: $loot.")
+            realmWins[riftTheme]++
+            endRift(true, if (riftTheme == 0) "The party slays the Rift Warden and carries home a glowing relic: $loot." else "The party fells ${foe} in the ${realmName(riftTheme)} and carries home a glowing relic: $loot.")
             return
         }
         riftRoom++
         fx.add(Fx("spawn", riftX, riftY, time, 1.0f))
         if (rnd.nextInt(100) < 60) { riftSide = true; riftRoomT = 0f }
+    }
+
+    /** What each realm does to the party on the way: cold, spores, scorching heat or flooding. */
+    private fun realmHazard(ms: List<Villager>, hit: Villager) {
+        realmHazards++
+        when (riftTheme) {
+            1 -> { for (m in ms) m.energy = max(5f, m.energy - 6f); addLog("A bitter chill from the ice slows the party (${hit.name} is stiff with cold).") }
+            2 -> { for (m in ms) m.hp = max(15f, m.hp - 2f); addLog("Drifting spores make the party cough and stumble.") }
+            3 -> { hit.hp = max(15f, hit.hp - 4f); addLog("Heat rolls off the molten stone and scorches ${hit.name}.") }
+            else -> { for (m in ms) m.hunger = min(100f, m.hunger + 4f); addLog("Knee-deep brine drags at the party and soaks their packs.") }
+        }
+        fx.add(Fx("spawn", riftX, riftY, time, 0.6f))
+    }
+
+    /** Extra spoils a realm gives for every cleared room, in the realm's own style. */
+    private fun realmSpoils(ms: List<Villager>): String {
+        if (riftTheme == 0) return ""
+        realmBonus++
+        return when (riftTheme) {
+            1 -> { hides += 3; food += 8; "; plus 3 pelts and 8 food from the ice" }
+            2 -> { food += 10; for (m in ms) m.hp = min(100f, m.hp + 8f); "; plus 10 food and healing caps for the party" }
+            3 -> { if (age >= 2) { metal += 2; "; plus 2 metal from the slag" } else { stone += 6; "; plus 6 stone from the slag" } }
+            else -> { goods += 3; food += 6; stone += 4; "; plus pearls (3 goods), 6 food and 4 stone from the flooded floor" }
+        }
     }
 
     /** A quiet chamber between two fights: a trap, a vault, a healing spring or a shrine. */
@@ -9148,7 +9205,7 @@ class CivSim(
             o.put("nextId", nextId)
             o.put("hides", hides)
             o.put("goods", goods)
-            o.put("slS", stormlingsSlain).put("slB", stormlingBolts).put("slH", stormlingHits).put("slD", stormlingDodges).put("slF", stormlingFades).put("slP", stormlingSpent).put("obsW", obsWatches).put("obsF", obsForecasts).put("obsH", obsHits).put("obsP", obsPrepared).put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("campUp", if (campUp) 1 else 0).put("campX", campX.toDouble()).put("campY", campY.toDouble()).put("campHp", campHp.toDouble()).put("campMax", campMax.toDouble()).put("campR", campsRazed).put("campH", campHits).put("campS", campSorties).put("expN", expeditions).put("expW", expWins).put("expR", expRetreats).put("expRooms", roomsCleared).put("relics", relics).put("expDeep", deepestRoom).put("wardens", wardensSlain).put("golems", golemsSlain).put("frostPacks", frostPacksBroken).put("pilfF", pilfersFoiled).put("pilfL", pilfersLost).put("swarms", swarmsBroken).put("hornets", hornetsSwatted).put("liches", lichesSlain).put("bones", bonesRaised).put("reavers", reaversSlain).put("spiderS", spidersSlain).put("wormS", wormsSlain).put("wormE", wormErupts).put("wormH", wormHits).put("harpyS", harpiesSlain).put("harpyF", flocksScattered).put("harpyD", harpyDives).put("harpyL", harpyLoot).put("spiderW", websSpun).put("spiderC", webCatches).put("spiderB", spiderBites).put("trollS", trollsSlain).put("trollR", trollsStoned).put("trollB", trollBoulders).put("trollRocks", trollRocks.joinToString(",") { "${it[0].toInt()}:${it[1].toInt()}" }).put("ships", shipsSeized).put("landings", landings).put("shamans", shamansSlain).put("golden", goldenAt).put("visits", visitStats.entries.joinToString(",") { "${it.key}:${it.value}" }).put("deeds", deeds.joinToString(",")).put("tavern", tavernVisits).put("snacks", hungerSnacks).put("pets", pets.joinToString(",") { "${it.name}:${it.owner}:${it.bond}" }).put("dogA", dogsAdopted).put("dogW", dogWalks).put("dogB", dogBarks).put("fetes", fetesHeld).put("feteR", feteRevels).put("feteL", lastFeteSeason).put("feteK", feteKinds.joinToString(",")).put("snowmen", snowmenBuilt).put("leafR", leafPilesRaked).put("starsF", starsFallen).put("starG", starShardsGot).put("kites", kitesFlown).put("sprops", seasonProps.joinToString(",") { "${it.kind}:${it.x.toInt()}:${it.y.toInt()}" }).put("statues", statues.joinToString(";") { "${it.name}|${it.title}|${it.kind}|${it.x.toInt()}|${it.y.toInt()}|${it.tier}" }).put("statueC", statueCheers).put("graves", graves.joinToString(";") { "${it.name}|${it.job}|${it.x.toInt()}|${it.y.toInt()}|${it.ageYears}|${it.cause}|${it.day}" }).put("graveX", graveX).put("graveY", graveY).put("buried", buried).put("mournN", mournVisits).put("totemV", totemVisits).put("raised", raised).put("omens", omens).put("recov", recoveries).put("balS", ballistaShots).put("balK", ballistaKills).put("ranchV", ranchVisits).put("pastV", pastureVisits).put("sailN", sailTrips).put("millN", millGrinds).put("millF", flourMade).put("millL", loavesBaked).put("quarryN", quarryHauls).put("quarryS", quarryStone).put("quarryV", quarryVeins).put("vigN", vigils).put("vigP", vigilPoints).put("trMask", trialMask).put("legCalls", legendCalls).put("dockC", dockCatch).put("bottles", bottlesFound).put("flockS", flockSheep).put("flockH", flockHens).put("eggsG", eggsGathered).put("fleece", fleeces).put("techs", techs.joinToString(",")).put("research", research).put("studyN", studyCount).put("babies", babiesBorn).put("dreams", dreamsDone).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" }).put("wallN", wallsRaised).put("wallX", wallCx).put("wallY", wallCy).put("wallD", if (wallDone) 1 else 0).put("wallH", wallHoldSecs.toDouble()).put("lessons", lessonsGiven).put("appMade", apprenticesMade).put("apprentice", apprentice.entries.joinToString(";") { "${it.key}:${it.value}" }).put("cathX", cathX).put("cathY", cathY).put("cathW", cathWork).put("cathT", cathTrips).put("cathB", cathBells).put("jubU", jubileeUntil).put("honeyN", honeyHarvests).put("honeyJ", honeyJars).put("honeyS", beeStings).put("honeyM", meadFeasts).put("honeyT", honeyMark).put("soakN", soaks).put("soakH", soakHeals).put("soakP", soakParties).put("soakG", soakGossips).put("shotN", shotsFired).put("shotB", bullseyes).put("shotM", archeryMatches).put("shotBest", archeryBest).put("fruitN", fruitPicks).put("fruitB", fruitBaskets).put("fruitC", ciderFeasts).put("fruitF", fruitFalls).put("fruitT", fruitMark).put("councN", councilsHeld).put("councS", councilSeats).put("councNext", councilNextAt).put("policy", policy).put("policyU", policyUntil).put("policyS", policyStart).put("policyB", policyBase.toDouble()).put("policyV", policyVotes).put("policyO", policyOf).put("policyA", policyActs).put("policyW", policiesWon).put("policyL", policiesLost).put("policyK", policyKinds.joinToString(",")).put("skUp", skillUps).put("skB", skillBonusLoads).put("skM", skillMasters).put("fireS", firesStarted).put("fireD", firesDoused).put("fireW", fireDouses).put("fireB", fireBurnedOut).put("fireL", fireLoss).put("sideN", sideRooms).put("sideT", sideTraps).put("sideV", sideVaults).put("sideS", sideSprings).put("sideH", sideShrines).put("riftRal", riftRallies).put("kgPud", puddleJumps).put("kgFly", fireflyJars).put("kgHide", hideSeekGames).put("kgFound", hideFinds).put("knightD", knightDuels).put("toysG", toysGiven).put("gDec", decrees).put("gNext", gloryNextAt).put("gKind", decreeKind).put("gUntil", decreeUntil).put("gStart", decreeStart).put("gGild", gildings).put("gKinds", decreeKinds.joinToString(",")).put("gLast", lastDecree).put("dryN", droughts).put("dryE", droughtsEnded).put("dryW", droughtWaterings).put("dryS", droughtSaved).put("dryX", droughtWithered).put("dryR", droughtRainEnds).put("scorpS", scorpionsSlain).put("scorpT", scorpionStings).put("scorpP", scorpionPincers).put("scorpN", scorpionSwarms).put("toadS", toadsSlain).put("toadL", toadLashes).put("toadC", toadChoruses).put("toadH", toadLeaps).put("stagS", stagsSlain).put("stagG", stagGores).put("stagC", stagCharges).put("stagM", stagMisses).put("stagR", stagRuts).put("mushN", mushPicked).put("mushG", glowcapsFound).put("mushS", mushStews).put("smkN", smokeBatches).put("smkR", smokeRations).put("smkC", smokeCheers).put("musN", museumVisits).put("stlN", stallVisits).put("stlD", stallDays).put("stlT", stallDeals).put("stlB", stallBargains).put("musT", museumTalks).put("musS", museumShown).put("visN", friendVisits).put("visM", friendVisitsMet).put("hgN", hearthGames).put("hgM", hearthMatches).put("hgT", hearthMends).put("hgP", hearthPlays).put("voyN", voyages).put("voyF", voyFinds).put("voyS", voyScares).put("voyC", voyCrowd).put("crowN", crowFlocks).put("crowS", crowsShooed).put("crowC", crowsScared).put("crowL", crowLoss).put("crowV", crowSaved).put("gldW", guildWorks).put("gldR", guildRank).put("gldS", guildSpent).put("gLe", gearLeather).put("gBr", gearBronze).put("gSt", gearSteel).put("gFo", gearForged).put("gBl", gearBlocks).put("gSv", gearSaved.toDouble()).put("gFi", gearFirsts).put("lhT", beaconTends).put("lhN", beaconNightWatch).put("lhF", beaconFogSails).put("lhV", beaconNightSails).put("lhS", beaconScares).put("lhG", beaconGuided).put("hailN", hailStorms).put("hailH", hailHits).put("hailC", hailCrop).put("hailV", hailSaved).put("hailI", hailIce).put("tnkM", tinkerMends).put("swrF", sowerFarms).put("seeR", seerReadings).put("yetS", yetisSlain).put("yetT", yetiThrows).put("yetM", yetiSmashes).put("yetH", yetiHerds)
+            o.put("slS", stormlingsSlain).put("slB", stormlingBolts).put("slH", stormlingHits).put("slD", stormlingDodges).put("slF", stormlingFades).put("slP", stormlingSpent).put("obsW", obsWatches).put("obsF", obsForecasts).put("obsH", obsHits).put("obsP", obsPrepared).put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("campUp", if (campUp) 1 else 0).put("campX", campX.toDouble()).put("campY", campY.toDouble()).put("campHp", campHp.toDouble()).put("campMax", campMax.toDouble()).put("campR", campsRazed).put("campH", campHits).put("campS", campSorties).put("expN", expeditions).put("expW", expWins).put("expR", expRetreats).put("expRooms", roomsCleared).put("relics", relics).put("expDeep", deepestRoom).put("wardens", wardensSlain).put("golems", golemsSlain).put("frostPacks", frostPacksBroken).put("pilfF", pilfersFoiled).put("pilfL", pilfersLost).put("swarms", swarmsBroken).put("hornets", hornetsSwatted).put("liches", lichesSlain).put("bones", bonesRaised).put("reavers", reaversSlain).put("spiderS", spidersSlain).put("wormS", wormsSlain).put("wormE", wormErupts).put("wormH", wormHits).put("harpyS", harpiesSlain).put("harpyF", flocksScattered).put("harpyD", harpyDives).put("harpyL", harpyLoot).put("spiderW", websSpun).put("spiderC", webCatches).put("spiderB", spiderBites).put("trollS", trollsSlain).put("trollR", trollsStoned).put("trollB", trollBoulders).put("trollRocks", trollRocks.joinToString(",") { "${it[0].toInt()}:${it[1].toInt()}" }).put("ships", shipsSeized).put("landings", landings).put("shamans", shamansSlain).put("golden", goldenAt).put("visits", visitStats.entries.joinToString(",") { "${it.key}:${it.value}" }).put("deeds", deeds.joinToString(",")).put("tavern", tavernVisits).put("snacks", hungerSnacks).put("pets", pets.joinToString(",") { "${it.name}:${it.owner}:${it.bond}" }).put("dogA", dogsAdopted).put("dogW", dogWalks).put("dogB", dogBarks).put("fetes", fetesHeld).put("feteR", feteRevels).put("feteL", lastFeteSeason).put("feteK", feteKinds.joinToString(",")).put("snowmen", snowmenBuilt).put("leafR", leafPilesRaked).put("starsF", starsFallen).put("starG", starShardsGot).put("kites", kitesFlown).put("sprops", seasonProps.joinToString(",") { "${it.kind}:${it.x.toInt()}:${it.y.toInt()}" }).put("statues", statues.joinToString(";") { "${it.name}|${it.title}|${it.kind}|${it.x.toInt()}|${it.y.toInt()}|${it.tier}" }).put("statueC", statueCheers).put("graves", graves.joinToString(";") { "${it.name}|${it.job}|${it.x.toInt()}|${it.y.toInt()}|${it.ageYears}|${it.cause}|${it.day}" }).put("graveX", graveX).put("graveY", graveY).put("buried", buried).put("mournN", mournVisits).put("totemV", totemVisits).put("raised", raised).put("omens", omens).put("recov", recoveries).put("balS", ballistaShots).put("balK", ballistaKills).put("ranchV", ranchVisits).put("pastV", pastureVisits).put("sailN", sailTrips).put("millN", millGrinds).put("millF", flourMade).put("millL", loavesBaked).put("quarryN", quarryHauls).put("quarryS", quarryStone).put("quarryV", quarryVeins).put("vigN", vigils).put("vigP", vigilPoints).put("trMask", trialMask).put("legCalls", legendCalls).put("dockC", dockCatch).put("bottles", bottlesFound).put("flockS", flockSheep).put("flockH", flockHens).put("eggsG", eggsGathered).put("fleece", fleeces).put("techs", techs.joinToString(",")).put("research", research).put("studyN", studyCount).put("babies", babiesBorn).put("dreams", dreamsDone).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" }).put("wallN", wallsRaised).put("wallX", wallCx).put("wallY", wallCy).put("wallD", if (wallDone) 1 else 0).put("wallH", wallHoldSecs.toDouble()).put("lessons", lessonsGiven).put("appMade", apprenticesMade).put("apprentice", apprentice.entries.joinToString(";") { "${it.key}:${it.value}" }).put("cathX", cathX).put("cathY", cathY).put("cathW", cathWork).put("cathT", cathTrips).put("cathB", cathBells).put("jubU", jubileeUntil).put("honeyN", honeyHarvests).put("honeyJ", honeyJars).put("honeyS", beeStings).put("honeyM", meadFeasts).put("honeyT", honeyMark).put("soakN", soaks).put("soakH", soakHeals).put("soakP", soakParties).put("soakG", soakGossips).put("shotN", shotsFired).put("shotB", bullseyes).put("shotM", archeryMatches).put("shotBest", archeryBest).put("fruitN", fruitPicks).put("fruitB", fruitBaskets).put("fruitC", ciderFeasts).put("fruitF", fruitFalls).put("fruitT", fruitMark).put("councN", councilsHeld).put("councS", councilSeats).put("councNext", councilNextAt).put("policy", policy).put("policyU", policyUntil).put("policyS", policyStart).put("policyB", policyBase.toDouble()).put("policyV", policyVotes).put("policyO", policyOf).put("policyA", policyActs).put("policyW", policiesWon).put("policyL", policiesLost).put("policyK", policyKinds.joinToString(",")).put("skUp", skillUps).put("skB", skillBonusLoads).put("skM", skillMasters).put("fireS", firesStarted).put("fireD", firesDoused).put("fireW", fireDouses).put("fireB", fireBurnedOut).put("fireL", fireLoss).put("sideN", sideRooms).put("sideT", sideTraps).put("sideV", sideVaults).put("sideS", sideSprings).put("sideH", sideShrines).put("riftRal", riftRallies).put("kgPud", puddleJumps).put("kgFly", fireflyJars).put("kgHide", hideSeekGames).put("kgFound", hideFinds).put("knightD", knightDuels).put("toysG", toysGiven).put("gDec", decrees).put("gNext", gloryNextAt).put("gKind", decreeKind).put("gUntil", decreeUntil).put("gStart", decreeStart).put("gGild", gildings).put("gKinds", decreeKinds.joinToString(",")).put("gLast", lastDecree).put("dryN", droughts).put("dryE", droughtsEnded).put("dryW", droughtWaterings).put("dryS", droughtSaved).put("dryX", droughtWithered).put("dryR", droughtRainEnds).put("scorpS", scorpionsSlain).put("scorpT", scorpionStings).put("scorpP", scorpionPincers).put("scorpN", scorpionSwarms).put("toadS", toadsSlain).put("toadL", toadLashes).put("toadC", toadChoruses).put("toadH", toadLeaps).put("stagS", stagsSlain).put("stagG", stagGores).put("stagC", stagCharges).put("stagM", stagMisses).put("stagR", stagRuts).put("mushN", mushPicked).put("mushG", glowcapsFound).put("mushS", mushStews).put("smkN", smokeBatches).put("smkR", smokeRations).put("smkC", smokeCheers).put("musN", museumVisits).put("stlN", stallVisits).put("stlD", stallDays).put("stlT", stallDeals).put("stlB", stallBargains).put("musT", museumTalks).put("musS", museumShown).put("visN", friendVisits).put("visM", friendVisitsMet).put("hgN", hearthGames).put("hgM", hearthMatches).put("hgT", hearthMends).put("hgP", hearthPlays).put("voyN", voyages).put("voyF", voyFinds).put("voyS", voyScares).put("voyC", voyCrowd).put("crowN", crowFlocks).put("crowS", crowsShooed).put("crowC", crowsScared).put("crowL", crowLoss).put("crowV", crowSaved).put("gldW", guildWorks).put("gldR", guildRank).put("gldS", guildSpent).put("gLe", gearLeather).put("gBr", gearBronze).put("gSt", gearSteel).put("gFo", gearForged).put("gBl", gearBlocks).put("gSv", gearSaved.toDouble()).put("gFi", gearFirsts).put("lhT", beaconTends).put("lhN", beaconNightWatch).put("lhF", beaconFogSails).put("lhV", beaconNightSails).put("lhS", beaconScares).put("lhG", beaconGuided).put("hailN", hailStorms).put("hailH", hailHits).put("hailC", hailCrop).put("hailV", hailSaved).put("hailI", hailIce).put("tnkM", tinkerMends).put("swrF", sowerFarms).put("seeR", seerReadings).put("yetS", yetisSlain).put("yetT", yetiThrows).put("yetM", yetiSmashes).put("yetH", yetiHerds).put("rlmRun", realmRuns.joinToString(",")).put("rlmWin", realmWins.joinToString(",")).put("rlmT", riftTheme).put("rlmL", lastTheme).put("rlmH", realmHazards).put("rlmB", realmBonus)
             o.put("lmN", landmarksFound).put("lmV", landmarkVisits).put("lmH", landmarkHeals).put("lmR", landmarkRelics)
             o.put("lmL", landmarks.joinToString(";") { "${it.kind}:${it.x}:${it.y}:${it.found}:${it.visits}" })
             o.put("ramS", ramsSlain).put("ramL", ramSlams).put("ramB", ramBreaks).put("ramW", ramWrecked).put("ramG", ramSieges)
@@ -9287,6 +9344,13 @@ class CivSim(
             for (e in o.optString("visits", "").split(",")) { val kv = e.split(":"); if (kv.size == 2) visitStats[kv[0]] = kv[1].toIntOrNull() ?: 0 }
             goldenAt = o.optDouble("golden", -1.0)
             stormlingsSlain = o.optInt("slS", 0); stormlingBolts = o.optInt("slB", 0); stormlingHits = o.optInt("slH", 0); stormlingDodges = o.optInt("slD", 0); stormlingFades = o.optInt("slF", 0); stormlingSpent = o.optInt("slP", 0); droughts = o.optInt("dryN", 0); droughtsEnded = o.optInt("dryE", 0); droughtWaterings = o.optInt("dryW", 0); droughtSaved = o.optInt("dryS", 0); droughtWithered = o.optInt("dryX", 0); droughtRainEnds = o.optInt("dryR", 0); scorpionsSlain = o.optInt("scorpS", 0); scorpionStings = o.optInt("scorpT", 0); scorpionPincers = o.optInt("scorpP", 0); scorpionSwarms = o.optInt("scorpN", 0); toadsSlain = o.optInt("toadS", 0); toadLashes = o.optInt("toadL", 0); toadChoruses = o.optInt("toadC", 0); toadLeaps = o.optInt("toadH", 0); stagsSlain = o.optInt("stagS", 0); stagGores = o.optInt("stagG", 0); stagCharges = o.optInt("stagC", 0); stagMisses = o.optInt("stagM", 0); stagRuts = o.optInt("stagR", 0); mushPicked = o.optInt("mushN", 0); glowcapsFound = o.optInt("mushG", 0); mushStews = o.optInt("mushS", 0); friendVisits = o.optInt("visN", 0); friendVisitsMet = o.optInt("visM", 0); voyages = o.optInt("voyN", 0); voyFinds = o.optInt("voyF", 0); voyScares = o.optInt("voyS", 0); voyCrowd = o.optInt("voyC", 0); smokeBatches = o.optInt("smkN", 0); smokeRations = o.optInt("smkR", 0); smokeCheers = o.optInt("smkC", 0); obsWatches = o.optInt("obsW", 0); obsForecasts = o.optInt("obsF", 0); obsHits = o.optInt("obsH", 0); obsPrepared = o.optInt("obsP", 0); museumVisits = o.optInt("musN", 0); stallVisits = o.optInt("stlN", 0); stallDays = o.optInt("stlD", 0); stallDeals = o.optInt("stlT", 0); stallBargains = o.optInt("stlB", 0); museumTalks = o.optInt("musT", 0); museumShown = o.optInt("musS", 0); crowFlocks = o.optInt("crowN", 0); crowsShooed = o.optInt("crowS", 0); crowsScared = o.optInt("crowC", 0); crowLoss = o.optInt("crowL", 0); crowSaved = o.optInt("crowV", 0); guildWorks = o.optInt("gldW", 0); guildRank = o.optInt("gldR", 0); guildSpent = o.optInt("gldS", 0); gearLeather = o.optInt("gLe", 0); gearBronze = o.optInt("gBr", 0); gearSteel = o.optInt("gSt", 0); gearForged = o.optInt("gFo", 0); gearBlocks = o.optInt("gBl", 0); gearSaved = o.optDouble("gSv", 0.0).toFloat(); gearFirsts = o.optInt("gFi", 0); beaconTends = o.optInt("lhT", 0); beaconNightWatch = o.optInt("lhN", 0); beaconFogSails = o.optInt("lhF", 0); beaconNightSails = o.optInt("lhV", 0); beaconScares = o.optInt("lhS", 0); beaconGuided = o.optInt("lhG", 0); hailStorms = o.optInt("hailN", 0); hailHits = o.optInt("hailH", 0); hailCrop = o.optInt("hailC", 0); hailSaved = o.optInt("hailV", 0); hailIce = o.optInt("hailI", 0); tinkerMends = o.optInt("tnkM", 0); sowerFarms = o.optInt("swrF", 0); seerReadings = o.optInt("seeR", 0); yetisSlain = o.optInt("yetS", 0); yetiThrows = o.optInt("yetT", 0); yetiSmashes = o.optInt("yetM", 0); yetiHerds = o.optInt("yetH", 0)
+            run {
+                val a = o.optString("rlmRun", "").split(",").mapNotNull { it.toIntOrNull() }
+                val b = o.optString("rlmWin", "").split(",").mapNotNull { it.toIntOrNull() }
+                for (k in 0 until 5) { realmRuns[k] = a.getOrElse(k) { 0 }; realmWins[k] = b.getOrElse(k) { 0 } }
+                riftTheme = o.optInt("rlmT", 0).coerceIn(0, 4); lastTheme = o.optInt("rlmL", -1).coerceIn(-1, 4)
+                realmHazards = o.optInt("rlmH", 0); realmBonus = o.optInt("rlmB", 0)
+            }
             landmarksFound = o.optInt("lmN", 0); landmarkVisits = o.optInt("lmV", 0); landmarkHeals = o.optInt("lmH", 0); landmarkRelics = o.optInt("lmR", 0)
             landmarks.clear()
             for (e in o.optString("lmL", "").split(";")) {
