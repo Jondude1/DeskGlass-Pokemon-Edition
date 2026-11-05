@@ -151,6 +151,7 @@ fun main(args: Array<String>) {
     println("SCORPIONS slain=${sim.scorpionsSlain} stings=${sim.scorpionStings} pincers=${sim.scorpionPincers} nests=${sim.scorpionSwarms} poisonedNow=${sim.poisoned.size}")
     println("RAMS sieges=${sim.ramSieges} slain=${sim.ramsSlain} slams=${sim.ramSlams} wrecked=${sim.ramWrecked} shieldBreaks=${sim.ramBreaks} foeStats=${sim.foeStats["ram"]}")
     println("STORMLINGS slain=${sim.stormlingsSlain} bolts=${sim.stormlingBolts} hits=${sim.stormlingHits} dodged=${sim.stormlingDodges} spent=${sim.stormlingSpent} faded=${sim.stormlingFades} foeStats=${sim.foeStats["stormling"]}")
+    println("YETIS slain=${sim.yetisSlain} throws=${sim.yetiThrows} smashes=${sim.yetiSmashes} herds=${sim.yetiHerds} foeStats=${sim.foeStats["yeti"]}")
     println("STAGS slain=${sim.stagsSlain} charges=${sim.stagCharges} gores=${sim.stagGores} missed=${sim.stagMisses} ruts=${sim.stagRuts} foeStats=${sim.foeStats["stag"]}")
     println("TOADS slain=${sim.toadsSlain} lashes=${sim.toadLashes} leaps=${sim.toadLeaps} choruses=${sim.toadChoruses} foeStats=${sim.foeStats["toad"]}")
     println("WORMS slain=${sim.wormsSlain} erupts=${sim.wormErupts} flung=${sim.wormHits} cratersNow=${sim.craters.size}")
