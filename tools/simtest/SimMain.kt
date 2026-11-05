@@ -289,6 +289,7 @@ fun main(args: Array<String>) {
         fun r(i: Int) = if (st[i] == 0) "n/a" else "${w[i] * 100 / st[i]}%(${st[i]})"
         println("SENSE scouts=${cw.senseScouts} declined=${cw.senseDeclined} swaps=${cw.senseSwaps} lessons=${cw.senseLessons} actualWin easy=${r(0)} even=${r(1)} risky=${r(2)} longshot=${r(3)}")
     }
+    println("STYLES fired=${Style.used.values.sum()} kinds=${Style.used.size} ${Style.used.toSortedMap()} speciesStyles=${(1..Dex.COUNT).groupingBy { Style.ofSpecies(Dex.byId(it)) }.eachCount().toSortedMap()}")
     println("ABIL talents fired=${Battle.abilCount.values.sum()} kinds=${Battle.abilCount.size} ${Battle.abilCount.toSortedMap()}")
     sim.log.filter { it.contains("aider") || it.contains("ogre") || it.contains("wraith") || it.contains("drake") || it.contains("warlord") || it.contains("golem") || it.contains("shaman") || it.contains("Golden") }.takeLast(8).forEach { println("  LOG $it") }
     println("ROSTER kept=${sim.critters.critters.size}/${sim.critters.maxKept()} caught=${sim.critters.caught.size} seen=${sim.critters.seen.size} released=${sim.critters.rotated} releasedForNew=${sim.critters.rotatedForNew} dexMiles=${sim.critters.dexMiles}")

@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jondude1.deskglass.sim.Abil
+import com.jondude1.deskglass.sim.Style
 import com.jondude1.deskglass.sim.CType
 import com.jondude1.deskglass.sim.Charm
 import com.jondude1.deskglass.sim.CivSim
@@ -98,6 +99,10 @@ fun CritterDexScreen(sim: CivSim, onBack: () -> Unit) {
                         )
                         if (c.charm != 0) Text(
                             "Carries: ${Charm.name(c.charm)}, ${Charm.text(c.charm)}",
+                            color = Glass.InkFaint, fontSize = 12.sp,
+                        )
+                        Text(
+                            if (c.level >= Style.LEVEL) "Style: ${Style.name(Style.of(c))}, ${Style.text(Style.of(c))}" else "Finds its fighting style at level ${Style.LEVEL}",
                             color = Glass.InkFaint, fontSize = 12.sp,
                         )
                         Text(

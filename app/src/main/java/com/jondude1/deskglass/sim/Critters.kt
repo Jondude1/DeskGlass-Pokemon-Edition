@@ -617,6 +617,41 @@ object Abil {
     fun has(c: Critter, t: CType): Boolean = c.level >= LEVEL && c.species.t1 == t
 }
 
+/** Fighting styles: a critter's best stat gives it a way of fighting from level 15, shown in the Dex and as battle banners. */
+object Style {
+    const val LEVEL = 15
+    const val NONE = 0
+    const val BULWARK = 1
+    const val SKIRMISH = 2
+    const val BRUISER = 3
+    const val VITAL = 4
+    const val RHYTHM = 5
+
+    fun ofSpecies(sp: Species): Int {
+        val v = listOf(BULWARK to sp.def * 1.0f, SKIRMISH to sp.spd * 1.0f, BRUISER to sp.atk * 1.12f, VITAL to sp.hp * 1.15f).sortedByDescending { it.second }
+        if (v[0].second < v[1].second * 1.05f) return RHYTHM
+        return v[0].first
+    }
+
+    fun of(c: Critter): Int = if (c.level >= LEVEL) ofSpecies(c.species) else NONE
+
+    fun name(st: Int): String = when (st) {
+        BULWARK -> "Bulwark"; SKIRMISH -> "Skirmisher"; BRUISER -> "Bruiser"; VITAL -> "Enduring"; RHYTHM -> "Rhythm fighter"; else -> ""
+    }
+
+    fun text(st: Int): String = when (st) {
+        BULWARK -> "braces for the first blow (40% less) and sometimes strikes back"
+        SKIRMISH -> "opens the fight with a quick strike and slips away from 12% of attacks"
+        BRUISER -> "grows fiercer with every hit it lands, up to three times"
+        VITAL -> "finds a second wind once when nearly beaten"
+        RHYTHM -> "every third hit in a row is a combo that lands 30% harder"
+        else -> ""
+    }
+
+    /** Headless-test counter. */
+    val used = HashMap<String, Int>()
+}
+
 /** Battlefield weather: the sky over the fight tilts the odds for some critter types. */
 object Field {
     const val NONE = 0
@@ -692,6 +727,9 @@ class Battle(val a: Critter, val b: Critter, private val rnd: Random) {
     private val burstUsed = BooleanArray(2)
     private val burstOn = BooleanArray(2)
     private val charmUsed = BooleanArray(2)
+    private val styleUsed = BooleanArray(2)
+    private val acted = BooleanArray(2)
+    private val stack = IntArray(2)
 
     var over = false
         private set
@@ -773,6 +811,20 @@ class Battle(val a: Critter, val b: Critter, private val rnd: Random) {
             abilSide = side
             abilCount[kind] = (abilCount[kind] ?: 0) + 1
         }
+        fun sfire(text: String, side: Int, kind: String) {
+            if (abil.isEmpty()) { abil = text; abilSide = side }
+            Style.used[kind] = (Style.used[kind] ?: 0) + 1
+        }
+        val sa = Style.of(att)
+        val sd = Style.of(def)
+        val opening = !acted[0] && !acted[1]
+        acted[s] = true
+        if (sa == Style.VITAL && !styleUsed[s] && att.hp > 0 && att.hpFrac < 0.25f) {
+            styleUsed[s] = true
+            val h = max(2, att.maxHp * 18 / 100)
+            att.hp = min(att.maxHp, att.hp + h)
+            sfire("+$h Second Wind", s, "Second Wind")
+        }
         if (Abil.has(att, CType.TIDE) && att.hp < att.maxHp) {
             val h = max(1, att.maxHp / 16)
             att.hp = min(att.maxHp, att.hp + h)
@@ -807,6 +859,10 @@ class Battle(val a: Critter, val b: Critter, private val rnd: Random) {
         if (hit && Abil.has(def, CType.SHADE) && rnd.nextInt(100) < 15) {
             hit = false
             fire("Evasive!", 1 - s, "Evasive")
+        }
+        if (hit && sd == Style.SKIRMISH && rnd.nextInt(100) < 12) {
+            hit = false
+            sfire("Slip!", 1 - s, "Slip")
         }
         if (hit && st == FRIGHT && rnd.nextInt(100) < 35) hit = false
         if (burstOn[s]) hit = true
@@ -850,6 +906,27 @@ class Battle(val a: Critter, val b: Critter, private val rnd: Random) {
                 d *= 0.6f
                 fire("Guard Pebble!", 1 - s, "Guard Pebble")
             }
+            if (sa == Style.SKIRMISH && opening) {
+                d *= 1.25f
+                sfire("Opening Strike!", s, "Opening Strike")
+            }
+            if (sa == Style.BRUISER && stack[s] > 0) {
+                d *= 1f + 0.07f * stack[s]
+                if (stack[s] >= 3) sfire("Frenzy x3!", s, "Frenzy")
+            }
+            if (sa == Style.RHYTHM) {
+                stack[s]++
+                if (stack[s] >= 3) {
+                    stack[s] = 0
+                    d *= 1.3f
+                    sfire("Combo!", s, "Combo")
+                }
+            }
+            if (sd == Style.BULWARK && !styleUsed[1 - s]) {
+                styleUsed[1 - s] = true
+                d *= 0.6f
+                sfire("Brace!", 1 - s, "Brace")
+            }
             d *= 0.88f + rnd.nextFloat() * 0.12f
             if (s == 1 && shield > 0) {
                 d *= 0.5f
@@ -862,6 +939,12 @@ class Battle(val a: Critter, val b: Critter, private val rnd: Random) {
                 fire("Sturdy!", 1 - s, "Sturdy")
             }
             def.hp = max(0, def.hp - dmg)
+            if (sa == Style.BRUISER && stack[s] < 3) stack[s]++
+            if (def.hp > 0 && att.hp > 0 && sd == Style.BULWARK && dmg > 0 && rnd.nextInt(100) < 25) {
+                val r = max(1, dmg * 30 / 100)
+                att.hp = max(1, att.hp - r)
+                sfire("-$r Riposte!", 1 - s, "Riposte")
+            }
             if (def.hp > 0 && att.hp > 0) {
                 if (Abil.has(att, CType.SPIRIT) && dmg > 0) {
                     val h = max(1, dmg * 15 / 100)
@@ -894,6 +977,7 @@ class Battle(val a: Critter, val b: Critter, private val rnd: Random) {
                 }
             }
         }
+        if (!hit && (sa == Style.BRUISER || sa == Style.RHYTHM)) stack[s] = 0
         val fainted = def.hp <= 0
         if (fainted) {
             over = true
