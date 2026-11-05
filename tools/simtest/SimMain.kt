@@ -107,6 +107,7 @@ fun main(args: Array<String>) {
         val sim2 = CivSim(f, CoroutineScope(Dispatchers.Default)) { null }
         println("NIGHTSKY save round trip ok=${sim2.skyShows.toList() == sim.skyShows.toList() && sim2.skyWatches == sim.skyWatches && sim2.skyWishes == sim.skyWishes && sim2.skyLastNight == sim.skyLastNight}")
         println("REALMS save round trip ok=${sim2.realmRuns.toList() == sim.realmRuns.toList() && sim2.realmWins.toList() == sim.realmWins.toList() && sim2.lastTheme == sim.lastTheme && sim2.realmHazards == sim.realmHazards}")
+        println("CARAVAN save round trip ok=${sim2.caravans == sim.caravans && sim2.carFinds == sim.carFinds && sim2.carAmbush == sim.carAmbush && sim2.carBeaten == sim.carBeaten && sim2.carSpent == sim.carSpent}")
         println("DIVINE full save round trip ok=${sim2.divine.encode() == sim.divine.encode()} loadedUses=${sim2.divine.totalUses()}")
     }
     println("SURPLUS wastedGathers=${sim.wastedGathers} carved=${sim.carved} posies=${sim.posies}")
@@ -182,6 +183,7 @@ fun main(args: Array<String>) {
     println("FOUNTAIN built=${sim.buildings.count { it.type == "fountain" }} wishes=${sim.fountainWishes} granted=${sim.fountainGranted} tier=${sim.fountainTier} wood=${sim.wood} stone=${sim.stone}")
     println("LOOM built=${sim.buildings.count { it.type == "loom" }} weaves=${sim.loomWeaves} cloaks=${sim.loomCloaks} hides=${sim.hides} adults=${sim.villagers.count { !sim.isChild(it) }}")
     println("YARD built=${sim.buildings.count { it.type == "yard" }} sessions=${sim.yardSessions} trained=${sim.critters.yardTrained} spars=${sim.yardSpars} levelUps=${sim.critters.yardLevelUps} xp=${sim.critters.yardXp}")
+    println("CARAVAN markets=${sim.buildings.count { it.type == "market" }} caravans=${sim.caravans} finds=${sim.carFinds} ambushes=${sim.carAmbush} beaten=${sim.carBeaten} spent=${sim.carSpent} active=${sim.carActive}")
     println("VOYAGE docks=${sim.buildings.count { it.type == "dock" }} voyages=${sim.voyages} finds=${sim.voyFinds} serpents=${sim.voyScares} crowd=${sim.voyCrowd} active=${sim.voyActive} routes=${sim.voyRouteLens()}")
     println("LIGHTHOUSE built=${sim.buildings.count { it.type == "lighthouse" }} tends=${sim.beaconTends} nightWatch=${sim.beaconNightWatch} fogSails=${sim.beaconFogSails} nightSails=${sim.beaconNightSails} scares=${sim.beaconScares} guided=${sim.beaconGuided} voyages=${sim.voyages} lit=${sim.beaconLit()}")
     println("GUILD built=${sim.buildings.count { it.type == "guild" }} works=${sim.guildWorks} rank=${sim.guildRank} spent=${sim.guildSpent} wood=${sim.wood} stone=${sim.stone} age=${sim.age}")
