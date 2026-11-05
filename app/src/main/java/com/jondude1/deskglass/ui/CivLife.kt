@@ -1277,6 +1277,41 @@ fun DrawScope.drawFauna(sim: CivSim, art: CivArt, g: Geo) {
                 drawRect(Color(0xFFFFE27A), Offset(px - ps * 0.9f, by - ps * 1.0f), Size(ps * 0.7f, ps * 0.7f))
                 drawRect(Color(0xFFFFE27A), Offset(px + ps * 0.2f, by - ps * 1.0f), Size(ps * 0.7f, ps * 0.7f))
             }
+            "swallow" -> {
+                val perched = a.swMode == 1
+                val lift = a.alt * ts * 0.5f
+                val by = py - lift
+                val flap = if (perched) 0f else sin(t * 11f + a.id * 1.7f)
+                val back = Color(0xFF23386B)
+                val sheen = Color(0xFF3F63B0)
+                val throat = Color(0xFFD9703A)
+                val belly = Color(0xFFF1E8D8)
+                if (!perched) drawOval(Color.Black.copy(alpha = 0.12f), Offset(px - ps * 2.2f, py - ps * 0.5f), Size(ps * 4.4f, ps * 1.1f))
+                withTransform({ scale(dir, 1f, Offset(px, by)) }) {
+                    if (perched) {
+                        // wings folded, tail forked, head cocked and twittering
+                        drawRect(back, Offset(px - ps * 1.6f, by - ps * 1.6f), Size(ps * 3.2f, ps * 1.7f))
+                        drawRect(belly, Offset(px - ps * 0.6f, by - ps * 0.5f), Size(ps * 2.0f, ps * 0.7f))
+                        drawRect(back, Offset(px + ps * 0.9f, by - ps * 2.5f), Size(ps * 1.4f, ps * 1.3f))
+                        drawRect(throat, Offset(px + ps * 1.7f, by - ps * 1.5f), Size(ps * 0.8f, ps * 0.6f))
+                        drawRect(Color(0xFFF4F0E4), Offset(px + ps * 1.9f, by - ps * 2.2f), Size(ps * 0.35f, ps * 0.35f))
+                        drawRect(back, Offset(px - ps * 3.0f, by - ps * 1.0f), Size(ps * 1.6f, ps * 0.5f))
+                        drawRect(back, Offset(px - ps * 3.0f, by - ps * 0.3f), Size(ps * 1.6f, ps * 0.4f))
+                        if (sin(t * 5f + a.id) > 0.55f) drawRect(throat, Offset(px + ps * 2.3f, by - ps * 2.2f), Size(ps * 0.7f, ps * 0.3f))
+                    } else {
+                        // swept-back wings beating, forked tail streaming behind
+                        val wing = flap * ps * 2.0f
+                        drawLine(back, Offset(px - ps * 0.6f, by - ps * 0.2f), Offset(px - ps * 3.0f, by - ps * 1.2f - wing), strokeWidth = ps * 1.0f)
+                        drawLine(sheen, Offset(px + ps * 0.2f, by - ps * 0.2f), Offset(px - ps * 2.2f, by + ps * 0.4f + wing), strokeWidth = ps * 0.9f)
+                        drawRect(back, Offset(px - ps * 1.4f, by - ps * 0.9f), Size(ps * 2.8f, ps * 1.3f))
+                        drawRect(belly, Offset(px - ps * 0.8f, by - ps * 0.1f), Size(ps * 1.8f, ps * 0.5f))
+                        drawRect(back, Offset(px + ps * 1.2f, by - ps * 1.1f), Size(ps * 1.0f, ps * 1.0f))
+                        drawRect(throat, Offset(px + ps * 1.7f, by - ps * 0.5f), Size(ps * 0.6f, ps * 0.5f))
+                        drawRect(back, Offset(px - ps * 3.4f, by - ps * 0.6f), Size(ps * 2.0f, ps * 0.35f))
+                        drawRect(back, Offset(px - ps * 3.4f, by + ps * 0.1f), Size(ps * 2.0f, ps * 0.35f))
+                    }
+                }
+            }
             "bat" -> {
                 val lift = a.alt * ts * 0.6f + sin(t * 2f + a.id) * ps
                 val flap = sin(t * 16f + a.id)

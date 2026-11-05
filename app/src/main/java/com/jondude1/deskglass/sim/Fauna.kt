@@ -38,6 +38,9 @@ class Animal(val kind: String, var x: Float, var y: Float, val id: Int) {
     var diveIn = 6f       // otter: time until the next dive
     var catMode = 0       // cat: 0 prowling, 1 stalking a mouse, 2 pouncing, 3 napping, 4 purring at a villager
     var catT = 0f         // cat: time left in the current mode
+    var swMode = 0        // swallow: 0 swooping, 1 perched on a roof, 2 flying to a roof
+    var swT = 0f          // swallow: time left on the perch
+    var swCatch = 6f      // swallow: time until the next insect catch
 }
 
 /**
@@ -57,6 +60,7 @@ class Fauna(private val sim: CivSim) {
     private var petClock = 1f
     private var giftClock = 20f
     private var catClock = 6f
+    private var swClock = 5f
     private var mouseClock = 10f
     /** Wild-life happenings seen this run (used by the headless harness and the naturalist deed). Not saved. */
     val seen = HashMap<String, Int>()
@@ -210,6 +214,8 @@ class Fauna(private val sim: CivSim) {
         }
         catClock -= dt
         if (catClock <= 0f) { catClock = 4f; ensureCats() }
+        swClock -= dt
+        if (swClock <= 0f) { swClock = 3f; ensureSwallows() }
         for (a in animals) if (a.kind != "dog" && a.kind != "cat" && a.kind != "mouse") kindsSeen.add(a.kind)
     }
 
@@ -679,6 +685,88 @@ class Fauna(private val sim: CivSim) {
         return true
     }
 
+    // ---- swallows: they return each spring, swoop over lake and roofs, perch under the eaves and leave in autumn ----
+    private fun swallowSeason(): Boolean = sim.seasonIdx() <= 1 && !sim.isNight() && !sim.storm() && !sim.snowing()
+
+    private fun ensureSwallows() {
+        val n = sim.villagers.size
+        if (!swallowSeason() || n < 6 || sim.buildings.count { it.type == "hut" || it.type == "house" } < 3) return
+        val want = min(6, 2 + n / 5)
+        if (count("swallow") >= want || rnd.nextInt(2) != 0) return
+        val fromLeft = rnd.nextBoolean()
+        val x = if (fromLeft) -1.5f else GW + 1.5f
+        val y = (3f + rnd.nextFloat() * (GH - 6f)).coerceIn(1f, GH - 2f)
+        val a = Animal("swallow", x, y, nextId++)
+        a.alt = 1.4f; a.dir = if (fromLeft) 0f else PI.toFloat(); a.speed = 3.4f
+        a.facing = if (fromLeft) 1 else -1
+        a.homeX = GW * 0.5f; a.homeY = GH * 0.5f
+        a.swCatch = 4f + rnd.nextFloat() * 8f
+        animals.add(a)
+        note("swallow")
+        sim.swallowArrive(sim.villagers.firstOrNull()?.x ?: GW * 0.5f, sim.villagers.firstOrNull()?.y ?: GH * 0.5f)
+    }
+
+    private fun swallowStep(a: Animal, dt: Float): Boolean {
+        // autumn, night and storms send them away over the edge of the map
+        if (!swallowSeason()) {
+            if (a.swMode == 1) { a.swMode = 0; a.dir = if (a.x < GW * 0.5f) PI.toFloat() else 0f }
+            if (a.swMode == 2) a.swMode = 0
+            a.dir = if (a.x < GW * 0.5f) PI.toFloat() else 0f
+            a.x += cos(a.dir) * 4.2f * dt
+            a.alt = min(2.2f, a.alt + dt * 0.5f)
+            a.facing = if (cos(a.dir) >= 0f) 1 else -1
+            if (a.x > -3f && a.x < GW + 3f) return true
+            note("swallow leaves")
+            return false
+        }
+        when (a.swMode) {
+            1 -> {
+                a.swT -= dt; a.moving = false
+                a.alt = 1.05f
+                if (a.swT <= 0f || sim.predators.any { hypot(it.x - a.x, it.y - a.y) < 3f }) { a.swMode = 0; a.dir = rnd.nextFloat() * 6.28f; a.swCatch = 5f + rnd.nextFloat() * 8f }
+                return true
+            }
+            2 -> {
+                val dx = a.tx - a.x
+                val dy = a.ty - a.y
+                val d = hypot(dx, dy)
+                a.alt = max(1.05f, a.alt - dt * 0.8f)
+                if (d < 0.25f) {
+                    a.x = a.tx; a.y = a.ty; a.swMode = 1; a.swT = 6f + rnd.nextFloat() * 10f
+                    sim.swallowPerch(a.x, a.y); note("swallow perch")
+                    return true
+                }
+                val sp = 3.0f * dt
+                a.x += dx / d * min(sp, d); a.y += dy / d * min(sp, d)
+                if (abs(dx) > 0.02f) a.facing = if (dx > 0) 1 else -1
+                return true
+            }
+        }
+        // swooping: wide curving flight, low over the water and the fields, pulled gently toward the village centre
+        a.dir += sin(a.phase * 1.7f + a.id) * 2.2f * dt
+        a.x += cos(a.dir) * a.speed * dt
+        a.y += sin(a.dir) * a.speed * 0.55f * dt
+        a.x += (a.homeX - a.x) * 0.08f * dt
+        a.y += (a.homeY - a.y) * 0.08f * dt
+        a.alt = 0.55f + 0.55f * (0.5f + 0.5f * sin(a.phase * 0.9f + a.id * 1.3f))
+        a.x = a.x.coerceIn(-1f, GW + 1f)
+        a.y = a.y.coerceIn(1f, GH - 1f)
+        a.facing = if (cos(a.dir) >= 0f) 1 else -1
+        a.swCatch -= dt
+        if (a.swCatch <= 0f) {
+            a.swCatch = 6f + rnd.nextFloat() * 10f
+            val roofs = sim.buildings.filter { it.type == "hut" || it.type == "house" }
+            if (roofs.isNotEmpty() && rnd.nextInt(3) == 0) {
+                val b = roofs[rnd.nextInt(roofs.size)]
+                a.tx = b.x + 0.5f + (rnd.nextFloat() - 0.5f) * 0.8f; a.ty = b.y + 0.7f
+                a.swMode = 2
+            } else {
+                sim.swallowCatch(); note("swallow catch")
+            }
+        }
+        return true
+    }
+
     private fun step(a: Animal, dt: Float): Boolean {
         a.phase += dt
         if (a.life < 0f) return false
@@ -757,6 +845,7 @@ class Fauna(private val sim: CivSim) {
             "otter" -> if (otterThink(a, dt)) return true
             "dog" -> return dogStep(a, dt)
             "cat" -> return catStep(a, dt)
+            "swallow" -> return swallowStep(a, dt)
             "mouse" -> { a.life -= dt; if (a.life <= 0f) return false }
         }
         val scare = when (a.kind) { "rabbit" -> 3.4f; "deer" -> 4.6f; "duck" -> 2.8f; "fox" -> 4.2f; "squirrel" -> 2.6f; "hedgehog" -> 2.2f; "otter" -> 2.2f; "mouse" -> 2.4f; else -> 1.6f }
