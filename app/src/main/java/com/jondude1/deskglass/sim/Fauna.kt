@@ -33,6 +33,9 @@ class Animal(val kind: String, var x: Float, var y: Float, val id: Int) {
     var fetch = 0         // dog: 0 waiting by the owner, 1 running to the stick, 2 bringing it back
     var curled = false    // dog: asleep beside its owner
     var guard = false     // dog: standing between its owner and a foe
+    var otterMode = 0     // otter: 0 swimming, 1 diving, 2 floating on its back with a shell, 3 offering a fish
+    var otterT = 0f       // otter: time left in the current mode
+    var diveIn = 6f       // otter: time until the next dive
 }
 
 /**
@@ -50,6 +53,7 @@ class Fauna(private val sim: CivSim) {
     private var skyClock = 20f
     private var fishClock = 6f
     private var petClock = 1f
+    private var giftClock = 20f
     /** Wild-life happenings seen this run (used by the headless harness and the naturalist deed). Not saved. */
     val seen = HashMap<String, Int>()
     val kindsSeen = HashSet<String>()
@@ -100,6 +104,7 @@ class Fauna(private val sim: CivSim) {
                 "frog" -> 1.0f
                 "squirrel" -> 2.0f
                 "hedgehog" -> 0.5f
+                "otter" -> 1.1f
                 "fox" -> 1.5f
                 else -> 1f
             }
@@ -191,6 +196,7 @@ class Fauna(private val sim: CivSim) {
             if (count("bird") < 9) spawnBird()
         }
         spawnWild(dt)
+        if (giftClock > 0f) giftClock -= dt
         petClock -= dt
         if (petClock <= 0f) { petClock = 2f; ensurePets() }
         val it = animals.iterator()
@@ -225,13 +231,14 @@ class Fauna(private val sim: CivSim) {
             }
             if (winter) {
                 // squirrels, dragonflies and hedgehogs sleep until spring
-                animals.removeAll { it.kind == "squirrel" || it.kind == "dragonfly" || it.kind == "hedgehog" }
+                animals.removeAll { it.kind == "squirrel" || it.kind == "dragonfly" || it.kind == "hedgehog" || it.kind == "otter" }
             } else {
                 if (count("squirrel") < 6) spawn("squirrel", { x, y -> land(x, y) && nearForest(x, y, 1) }, avoid = 6f)
                 if (sim.seasonIdx() == 1 && count("dragonfly") < 4) {
                     val a = spawn("dragonfly", { x, y -> land(x, y) && nearWater(x, y) }, avoid = 2f)
                     if (a != null) { a.alt = 0.7f; a.dir = rnd.nextFloat() * 6.28f }
                 }
+                if (count("otter") < 3) spawn("otter", { x, y -> water(x, y) && nearWater(x, y) && !nearWaterOnlyEdge(x, y) }, avoid = 4f)
                 if ((sim.seasonIdx() == 2 || sim.seasonIdx() == 0) && count("hedgehog") < 3) spawn("hedgehog", { x, y -> grass(x, y) && nearForest(x, y, 2) }, avoid = 6f)
             }
             if (count("fox") < 3) spawn("fox", { x, y -> grass(x, y) && nearForest(x, y, 3) }, avoid = 12f)
@@ -464,6 +471,47 @@ class Fauna(private val sim: CivSim) {
         return true
     }
 
+
+    /**
+     * Otters in the lake: they dive for fish, float on their backs cracking shells, and when a villager is
+     * watching from the shore a diver now and then surfaces with a silver fish and leaves it as a gift.
+     */
+    private fun otterThink(a: Animal, dt: Float): Boolean {
+        if (a.otterMode != 0) {
+            a.otterT -= dt
+            a.moving = false
+            if (a.otterT > 0f) return true
+            if (a.otterMode == 1) {
+                val near = sim.villagers.any { hypot(it.x - a.x, it.y - a.y) < 7f }
+                if (near && giftClock <= 0f) {
+                    a.otterMode = 3
+                    a.otterT = 3.2f
+                    giftClock = 35f + rnd.nextFloat() * 25f
+                    sim.otterGift(a.x, a.y)
+                    note("otter gift")
+                } else {
+                    a.otterMode = 2
+                    a.otterT = 4f + rnd.nextFloat() * 3f
+                    note("otter float")
+                }
+            } else {
+                a.otterMode = 0
+                a.pause = 0.4f
+            }
+            return true
+        }
+        a.diveIn -= dt
+        if (a.diveIn <= 0f && a.flee <= 0f) {
+            a.otterMode = 1
+            a.otterT = 2.4f + rnd.nextFloat() * 2f
+            a.diveIn = 12f + rnd.nextFloat() * 14f
+            a.moving = false
+            note("otter dive")
+            return true
+        }
+        return false
+    }
+
     private fun step(a: Animal, dt: Float): Boolean {
         a.phase += dt
         if (a.life < 0f) return false
@@ -539,9 +587,10 @@ class Fauna(private val sim: CivSim) {
                 return true
             }
             "fox" -> if (foxThink(a, dt)) return true
+            "otter" -> if (otterThink(a, dt)) return true
             "dog" -> return dogStep(a, dt)
         }
-        val scare = when (a.kind) { "rabbit" -> 3.4f; "deer" -> 4.6f; "duck" -> 2.8f; "fox" -> 4.2f; "squirrel" -> 2.6f; "hedgehog" -> 2.2f; else -> 1.6f }
+        val scare = when (a.kind) { "rabbit" -> 3.4f; "deer" -> 4.6f; "duck" -> 2.8f; "fox" -> 4.2f; "squirrel" -> 2.6f; "hedgehog" -> 2.2f; "otter" -> 2.2f; else -> 1.6f }
         if (a.flee <= 0f && threat(a, scare)) {
             a.flee = 1.6f + rnd.nextFloat()
             // run directly away from whoever is closest
@@ -583,16 +632,17 @@ class Fauna(private val sim: CivSim) {
                 "duck" -> 2f + rnd.nextFloat() * 5f
                 "squirrel" -> 0.4f + rnd.nextFloat() * 2.2f
                 "hedgehog" -> 2f + rnd.nextFloat() * 4f
+                "otter" -> 0.6f + rnd.nextFloat() * 2.4f
                 "fox" -> 3f + rnd.nextFloat() * 6f
                 else -> 1.5f + rnd.nextFloat() * 5f
             }
             a.grazing = a.kind == "deer" || a.kind == "rabbit"
             // pick the next spot near home
-            val r = when (a.kind) { "frog" -> 1.6f; "duck" -> 5f; "deer" -> 6f; "fox" -> 7f; "squirrel" -> 3f; "hedgehog" -> 3.5f; else -> 4.5f }
+            val r = when (a.kind) { "frog" -> 1.6f; "duck" -> 5f; "deer" -> 6f; "fox" -> 7f; "squirrel" -> 3f; "hedgehog" -> 3.5f; "otter" -> 6f; else -> 4.5f }
             for (n in 0 until 8) {
                 val nx = a.homeX + (rnd.nextFloat() - 0.5f) * 2f * r
                 val ny = a.homeY + (rnd.nextFloat() - 0.5f) * 2f * r * 0.7f
-                val ok = if (a.kind == "duck") water(nx.toInt(), ny.toInt()) else land(nx.toInt(), ny.toInt())
+                val ok = if (a.kind == "duck" || a.kind == "otter") water(nx.toInt(), ny.toInt()) else land(nx.toInt(), ny.toInt())
                 if (ok && nx > 0.5f && ny > 0.5f && nx < GW - 0.5f && ny < GH - 0.5f) {
                     a.tx = nx
                     a.ty = ny
@@ -604,7 +654,7 @@ class Fauna(private val sim: CivSim) {
         val sp = a.speed * (if (a.flee > 0f) 2.6f else 1f) * dt
         val nx = a.x + dx / d * min(sp, d)
         val ny = a.y + dy / d * min(sp, d)
-        val ok = if (a.kind == "duck") water(nx.toInt(), ny.toInt()) else land(nx.toInt(), ny.toInt())
+        val ok = if (a.kind == "duck" || a.kind == "otter") water(nx.toInt(), ny.toInt()) else land(nx.toInt(), ny.toInt())
         if (!ok) {
             a.tx = a.x
             a.ty = a.y

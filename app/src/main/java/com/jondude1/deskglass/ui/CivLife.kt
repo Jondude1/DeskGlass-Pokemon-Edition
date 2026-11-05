@@ -926,6 +926,75 @@ fun DrawScope.drawFauna(sim: CivSim, art: CivArt, g: Geo) {
                 }
                 withTransform({ scale(dir, 1f, Offset(px, py)) }) { img(sp, px - w / 2f, py - h + bob, w, h) }
             }
+            "otter" -> {
+                if (!vis && !a.moving && a.otterMode == 0) continue
+                val coat = Color(0xFF7A5232)
+                val belly = Color(0xFFD9BC92)
+                val dk = Color(0xFF3F2A18)
+                val bob = sin(t * 2.4f + a.id) * ps * 0.4f
+                val ringP = (t * 0.8f + a.id * 0.3f) % 1f
+                when (a.otterMode) {
+                    1 -> {
+                        // under the surface: rings spread and bubbles rise where it went down
+                        for (k in 0..1) {
+                            val rp = ((t * 0.9f + k * 0.5f) % 1f)
+                            drawOval(Color.White.copy(alpha = 0.45f * (1f - rp)), Offset(px - rp * ps * 7f, py - rp * ps * 2.4f), Size(rp * ps * 14f, rp * ps * 4.8f), style = Stroke(width = ps * 0.7f))
+                        }
+                        for (k in 0..2) {
+                            val bp = ((t * 0.7f + k * 0.33f + a.id * 0.1f) % 1f)
+                            drawCircle(Color.White.copy(alpha = 0.7f * (1f - bp)), ps * 0.7f, Offset(px + (k - 1) * ps * 1.6f, py - bp * ps * 6f))
+                        }
+                        drawOval(Color(0xFF2A3F4A).copy(alpha = 0.35f), Offset(px - ps * 3f, py - ps * 0.6f), Size(ps * 6f, ps * 1.6f))
+                    }
+                    2 -> {
+                        // floating on its back, tapping a shell on its belly
+                        drawOval(Color.Black.copy(alpha = 0.18f), Offset(px - ps * 4.6f, py - ps * 0.4f), Size(ps * 9.2f, ps * 1.6f))
+                        drawRect(dk, Offset(px - ps * 5.4f, py - ps * 1.6f + bob), Size(ps * 3.0f, ps * 1.0f))
+                        drawRect(belly, Offset(px - ps * 3.0f, py - ps * 2.8f + bob), Size(ps * 5.6f, ps * 2.0f))
+                        drawRect(coat, Offset(px - ps * 3.0f, py - ps * 1.4f + bob), Size(ps * 5.6f, ps * 1.0f))
+                        drawRect(belly, Offset(px + ps * 2.4f, py - ps * 3.4f + bob), Size(ps * 2.2f, ps * 2.0f))
+                        drawRect(dk, Offset(px + ps * 3.8f, py - ps * 2.8f + bob), Size(ps * 0.7f, ps * 0.7f))
+                        val tap = if (((t * 6f + a.id).toInt() and 1) == 0) ps * 1.0f else 0f
+                        drawRect(coat, Offset(px - ps * 0.6f, py - ps * 4.6f + bob + tap), Size(ps * 1.0f, ps * 1.8f))
+                        drawRect(Color(0xFFE9DCC8), Offset(px - ps * 1.4f, py - ps * 4.2f + bob - tap * 0.4f), Size(ps * 2.4f, ps * 1.2f))
+                        if (tap == 0f) {
+                            drawRect(Color(0xFFFFF3B0), Offset(px - ps * 2.0f, py - ps * 6.4f + bob), Size(ps * 0.6f, ps * 1.4f))
+                            drawRect(Color(0xFFFFF3B0), Offset(px - ps * 2.4f, py - ps * 5.9f + bob), Size(ps * 1.4f, ps * 0.5f))
+                        }
+                    }
+                    else -> {
+                        // swimming: a sleek head and back above the water with a rippling wake
+                        val offer = a.otterMode == 3
+                        if (a.moving) {
+                            drawLine(Color.White.copy(alpha = 0.4f), Offset(px - dir * ps * 4f, py + ps * 0.2f), Offset(px - dir * ps * 10f, py - ps * 1.4f), strokeWidth = ps * 0.8f)
+                            drawLine(Color.White.copy(alpha = 0.4f), Offset(px - dir * ps * 4f, py + ps * 0.2f), Offset(px - dir * ps * 10f, py + ps * 1.8f), strokeWidth = ps * 0.8f)
+                        } else {
+                            drawOval(Color.White.copy(alpha = 0.3f * (1f - ringP)), Offset(px - ringP * ps * 6f, py - ringP * ps * 2f), Size(ringP * ps * 12f, ringP * ps * 4f), style = Stroke(width = ps * 0.6f))
+                        }
+                        withTransform({ scale(dir, 1f, Offset(px, py)) }) {
+                            drawOval(Color.Black.copy(alpha = 0.16f), Offset(px - ps * 4.5f, py - ps * 0.2f), Size(ps * 9f, ps * 1.8f))
+                            drawRect(coat, Offset(px - ps * 4.6f, py - ps * 2.6f + bob), Size(ps * 6.2f, ps * 2.4f))
+                            drawRect(dk, Offset(px - ps * 6.2f, py - ps * 1.8f + bob), Size(ps * 2.0f, ps * 1.0f))
+                            drawRect(coat, Offset(px + ps * 1.0f, py - ps * 4.2f + bob), Size(ps * 3.4f, ps * 3.0f))
+                            drawRect(belly, Offset(px + ps * 2.6f, py - ps * 2.8f + bob), Size(ps * 2.0f, ps * 1.2f))
+                            drawRect(dk, Offset(px + ps * 4.2f, py - ps * 3.2f + bob), Size(ps * 0.8f, ps * 0.8f))
+                            drawRect(dk, Offset(px + ps * 1.4f, py - ps * 4.6f + bob), Size(ps * 0.8f, ps * 0.8f))
+                            drawRect(Color(0xFF201410), Offset(px + ps * 3.2f, py - ps * 3.6f + bob), Size(ps * 0.5f, ps * 0.5f))
+                            if (offer) {
+                                val up = sin(((t * 1.6f) % 1f) * PI.toFloat()) * ps * 0.8f
+                                drawOval(Color(0xFF9FC4DD), Offset(px + ps * 3.4f, py - ps * 6.8f + bob - up), Size(ps * 5f, ps * 2.2f))
+                                drawRect(Color(0xFFE8F2F8), Offset(px + ps * 4.0f, py - ps * 6.2f + bob - up), Size(ps * 3.0f, ps * 0.6f))
+                                drawRect(Color(0xFF7AA6C2), Offset(px + ps * 8.2f, py - ps * 6.8f + bob - up), Size(ps * 1.2f, ps * 2.0f))
+                            }
+                        }
+                        if (offer) {
+                            val hp = ((t * 0.9f + a.id) % 1f)
+                            drawCircle(Color(0xFFFF7A9A).copy(alpha = 1f - hp), ps * 1.0f, Offset(px + dir * ps * 1f, py - ps * (10f + hp * 6f)))
+                            drawRect(Color(0xFFFFF3B0).copy(alpha = 0.5f + 0.5f * sin(t * 8f)), Offset(px + dir * ps * 8f, py - ps * 11f), Size(ps * 0.8f, ps * 0.8f))
+                        }
+                    }
+                }
+            }
             "frog" -> {
                 if (!vis || sim.seasonIdx() == 3) continue
                 val jump = if (a.moving) sin(((t * 5f + a.id) % 1f) * PI.toFloat()) * ps * 3f else 0f
