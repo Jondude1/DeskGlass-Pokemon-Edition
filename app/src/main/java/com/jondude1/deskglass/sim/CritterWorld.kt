@@ -306,7 +306,7 @@ class CritterWorld(private val sim: CivSim) {
 
     fun evolving(c: Critter): EvolveScene? = evolutions.firstOrNull { it.uid == c.uid }
 
-    fun maxKept(): Int = min(24, sim.villagers.size * 2 + 2)
+    fun maxKept(): Int = min(24 + min(dexMiles, 6), sim.villagers.size * 2 + 2)
 
     fun isTired(c: Critter): Boolean = c.faintedUntil > sim.time
 
@@ -1207,7 +1207,10 @@ class CritterWorld(private val sim: CivSim) {
             return critters.none { it.sp == foe.sp } &&
                 (critters.count { it.owner == v.id } < MAX_TEAM || weakestSwappable(v) != null)
         }
-        if (critters.size >= maxKept() || critters.count { it.sp == foe.sp } >= 2) return false
+        if (critters.size >= maxKept()) {
+            // a full roster still makes room for a kind the village has never bound
+            if (foe.sp in caught || rotateOut() == null) return false
+        } else if (critters.count { it.sp == foe.sp } >= 2) return false
         val mage = mageOf(v)
         val owned = critters.count { it.owner == v.id }
         var room = mage.capacity - budgetUsed(v)
@@ -1222,6 +1225,42 @@ class CritterWorld(private val sim: CivSim) {
 
     /** How good a critter is to keep: level, how far it has evolved and how rare it is. */
     private fun worth(c: Critter): Int = c.level + c.species.stage * 4 + c.species.rarity * 3
+
+    /** Roster rotation: a full village sets its weakest spare friend free (duplicates first) to bind a new kind. */
+    var rotated = 0
+    var rotatedForNew = 0
+
+    private fun rotateOut(): Critter? {
+        var best: Critter? = null
+        var bs = Int.MAX_VALUE
+        for (c in critters) {
+            if (c.companion || c.alpha || c.shiny || c.species.rarity >= 5 || inEncounter(c) || evolving(c) != null) continue
+            val sc = worth(c) - (if (critters.count { it.sp == c.sp } >= 2) 8 else 0)
+            if (sc < bs) { bs = sc; best = c }
+        }
+        return best
+    }
+
+    private fun releaseFor(c: Critter, to: Critter, v: Villager) {
+        val b = bodies[c.uid]
+        val x = (b?.x ?: v.x).coerceIn(1f, GW - 1f)
+        val y = (b?.y ?: v.y).coerceIn(1f, GH - 1f)
+        if (to.charm == 0 && c.charm != 0) { to.charm = c.charm }
+        c.charm = 0
+        critters.remove(c)
+        bodies.remove(c.uid)
+        c.owner = -1
+        c.companion = false
+        c.heal()
+        val w = Wild(c, x, y)
+        w.leaving = true
+        w.fade = 1f
+        wilds.add(w)
+        rotated++
+        if (to.sp !in caught) rotatedForNew++
+        sim.note("${v.name} thanks ${c.name} and sets it free in the meadow to make room for a new ${to.species.name}.")
+        pop(x, y - 0.9f, "free!", 0xFF9AE6A0)
+    }
 
     private fun weakestSwappable(v: Villager): Critter? =
         critters.filter { it.owner == v.id && !it.companion && !inEncounter(it) && evolving(it) == null }.minByOrNull { worth(it) }
@@ -2141,6 +2180,7 @@ class CritterWorld(private val sim: CivSim) {
                 sim.note("${v.name} swaps ${weak.name} for the new ${foe.species.name}; ${weak.name} stays on in the village.")
             }
         }
+        if (critters.size >= maxKept()) rotateOut()?.let { releaseFor(it, foe, v) }
         foe.owner = v.id
         foe.hp = max(foe.hp, (foe.maxHp * 0.35f).toInt())
         val first = companionOf(v) == null

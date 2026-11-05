@@ -284,6 +284,7 @@ fun main(args: Array<String>) {
     }
     println("ABIL talents fired=${Battle.abilCount.values.sum()} kinds=${Battle.abilCount.size} ${Battle.abilCount.toSortedMap()}")
     sim.log.filter { it.contains("aider") || it.contains("ogre") || it.contains("wraith") || it.contains("drake") || it.contains("warlord") || it.contains("golem") || it.contains("shaman") || it.contains("Golden") }.takeLast(8).forEach { println("  LOG $it") }
+    println("ROSTER kept=${sim.critters.critters.size}/${sim.critters.maxKept()} caught=${sim.critters.caught.size} seen=${sim.critters.seen.size} released=${sim.critters.rotated} releasedForNew=${sim.critters.rotatedForNew} dexMiles=${sim.critters.dexMiles}")
     run { val cs = sim.critters.critters; val lv = cs.map { it.level }.sortedDescending(); println("CRITLEVELS n=${cs.size} sum=${lv.sum()} max=${lv.firstOrNull() ?: 0} top5=${lv.take(5)} lv10+=${lv.count { it >= 10 }} lv20+=${lv.count { it >= 20 }} lv30+=${lv.count { it >= 30 }} stage3=${cs.count { it.species.stage >= 2 }}") }
     println("LEGENDS wild=$legSeen enc=$legEnc maxCompLv=${sim.critters.critters.maxOfOrNull{it.level}}")
     println("LEGLOG " + sim.log.filter{it.contains("LEGENDDBG")||it.contains("pact")||it.contains("legend")}.takeLast(6))
