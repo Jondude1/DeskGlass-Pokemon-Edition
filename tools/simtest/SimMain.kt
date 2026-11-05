@@ -105,6 +105,7 @@ fun main(args: Array<String>) {
         sim.divine.favour = 5f; println("DIVINE broke -> ${sim.godPower("smite")}")
         sim.save()
         val sim2 = CivSim(f, CoroutineScope(Dispatchers.Default)) { null }
+        println("NIGHTSKY save round trip ok=${sim2.skyShows.toList() == sim.skyShows.toList() && sim2.skyWatches == sim.skyWatches && sim2.skyWishes == sim.skyWishes && sim2.skyLastNight == sim.skyLastNight}")
         println("REALMS save round trip ok=${sim2.realmRuns.toList() == sim.realmRuns.toList() && sim2.realmWins.toList() == sim.realmWins.toList() && sim2.lastTheme == sim.lastTheme && sim2.realmHazards == sim.realmHazards}")
         println("DIVINE full save round trip ok=${sim2.divine.encode() == sim.divine.encode()} loadedUses=${sim2.divine.totalUses()}")
     }
@@ -198,6 +199,7 @@ fun main(args: Array<String>) {
     println("PASTURE built=${sim.buildings.count { it.type == "pasture" }} visits=${sim.pastureVisits} eggs=${sim.eggsGathered} fleeces=${sim.fleeces} sheep=${sim.sheepNow()} hens=${sim.hensNow()}")
     println("LANDMARKS found=${sim.landmarksFound} kinds=${sim.landmarks.map { it.kind }} visits=${sim.landmarkVisits} heals=${sim.landmarkHeals} relics=${sim.landmarkRelics}")
     println("DOCK built=${sim.buildings.count { it.type == "dock" }} sails=${sim.sailTrips} dockCatch=${sim.dockCatch} bottles=${sim.bottlesFound}")
+    println("NIGHTSKY stargazes=${sim.stargazed} shows(meteor,aurora,eclipse)=${sim.skyShows[1]},${sim.skyShows[2]},${sim.skyShows[3]} watches=${sim.skyWatches} wishes=${sim.skyWishes}")
     println("ICEFISH trips=${sim.iceTrips} fish=${sim.iceCatch} pike=${sim.icePike} together=${sim.iceTogether} swims=${sim.swims}")
     println("QUARRYAT ${sim.buildings.filter { it.type == "quarry" }.map { (it.built / 3600.0) }} now=${sim.time / 3600.0}")
     println("CATH tier=${sim.cathTier()}/5 work=${sim.cathWork} trips=${sim.cathTrips} bells=${sim.cathBells} site=${sim.cathX},${sim.cathY} jubilee=${sim.jubileeUntil > 0} wood=${sim.wood} stone=${sim.stone}")

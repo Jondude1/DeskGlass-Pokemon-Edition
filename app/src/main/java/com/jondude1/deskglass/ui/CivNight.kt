@@ -15,7 +15,7 @@ import com.jondude1.deskglass.sim.Villager
 import kotlin.math.abs
 import kotlin.math.sin
 
-/** Night and dawn visuals: carried lanterns, moon glitter on water, winter aurora, shooting stars and morning mist. */
+/** Night and dawn visuals: carried lanterns, moon glitter on water, shooting stars and morning mist. */
 
 /** True when a villager is out and about in the dark and carries a lantern. */
 internal fun carriesLantern(v: Villager, dark: Float): Boolean =
@@ -71,29 +71,6 @@ fun DrawScope.nightMagic(sim: CivSim, g: Geo) {
             )
             drawRect(Color(0xFF4A3A2A), Offset(lx - ps * 0.5f, ly - ps * 1.6f), Size(ps * 1f, ps * 1.2f))
             drawRect(Color(0xFFFFE9A0).copy(alpha = 0.95f), Offset(lx - ps * 0.9f, ly - ps * 0.5f), Size(ps * 1.8f, ps * 2.1f))
-        }
-    }
-
-    // aurora ribbons on clear winter nights
-    if (sim.seasonIdx() == 3 && dark > 0.3f && clear) {
-        val w = size.width
-        val h = size.height
-        val cols = 36
-        val cw = w / cols + 1f
-        val tints = listOf(Color(0xFF6BFFB0), Color(0xFF7FA8FF), Color(0xFFC08BFF))
-        for (band in 0 until 3) {
-            val base = h * (0.16f + 0.13f * band)
-            for (i in 0 until cols) {
-                val x = i * (w / cols)
-                val wave = sin(x * 0.012f + t * 0.35f + band * 1.9f) * h * 0.05f + sin(x * 0.03f - t * 0.5f + band) * h * 0.02f
-                val top = base + wave
-                val ht = h * (0.16f + 0.05f * sin(t * 0.6f + i * 0.4f + band))
-                val a = 0.20f * nightK * (0.6f + 0.4f * sin(t * 0.9f + i * 0.25f + band * 2f))
-                drawRect(
-                    Brush.verticalGradient(listOf(Color.Transparent, tints[band].copy(alpha = a), Color.Transparent), startY = top, endY = top + ht),
-                    Offset(x, top), Size(cw, ht), blendMode = BlendMode.Plus,
-                )
-            }
         }
     }
 

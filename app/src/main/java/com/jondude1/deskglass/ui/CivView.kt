@@ -2036,6 +2036,7 @@ private fun DrawScope.drawWorld(
     }
 
     nightMagic(sim, geo)
+    skyShowFx(sim, geo)
     starStreak(sim, geo)
 
     // seasons turn with the village's own days: blossoms, warm light, falling leaves, snow
