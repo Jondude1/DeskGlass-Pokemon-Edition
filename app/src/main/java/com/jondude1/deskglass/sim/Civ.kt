@@ -2286,7 +2286,7 @@ class CivSim(
                 return go(v, "hunt", i)
             }
             "smelt" -> {
-                if (age < 2 || ore < 2 || wood < 30 || metal >= 150) return false
+                if (age < 2 || ore < 2 || wood < 30 || (metal >= 150 && !needSmelting())) return false
                 val b = nearestBuilding(v, "smelter") ?: return false
                 return go(v, "smelt", b.y * GW + b.x)
             }
@@ -4547,6 +4547,9 @@ class CivSim(
         return parts.map { if (it.label == "days") eased else it }
     }
 
+    /** The next age asks for smelted metal; keep the forge lit for it even when stores are capped with salvaged metal. */
+    private fun needSmelting(): Boolean = (age == 2 && totalSmelted < 20) || (age == 3 && totalSmelted < 60)
+
     private fun needs(): List<Need>? = withMomentum(needsBase())
 
     private fun needsBase(): List<Need>? {
@@ -5701,7 +5704,7 @@ class CivSim(
             )
             "Bronzesmith", "Blacksmith" ->
                 if (count("smelter") > 0) pick(
-                    "smelt" to (if (ore >= 2 && wood >= 30 && metal < 150) 7 else 0),
+                    "smelt" to (if (ore >= 2 && wood >= 30 && (metal < 150 || needSmelting())) (if (needSmelting()) 10 else 7) else 0),
                     "mine_ore" to (if (ore < 6) 6 else if (ore < 40) 1 else 0),
                     "gather_stone" to (if (stone < 20) 2 else 0),
                     "gather_wood" to (if (wood < 60) 5 else 1), "talk" to chat,

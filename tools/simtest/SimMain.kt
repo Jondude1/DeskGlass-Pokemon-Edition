@@ -86,6 +86,7 @@ fun main(args: Array<String>) {
     println("ACTALL total=$samples wander=${"%.2f".format(100.0*(actHist["wander"]?:0)/samples)}% upkeep=${"%.2f".format(100.0*(actHist["upkeep"]?:0)/samples)}% entropyBits=${"%.2f".format(actHist.values.sumOf { c -> val p = c.toDouble()/samples; -p*Math.log(p)/Math.log(2.0) })} uprows=${sim.upkeepDone}")
     println("far from village samples: $farSamples/$samples")
     println("STARS fallen=${sim.starsFallen} shardsGathered=${sim.starShardsGot} metal=${sim.metal}")
+    println("SMELT totalSmelted=${sim.totalSmelted} ore=${sim.ore} metal=${sim.metal} age=${sim.age} progress=${sim.progress()}% need=${sim.ageNeedText()}")
     run {
         val pg = sim.almanac.pages
         val quiet = pg.count { it.split("|")[2] == "A quiet day." }
