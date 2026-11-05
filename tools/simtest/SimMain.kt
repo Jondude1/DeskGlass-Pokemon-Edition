@@ -255,7 +255,7 @@ fun main(args: Array<String>) {
     }
     println("GLORY golden=${sim.goldenAt} legacy=${sim.legacy().count { it.second }}/${sim.legacy().size} decrees=${sim.decrees} kinds=${sim.decreeKinds} gildings=${sim.gildings} now=${sim.decreeKind}")
     println("COUNCIL held=${sim.councilsHeld} seats=${sim.councilSeats} policies=${sim.policyKinds} steered=${sim.policyActs} won=${sim.policiesWon} lost=${sim.policiesLost} now=${sim.policy} on=${sim.councilOn}")
-    run { val tv = sim.buildings.count { it.type == "tavern" }; println("TAVERN built=$tv visits=${sim.tavernVisits} dice=${sim.tavDice} wrestles=${sim.tavWrestles} tales=${sim.tavTales} songs=${sim.tavSongs} nights=${sim.tavNights}") }
+    run { val tv = sim.buildings.count { it.type == "tavern" }; println("TAVERN built=$tv visits=${sim.tavernVisits} dice=${sim.tavDice} wrestles=${sim.tavWrestles} tales=${sim.tavTales} songs=${sim.tavSongs} nights=${sim.tavNights} darts=${sim.tavDarts} toasts=${sim.tavToasts} ballads=${sim.tavBallads} kinds=${listOf(sim.tavDice, sim.tavWrestles, sim.tavTales, sim.tavSongs, sim.tavNights, sim.tavDarts, sim.tavToasts, sim.tavBallads).count { it > 0 }}/8") }
     run { println("RESEARCH studies=${sim.studyCount} points=${sim.research} libs=${sim.buildings.count { it.type == "library" }} techs=${sim.techs.size}/${sim.allTechs.size} higher=${sim.higherTechs()} age=${sim.age} list=${sim.techs.joinToString(",")}") }
     println("SIGHTS samples=$sightSamples withSight=$sightAny max=$sightMax kinds=${sightKinds.size} $sightKinds")
     println("DEEDS ${sim.deeds.size}/${sim.allDeeds.size} renown=${sim.renownTitle()} ${sim.deeds}")

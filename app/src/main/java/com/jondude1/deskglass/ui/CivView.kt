@@ -858,6 +858,46 @@ private fun DrawScope.drawWorld(
                             drawCircle(nc.copy(alpha = 1f - ph), radius = ps * 1.1f, center = Offset(nx, ny))
                             drawRect(nc.copy(alpha = 1f - ph), Offset(nx + ps * 0.8f, ny - ps * 4f), Size(ps * 0.6f, ps * 4f))
                         }
+                        5 -> {
+                            val tx = cx + w * 0.42f
+                            val ty = baseY - hh * 0.35f
+                            drawCircle(color = Color(0xFFE63946).copy(alpha = fade), radius = ps * 2.8f, center = Offset(tx, ty))
+                            drawCircle(color = Color.White.copy(alpha = fade), radius = ps * 1.8f, center = Offset(tx, ty))
+                            drawCircle(color = Color(0xFFE63946).copy(alpha = fade), radius = ps * 0.8f, center = Offset(tx, ty))
+                            val p = (age / 0.8f).coerceIn(0f, 1f)
+                            val sx0 = cx - w * 0.15f
+                            val dx = sx0 + (tx - sx0) * p
+                            val dy = ty - kotlin.math.sin(p * 3.14159f) * ps * 4f
+                            drawRect(Color(0xFFCFCFCF).copy(alpha = fade), Offset(dx - ps * 3f, dy), Size(ps * 3f, ps * 0.8f))
+                            if (age > 0.8f) for (q in 0 until 4) {
+                                val a2 = q * 1.57f + 0.4f
+                                val r2 = ps * (1.5f + (age - 0.8f) * 4f)
+                                drawRect(Color(0xFFFFE066).copy(alpha = fade), Offset(tx + kotlin.math.cos(a2) * r2, ty + kotlin.math.sin(a2) * r2), Size(ps * 1.2f, ps * 1.2f))
+                            }
+                        }
+                        6 -> {
+                            val clink = age.coerceAtMost(1f)
+                            val my = baseY - hh - ts * 0.35f - kotlin.math.abs(kotlin.math.sin(age * 2f)) * ps * 2f
+                            for (sgn in listOf(-1f, 1f)) {
+                                val mx = cx + sgn * ps * (4.5f - clink * 3f)
+                                drawRect(Color(0xFFD9A441).copy(alpha = fade), Offset(mx - ps * 1.5f, my), Size(ps * 3f, ps * 3.5f))
+                                drawRect(Color.White.copy(alpha = fade), Offset(mx - ps * 1.5f, my - ps), Size(ps * 3f, ps))
+                            }
+                            if (age > 1f) for (q in 0 until 6) {
+                                val a2 = q * 1.05f
+                                val r2 = ps * (1.5f + (age - 1f) * 4f)
+                                drawRect(Color(0xFFFFE066).copy(alpha = fade), Offset(cx + kotlin.math.cos(a2) * r2, my + kotlin.math.sin(a2) * r2), Size(ps * 1.3f, ps * 1.3f))
+                            }
+                        }
+                        7 -> for (q in 0 until 4) {
+                            val ph = (age * 0.45f + q * 0.25f) % 1f
+                            val nx = cx - w * 0.25f + q * ps * 5f + kotlin.math.sin(age * 2.5f + q * 1.3f) * ps * 2.5f
+                            val ny = baseY - hh - ph * ts * 1.8f
+                            val nc = if (q % 2 == 0) Color(0xFFFFD166) else Color(0xFFB5E48C)
+                            drawCircle(color = nc.copy(alpha = 1f - ph), radius = ps * 1.4f, center = Offset(nx, ny))
+                            drawRect(nc.copy(alpha = 1f - ph), Offset(nx + ps * 1.0f, ny - ps * 5f), Size(ps * 0.7f, ps * 5f))
+                            drawRect(nc.copy(alpha = 1f - ph), Offset(nx + ps * 1.0f, ny - ps * 5f), Size(ps * 2.2f, ps * 1.0f))
+                        }
                         else -> {
                             for (q in 0 until 7) {
                                 val lx = cx - w * 0.6f + q * (w * 1.2f / 6f)
