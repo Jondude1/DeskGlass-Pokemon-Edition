@@ -499,6 +499,9 @@ class CivArt {
         'w' to 0xFFF2F6FA.toInt(), 'f' to 0xFFC4D4E4.toInt(), 'F' to 0xFF8FA6BE.toInt(), 'c' to 0xFF9CC4DE.toInt(),
         'e' to 0xFFE83A3A.toInt(), 'k' to 0xFF1C2430.toInt(),
     ))
+    val dustdevil = sprite(DUSTDEVIL, mapOf(
+        'd' to 0xFFD2B070.toInt(), 'D' to 0xFF9C7A3C.toInt(), 'l' to 0xFFEBD9A6.toInt(), 'k' to 0xFF3A2A14.toInt(),
+    ))
     val stag = sprite(STAG, mapOf(
         'b' to 0xFF9A6234.toInt(), 'B' to 0xFF603A1E.toInt(), 'c' to 0xFFE8D2A0.toInt(), 'm' to 0xFFD0802C.toInt(),
         'a' to 0xFFEFE4BC.toInt(), 'A' to 0xFFB6A474.toInt(), 'k' to 0xFF1E140C.toInt(), 'r' to 0xFFFF5A3A.toInt(),
@@ -1749,6 +1752,21 @@ class CivArt {
             "cc.wwwwwwww.cc",
             "...wwf..fww...",
             "..FFFF..FFFF..",
+        )
+        val DUSTDEVIL = listOf(
+            "..lddddddddl..",
+            ".lddDddddDddl.",
+            "..ddkdddkddd..",
+            "..dddddddddd..",
+            "...lddDddddl..",
+            "....dddddddl..",
+            ".....ddDddd...",
+            ".....lddddl...",
+            "......dddd....",
+            ".......dDd....",
+            ".......ddl....",
+            "........dd....",
+            "........l.....",
         )
         val STAG = listOf(
             "a..a.a.........",
