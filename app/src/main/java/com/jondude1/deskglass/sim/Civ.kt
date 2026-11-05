@@ -135,6 +135,8 @@ class Villager(val id: Int, val name: String, var job: String, val personaIdx: I
     var say = ""
     var sayLeft = 0f
     var idleFor = 0f
+    /** Kind of upkeep chore in hand (sweep, weed, stack, mend); not saved. */
+    var chore = ""
     var waiting = false
     var facing = 1
     var replyIn = 0f
@@ -190,7 +192,7 @@ private val ACTIONS = setOf(
     "build_well", "build_workshop", "build_market", "build_lamp",
     "fetch_water", "craft", "trade", "dance", "patrol", "play",
     "build_granary", "build_barracks", "build_library", "build_wonder", "haul", "drill", "study", "attack",
-    "forage_herbs", "swim", "stargaze", "carve", "pick_flowers", "delve", "build_tavern", "tavern", "build_infirmary", "recover", "build_totem", "honor", "mourn", "build_observatory", "observe", "build_lighthouse", "tend_beacon", "build_armory", "forge_gear", "build_ranch", "tend_critters", "build_pasture", "tend_flock", "visit_landmark", "build_dock", "sail", "build_loom", "weave", "snowman", "rake_leaves", "fly_kite", "puddle_jump", "catch_fireflies", "hide_seek", "walk_dog", "assault_camp", "gather_star", "build_quarry", "quarry", "build_mill", "grind", "build_shrine", "vigil", "revel", "teach", "raise_cathedral", "build_apiary", "tend_bees", "build_orchard", "pick_fruit", "council", "douse", "build_range", "shoot", "build_bath", "build_belfry", "build_stage", "show", "soak", "build_kiln", "fire_pots", "build_yard", "train_critters", "gather_mushrooms", "visit_friend", "build_fountain", "toss_coin", "build_smokehouse", "smoke_fish", "build_museum", "visit_museum", "build_guild", "guild_work", "browse_stalls", "build_scarecrow", "shoo_crows",
+    "forage_herbs", "swim", "stargaze", "upkeep", "carve", "pick_flowers", "delve", "build_tavern", "tavern", "build_infirmary", "recover", "build_totem", "honor", "mourn", "build_observatory", "observe", "build_lighthouse", "tend_beacon", "build_armory", "forge_gear", "build_ranch", "tend_critters", "build_pasture", "tend_flock", "visit_landmark", "build_dock", "sail", "build_loom", "weave", "snowman", "rake_leaves", "fly_kite", "puddle_jump", "catch_fireflies", "hide_seek", "walk_dog", "assault_camp", "gather_star", "build_quarry", "quarry", "build_mill", "grind", "build_shrine", "vigil", "revel", "teach", "raise_cathedral", "build_apiary", "tend_bees", "build_orchard", "pick_fruit", "council", "douse", "build_range", "shoot", "build_bath", "build_belfry", "build_stage", "show", "soak", "build_kiln", "fire_pots", "build_yard", "train_critters", "gather_mushrooms", "visit_friend", "build_fountain", "toss_coin", "build_smokehouse", "smoke_fish", "build_museum", "visit_museum", "build_guild", "guild_work", "browse_stalls", "build_scarecrow", "shoo_crows",
 )
 
 /** Foes a few healthy fighters will chase down on their own. */
@@ -466,6 +468,7 @@ class CivSim(
     fun starIncoming(): Boolean = starShards > 0 && time < starFallAt
     fun starReady(): Boolean = starShards > 0 && time >= starFallAt && time < starUntil
     var carved = 0
+    var upkeepDone = 0
     // bandit camp: an outlaw hideout beyond the hills that sends raiders until the village storms it
     var campUp = false
     var campX = 0f
@@ -2180,6 +2183,11 @@ class CivSim(
                 if (i < 0) return false
                 return go(v, action, i)
             }
+            "upkeep" -> {
+                val b = choreSite(v) ?: return false
+                v.chore = choreKind(b.type)
+                return go(v, "upkeep", b.y * GW + b.x)
+            }
             "carve" -> {
                 if (wood < 8 || goods >= 30) return false
                 val b = nearestBuilding(v, "campfire") ?: return false
@@ -2576,6 +2584,7 @@ class CivSim(
             v.action == "tell_story" -> v.bump("stories")
             v.action == "pick_flowers" -> v.bump("posies")
             v.action == "carve" -> v.bump("carved")
+            v.action == "upkeep" -> v.bump("chores")
             else -> return
         }
         checkTitles(v)
@@ -2671,6 +2680,7 @@ class CivSim(
             v.action == "gather_star" -> { v.phase = "working"; v.workLeft = 5f }
             v.action == "douse" -> { v.phase = "working"; v.workLeft = 3.2f }
             v.action == "carve" -> { v.phase = "working"; v.workLeft = 7f }
+            v.action == "upkeep" -> { v.phase = "working"; v.workLeft = 5f }
             v.action == "pick_flowers" -> { v.phase = "working"; v.workLeft = 4f }
             v.action == "delve" -> { v.phase = "working"; v.workLeft = 9999f }
             v.action == "patrol" -> { v.phase = "working"; v.workLeft = 3f }
@@ -3846,6 +3856,36 @@ class CivSim(
                 else v.remember("gathered healing herbs")
                 finish(v)
             }
+            "upkeep" -> {
+                upkeepDone++
+                var note = "tidied up around the village"
+                when (v.chore) {
+                    "sweep" -> {
+                        var n = 0
+                        for (o in villagers) if (hypot(o.x - v.x, o.y - v.y) < 6f) { o.happiness = min(100f, o.happiness + 2f); n++ }
+                        note = "swept the doorstep clean"
+                        if (upkeepDone % 4 == 1) addLog("${v.name} sweeps the doorstep clean.")
+                    }
+                    "weed" -> {
+                        if (food < capFood()) food += 1
+                        note = "pulled weeds from the beds"
+                        if (upkeepDone % 4 == 2) addLog("${v.name} pulls weeds from the beds.")
+                    }
+                    "stack" -> {
+                        if (wood < capWood()) wood += 1
+                        note = "stacked firewood neatly"
+                        if (upkeepDone % 4 == 3) addLog("${v.name} stacks the firewood neatly.")
+                    }
+                    else -> {
+                        if (upkeepDone % 3 == 0 && goods < 30) goods += 1
+                        note = "mended a loose board"
+                        if (upkeepDone % 4 == 0) addLog("${v.name} mends a loose board.")
+                    }
+                }
+                v.happiness = min(100f, v.happiness + 1.5f)
+                v.remember(note)
+                finish(v)
+            }
             "carve" -> {
                 if (wood >= 8 && goods < 30) {
                     wood -= 3
@@ -4973,6 +5013,36 @@ class CivSim(
         else -> "gloomy"
     }
 
+    private val CHORE_TYPES = setOf("hut", "campfire", "farm", "well", "tavern", "library", "infirmary", "market", "workshop", "tower", "granary", "barracks", "kiln", "smokehouse", "stage", "bath", "orchard", "pasture", "apiary", "museum", "mill", "guild", "armory", "smelter")
+
+    /** What kind of chore a building calls for. */
+    private fun choreKind(type: String): String = when (type) {
+        "hut", "tavern", "library", "infirmary", "market", "museum", "bath", "stage" -> "sweep"
+        "farm", "orchard", "pasture", "apiary", "mill" -> "weed"
+        "campfire", "workshop", "smelter", "smokehouse", "kiln" -> "stack"
+        else -> "mend"
+    }
+
+    /** A building near the villager that wants some care: the closest of up to three picked at random. */
+    private fun choreSite(v: Villager): Building? {
+        val cands = buildings.filter { it.type in CHORE_TYPES }
+        if (cands.isEmpty()) return null
+        var best: Building? = null
+        var bd = 1e9f
+        for (k in 0 until 3) {
+            val b = cands[rnd.nextInt(cands.size)]
+            val d = hypot(b.x + 0.5f - v.x, b.y + 0.5f - v.y)
+            if (d < bd) { bd = d; best = b }
+        }
+        return best
+    }
+
+    /** Free hands in fair daytime weather can look after the village instead of aimless strolling. */
+    private fun upkeepOk(v: Villager?): Boolean =
+        buildings.any { it.type in CHORE_TYPES } && !alert() && !isNight() && !raining() && !hail() &&
+            (v == null || (v.hunger < 70f && v.energy > 25f && v.hp > 40f)) &&
+            villagers.count { it !== v && it.action == "upkeep" } < max(2, villagers.size / 4)
+
     private fun pick(vararg w: Pair<String, Int>): String {
         var total = 0
         for (p in w) total += p.second
@@ -5160,13 +5230,14 @@ class CivSim(
             val games = listOf("puddle_jump", "catch_fireflies", "hide_seek").filter { kidGameOk(it) }
             if (games.isNotEmpty() && rnd.nextInt(if (games.size > 1 || games[0] != "hide_seek") 2 else 3) == 0) return games[rnd.nextInt(games.size)] to ""
             if (hasDog(v) && dogOk() && rnd.nextInt(3) == 0) return "walk_dog" to ""
-            return when (pick("swim" to (if (canSwim() && hasShore) 2 else 0), "play" to 4, "study" to studyW(v, 4), "talk" to chat, "wander" to 2, "fetch_water" to (if (count("well") > 0) 1 else 0), "hearth_game" to (if (raining() && hearthOk()) 5 else 0))) {
+            return when (pick("swim" to (if (canSwim() && hasShore) 2 else 0), "play" to 4, "study" to studyW(v, 4), "talk" to chat, "wander" to 2, "upkeep" to (if (upkeepOk(v)) 2 else 0), "fetch_water" to (if (count("well") > 0) 1 else 0), "hearth_game" to (if (raining() && hearthOk()) 5 else 0))) {
                 "talk" -> "talk" to (friendFor(v)?.name ?: "")
                 "hearth_game" -> "hearth_game" to ""
                 "play" -> "play" to ""
                 "swim" -> "swim" to ""
                 "study" -> "study" to ""
                 "fetch_water" -> "fetch_water" to ""
+                "upkeep" -> "upkeep" to ""
                 else -> "wander" to ""
             }
         }
@@ -5309,6 +5380,7 @@ class CivSim(
         if (rnd.nextInt(14) == 0) for (sa in listOf("snowman", "rake_leaves")) if (seasonFunOk(sa)) return sa to ""
         if (hasDog(v) && dogOk() && rnd.nextInt(6) == 0) return "walk_dog" to ""
         if (rnd.nextInt(40) == 0 && nearestTile(v, T.BUSH) >= 0) return "forage_herbs" to ""
+        if (!starving && v.hunger < 60f && rnd.nextInt(9) == 0 && upkeepOk(v)) return "upkeep" to ""
         if (!alert() && !starving && v.hunger < 55f && rnd.nextInt(4) == 0) personaPastime(v, part, chat, hasShore)?.let { return it }
         val ad = adults()
         val farms = age >= 1 && count("farm") > 0
@@ -5367,7 +5439,8 @@ class CivSim(
                 "trade" to (if (market) 2 else 0), "craft" to (if (shop) 2 else 0),
             )
         }
-        val act2 = if (storeFull(act) && v.hunger < 60f) surplusWork(v) else act
+        val act1 = if (act == "wander" && upkeepOk(v) && rnd.nextInt(10) < 5) "upkeep" else act
+        val act2 = if (storeFull(act1) && v.hunger < 60f) surplusWork(v) else act1
         return act2 to (if (act2 == "talk") (friendFor(v)?.name ?: "") else "")
     }
 
@@ -5378,7 +5451,7 @@ class CivSim(
         // don't do the exact same thing four times in a row
         val survival = action == "eat" || action == "sleep"
         if (!survival && v.recent.size >= 3 && v.recent.takeLast(3).all { it == action }) {
-            action = "wander"
+            action = if (upkeepOk(v) && rnd.nextInt(10) < 5) "upkeep" else "wander"
         }
         if (!survival && rnd.nextInt(10) < 7) orderAction(v)?.let { action = it.first; target = it.second }
         val thoughtClean = Speech.clean(thought, 100)
@@ -5402,6 +5475,21 @@ class CivSim(
             val (a, t) = ruleDecision(v)
             action = a
             ok = startAction(v, a, t)
+            if (!ok && !isChild(v) && visitOk(v) && rnd.nextInt(10) < 6) {
+                action = "visit_friend"
+                ok = startAction(v, "visit_friend", "")
+            }
+            if (!ok && upkeepOk(v) && !isChild(v)) {
+                action = "upkeep"
+                ok = startAction(v, "upkeep", "")
+            }
+            if (!ok && !isChild(v) && !alert()) {
+                val sw = surplusWork(v)
+                if (sw != "wander" && sw != a) {
+                    action = sw
+                    ok = startAction(v, sw, if (sw == "talk") (friendFor(v)?.name ?: "") else "")
+                }
+            }
             if (!ok) {
                 action = "wander"
                 ok = startAction(v, "wander", "")
@@ -5484,6 +5572,12 @@ class CivSim(
         "sleep" -> "sleeping"
         "talk" -> "chatting"
         "wander" -> "strolling about"
+        "upkeep" -> when (o.chore) {
+            "sweep" -> "sweeping the doorstep"
+            "weed" -> "pulling weeds"
+            "stack" -> "stacking firewood neatly"
+            else -> "mending a loose board"
+        }
         "visit_friend" -> "dropping in on a friend"
         "fetch_water" -> "fetching water"
         "craft" -> "making things at the workshop"
@@ -5643,6 +5737,7 @@ class CivSim(
         if (canBuild("pasture") && wood >= 10) a.add("build_pasture")
         if (count("pasture") > 0) a.add("tend_flock")
         if (landmarks.isNotEmpty() && !alert() && !isNight()) a.add("visit_landmark")
+        if (upkeepOk(null)) a.add("upkeep")
         if (canBuild("apiary") && wood >= 8) a.add("build_apiary")
         if (count("apiary") > 0 && !isNight() && !raining() && seasonIdx() != 3 && honeyReady() >= 1) a.add("tend_bees")
         if (canBuild("orchard") && wood >= 10) a.add("build_orchard")
@@ -9244,7 +9339,7 @@ class CivSim(
     companion object {
         private const val SYSTEM = """You play one villager in a small pixel-art village, as a distinct character with a job, a personality, a way of speaking and a dream. Reply with ONLY a JSON object, no other text:
 {"thought": "<your private thought, first person, under 14 words, in your voice>", "action": "<one action>", "target": "<villager name, only for talk>", "say": "<one short sentence you say aloud in your own voice, or empty>"}
-Actions: gather_wood, forge_gear (hammer out the next piece of gear at the armory by day: leather jerkins first, then bronze helms and shields, then steel mail; adults wear it, it softens blows and sharpens the fighters; needs an armory and the wood, metal or stone it costs), build_armory (14 wood + 10 stone, Bronze Age on, 8+ villagers: an armory with an anvil and weapon racks), tend_beacon (light the lighthouse lamp at dusk, at night or in fog; a lit beam lets the galleon sail through fog and guides it home; needs a lighthouse and 1 wood), build_lighthouse (20 wood + 30 stone, Village Age on, 10+ villagers, needs a fishing dock: a lakeside lighthouse with a sweeping beam), guild_work (train your trade at the guildhall by day; enough work raises the guild rank, paid from spare wood and stone, so workers learn faster and gatherers carry more; needs a guildhall), build_guild (24 wood + 16 stone, Village Age on, 10+ villagers: a guildhall with banners for each rank), shoo_crows (only while a flock of crows is raiding a farm in autumn: run at them and chase them off to save the grain), build_scarecrow (a cheap scarecrow for the fields, needs a farm), hearth_game (sit out rain or a storm beside the fire: play pebbles with a neighbour or mend gear, cosy and cheering; only while it rains), browse_stalls (browse the stalls beside the market on Market Day, every fourth day in fair daytime weather: spend a little goods on a bargain for food, children get treats; needs a market), gather_stone, gather_food (berries), fish (at the lake), hunt (game in the forest, hunter-gatherers' best food), tend_farm (needs a farm, Farming Age on), explore (scouting far away), delve (join the rift expedition, only while a rift is open), gather_mushrooms (pick wild mushrooms at the forest edge, only when some have sprouted), tell_story (at the fire, lifts everyone's spirits), visit_friend (walk over and sit a while with a friend you know, lifts both your moods, daytime and fair weather), huddle (stay by the fire), build_hut (6 wood + 2 stone), build_farm (4 wood, Farming Age on), build_campfire (3 stone), mine_ore (Bronze Age on), smelt (2 ore + 1 wood at a forge, Bronze Age on), build_smelter (4 wood + 6 stone, Bronze Age on), build_well (4 wood + 6 stone), build_workshop (10 wood + 4 stone), build_market (12 wood + 6 stone), build_lamp (2 wood + 2 stone), fetch_water (at a well, waters the farms; during a drought it saves the crops, which wither without it), craft (at a workshop), trade (goods for food at a market), dance (at the fire), build_granary (14 wood + 6 stone), build_barracks (16 wood, 14 stone, 2 metal), build_library (18 wood + 12 stone), build_totem (12 wood + 4 stone, carve a totem pole), honor (bow and dance at the totem pole, lifts mood, may bring an omen of plenty), build_ranch (18 wood + 6 stone, a fenced critter ranch once the village keeps critters), tend_critters (feed and groom the village critters at the ranch: heals them, makes them stronger and fonder of us, needs a ranch), build_pasture (10 wood, a fenced pasture for sheep and hens, needs 5 villagers), tend_flock (gather eggs and shear sheep at the pasture: brings food and hides, needs a pasture), visit_landmark (walk out to a landmark the scouts found: standing stones cheer, the moonpool heals, a ruin yields relics, the elder grove gives fruit, the crystal cave gives ore; only if one was found), build_apiary (8 wood, straw beehives, needs 6 villagers), build_orchard (10 wood, fruit trees, needs 7 villagers), soak (rest in the hot spring if one stands: heals wounds and tiredness, cheers you), build_belfry (raise a bell tower), build_stage (16 wood + 4 stone, a puppet theatre, needs 8 villagers and Hut Age), build_kiln (12 wood + 6 stone, a potter's kiln, needs 7 villagers and Hut Age), train_critters (drill a critter you own, or a ranch critter, at the training yard by day: it gains levels; needs a yard and a critter), build_yard (14 wood + 4 stone, a critter training yard, needs 7 villagers and Hut Age), toss_coin (make a wish at the town fountain by day in fair weather: lifts moods, every eighth wish comes true with a gift from the stores, needs a fountain), observe (read the sky from the observatory by day in dry weather; announces weather that is really coming soon so the village can prepare; needs an observatory), build_observatory (14 wood + 8 stone, Hut Age on, 8+ villagers: a domed observatory with a telescope), visit_museum (look over the trophies in the museum by day, children go on school trips; every sixth visit a curator talks and neighbours listen; needs a museum), build_museum (18 wood + 14 stone, Town Age on, 9+ villagers: a museum that shows trophies the village really won, like relics and slain beasts), build_fountain (20 wood + 24 stone, Town Age on, 8+ villagers: a town fountain that is carved and gilded from spare wood and stone as wishes pile up), weave (weave hides into cloth at the loom by day, makes goods, and every third bolt is sewn into a woollen cloak for a villager; needs a loom and hides), build_loom (10 wood, Hut Age on, a weaver's loom beside the pasture; needs a pasture), smoke_fish (smoke fish and meat at the smokehouse by day: 3 food and a log become 6 smoked rations for winter, every fourth batch is a big rack that draws the neighbours; needs a smokehouse and some food), build_smokehouse (10 wood + 4 stone, Hut Age on, 7+ villagers: a smokehouse with fish racks), fire_pots (fire clay pots in the kiln by day, uses 2 wood; makes goods, every fifth pot is a glazed masterwork that neighbours admire; needs a kiln), show (put on a puppet show at the theatre in fair daytime or at dusk: the onlookers laugh and cheer, every sixth show is a grand one, needs a theatre), ring_bell (ring the bell tower at dawn, dusk or when foes come: cheers the village or rallies the fighters), shoot (practise archery at the archery range in dry daytime; sharpens Fighting, bullseyes cheer you, contests every few bullseyes; needs a range), pick_fruit (pick ripe fruit at the orchard in daytime dry weather, summer and especially autumn, brings food and goods, needs an orchard with fruit ready), tend_bees (take ripe honey from the apiary in fair daytime weather outside winter: brings food and goods, needs an apiary with honey ready), council (take a seat at the village council while it meets at the hall or fire; adults only, the village votes its next priority), build_shrine (20 wood + 30 stone, City Age on, a Legend Shrine; once enough vigils are kept and the legend's trial is done (a fete, a dock catch, cider, storms, the wall, a Rift Warden) a legendary critter answers), vigil (kneel and keep a quiet vigil at the shrine in daytime, needs a shrine), build_mill (14 wood + 4 stone, a windmill beside the farms), grind (grind grain at the windmill into food and now and then bake bread, needs a windmill and a farm), build_quarry (16 wood, Village Age on, a stone quarry pit that supplies stone), quarry (cut blocks of stone at the quarry: brings plenty of stone, needs a quarry), build_dock (8 wood, a fishing pier at the lake, needs 4 villagers and a lake shore), sail (row a boat out from the dock for a big catch, daytime and fair weather only, needs a dock; now and then the sailor captains the galleon on a long voyage across the lake and brings home a cargo), teach (a grown-up shows a nearby child their trade in daytime: the child may follow it on growing up, needs a child in the village), raise_cathedral (City Age, 16+ villagers: haul spare wood and stone to raise the great cathedral in five tiers; the last tier starts a Jubilee), revel (join the seasonal fete on the green while one is on: dance round the maypole, midsummer bonfire, harvest table or midwinter lantern tree, lifts everyone's mood), build_tavern (20 wood + 10 stone, Town Age on), tavern (eat and chat with friends at the tavern, needs food, lifts mood), build_infirmary (16 wood + 8 stone, Town Age on), recover (rest and be bandaged at the infirmary: use when hurt, heals a lot), build_wonder (City Age, 50 wood + 40 stone + 5 metal: a great wonder that blesses the whole village), haul (fill the granary), drill (train at the barracks), study (read at the library; scholars earn lore that unlocks discoveries), attack (charge the enemy), patrol (walk the edge of the village and watch), play (children), carve (whittle wooden toys at the fire from spare wood; the children cheer up), pick_flowers (gather wildflowers and give them to a friend), forage_herbs (pick healing herbs: mends you and hurt people nearby, use when hurt or when others are hurt), swim (summer days at the lake, lifts mood), snowman (winter days, build a snowman near the fire, cheers the children), rake_leaves (autumn days, rake a pile of leaves the children jump in), fly_kite (spring days, fly a kite in the breeze), walk_dog (play fetch with your dog, only if you have one), assault_camp (storm the bandit camp beyond the hills, only while it stands; for the healthy and brave, it stops its raids when razed), stargaze (clear evenings at the fire, lifts mood), gather_star (gather shining starmetal from a fallen star's crater, only while the facts say a star fell; gives metal), douse (put out the forest fire with water, only while the facts say a wildfire burns; a bit dangerous, protects the woods and huts), puddle_jump (children only: splash in the puddles while it rains), catch_fireflies (children only: catch fireflies in a jar on a spring, summer or autumn evening), hide_seek (children only: hide in the bushes while friends look for you, they grow closer), eat (needs food in stock), sleep, talk (set target and say), wander. Use only the actions listed as available to you in the message.
+Actions: gather_wood, upkeep (look after the village by day in fair weather instead of strolling: sweep a doorstep, pull weeds on the farms, stack firewood or mend a loose board; small cheer and a little food, wood or goods; needs a house or other building), forge_gear (hammer out the next piece of gear at the armory by day: leather jerkins first, then bronze helms and shields, then steel mail; adults wear it, it softens blows and sharpens the fighters; needs an armory and the wood, metal or stone it costs), build_armory (14 wood + 10 stone, Bronze Age on, 8+ villagers: an armory with an anvil and weapon racks), tend_beacon (light the lighthouse lamp at dusk, at night or in fog; a lit beam lets the galleon sail through fog and guides it home; needs a lighthouse and 1 wood), build_lighthouse (20 wood + 30 stone, Village Age on, 10+ villagers, needs a fishing dock: a lakeside lighthouse with a sweeping beam), guild_work (train your trade at the guildhall by day; enough work raises the guild rank, paid from spare wood and stone, so workers learn faster and gatherers carry more; needs a guildhall), build_guild (24 wood + 16 stone, Village Age on, 10+ villagers: a guildhall with banners for each rank), shoo_crows (only while a flock of crows is raiding a farm in autumn: run at them and chase them off to save the grain), build_scarecrow (a cheap scarecrow for the fields, needs a farm), hearth_game (sit out rain or a storm beside the fire: play pebbles with a neighbour or mend gear, cosy and cheering; only while it rains), browse_stalls (browse the stalls beside the market on Market Day, every fourth day in fair daytime weather: spend a little goods on a bargain for food, children get treats; needs a market), gather_stone, gather_food (berries), fish (at the lake), hunt (game in the forest, hunter-gatherers' best food), tend_farm (needs a farm, Farming Age on), explore (scouting far away), delve (join the rift expedition, only while a rift is open), gather_mushrooms (pick wild mushrooms at the forest edge, only when some have sprouted), tell_story (at the fire, lifts everyone's spirits), visit_friend (walk over and sit a while with a friend you know, lifts both your moods, daytime and fair weather), huddle (stay by the fire), build_hut (6 wood + 2 stone), build_farm (4 wood, Farming Age on), build_campfire (3 stone), mine_ore (Bronze Age on), smelt (2 ore + 1 wood at a forge, Bronze Age on), build_smelter (4 wood + 6 stone, Bronze Age on), build_well (4 wood + 6 stone), build_workshop (10 wood + 4 stone), build_market (12 wood + 6 stone), build_lamp (2 wood + 2 stone), fetch_water (at a well, waters the farms; during a drought it saves the crops, which wither without it), craft (at a workshop), trade (goods for food at a market), dance (at the fire), build_granary (14 wood + 6 stone), build_barracks (16 wood, 14 stone, 2 metal), build_library (18 wood + 12 stone), build_totem (12 wood + 4 stone, carve a totem pole), honor (bow and dance at the totem pole, lifts mood, may bring an omen of plenty), build_ranch (18 wood + 6 stone, a fenced critter ranch once the village keeps critters), tend_critters (feed and groom the village critters at the ranch: heals them, makes them stronger and fonder of us, needs a ranch), build_pasture (10 wood, a fenced pasture for sheep and hens, needs 5 villagers), tend_flock (gather eggs and shear sheep at the pasture: brings food and hides, needs a pasture), visit_landmark (walk out to a landmark the scouts found: standing stones cheer, the moonpool heals, a ruin yields relics, the elder grove gives fruit, the crystal cave gives ore; only if one was found), build_apiary (8 wood, straw beehives, needs 6 villagers), build_orchard (10 wood, fruit trees, needs 7 villagers), soak (rest in the hot spring if one stands: heals wounds and tiredness, cheers you), build_belfry (raise a bell tower), build_stage (16 wood + 4 stone, a puppet theatre, needs 8 villagers and Hut Age), build_kiln (12 wood + 6 stone, a potter's kiln, needs 7 villagers and Hut Age), train_critters (drill a critter you own, or a ranch critter, at the training yard by day: it gains levels; needs a yard and a critter), build_yard (14 wood + 4 stone, a critter training yard, needs 7 villagers and Hut Age), toss_coin (make a wish at the town fountain by day in fair weather: lifts moods, every eighth wish comes true with a gift from the stores, needs a fountain), observe (read the sky from the observatory by day in dry weather; announces weather that is really coming soon so the village can prepare; needs an observatory), build_observatory (14 wood + 8 stone, Hut Age on, 8+ villagers: a domed observatory with a telescope), visit_museum (look over the trophies in the museum by day, children go on school trips; every sixth visit a curator talks and neighbours listen; needs a museum), build_museum (18 wood + 14 stone, Town Age on, 9+ villagers: a museum that shows trophies the village really won, like relics and slain beasts), build_fountain (20 wood + 24 stone, Town Age on, 8+ villagers: a town fountain that is carved and gilded from spare wood and stone as wishes pile up), weave (weave hides into cloth at the loom by day, makes goods, and every third bolt is sewn into a woollen cloak for a villager; needs a loom and hides), build_loom (10 wood, Hut Age on, a weaver's loom beside the pasture; needs a pasture), smoke_fish (smoke fish and meat at the smokehouse by day: 3 food and a log become 6 smoked rations for winter, every fourth batch is a big rack that draws the neighbours; needs a smokehouse and some food), build_smokehouse (10 wood + 4 stone, Hut Age on, 7+ villagers: a smokehouse with fish racks), fire_pots (fire clay pots in the kiln by day, uses 2 wood; makes goods, every fifth pot is a glazed masterwork that neighbours admire; needs a kiln), show (put on a puppet show at the theatre in fair daytime or at dusk: the onlookers laugh and cheer, every sixth show is a grand one, needs a theatre), ring_bell (ring the bell tower at dawn, dusk or when foes come: cheers the village or rallies the fighters), shoot (practise archery at the archery range in dry daytime; sharpens Fighting, bullseyes cheer you, contests every few bullseyes; needs a range), pick_fruit (pick ripe fruit at the orchard in daytime dry weather, summer and especially autumn, brings food and goods, needs an orchard with fruit ready), tend_bees (take ripe honey from the apiary in fair daytime weather outside winter: brings food and goods, needs an apiary with honey ready), council (take a seat at the village council while it meets at the hall or fire; adults only, the village votes its next priority), build_shrine (20 wood + 30 stone, City Age on, a Legend Shrine; once enough vigils are kept and the legend's trial is done (a fete, a dock catch, cider, storms, the wall, a Rift Warden) a legendary critter answers), vigil (kneel and keep a quiet vigil at the shrine in daytime, needs a shrine), build_mill (14 wood + 4 stone, a windmill beside the farms), grind (grind grain at the windmill into food and now and then bake bread, needs a windmill and a farm), build_quarry (16 wood, Village Age on, a stone quarry pit that supplies stone), quarry (cut blocks of stone at the quarry: brings plenty of stone, needs a quarry), build_dock (8 wood, a fishing pier at the lake, needs 4 villagers and a lake shore), sail (row a boat out from the dock for a big catch, daytime and fair weather only, needs a dock; now and then the sailor captains the galleon on a long voyage across the lake and brings home a cargo), teach (a grown-up shows a nearby child their trade in daytime: the child may follow it on growing up, needs a child in the village), raise_cathedral (City Age, 16+ villagers: haul spare wood and stone to raise the great cathedral in five tiers; the last tier starts a Jubilee), revel (join the seasonal fete on the green while one is on: dance round the maypole, midsummer bonfire, harvest table or midwinter lantern tree, lifts everyone's mood), build_tavern (20 wood + 10 stone, Town Age on), tavern (eat and chat with friends at the tavern, needs food, lifts mood), build_infirmary (16 wood + 8 stone, Town Age on), recover (rest and be bandaged at the infirmary: use when hurt, heals a lot), build_wonder (City Age, 50 wood + 40 stone + 5 metal: a great wonder that blesses the whole village), haul (fill the granary), drill (train at the barracks), study (read at the library; scholars earn lore that unlocks discoveries), attack (charge the enemy), patrol (walk the edge of the village and watch), play (children), carve (whittle wooden toys at the fire from spare wood; the children cheer up), pick_flowers (gather wildflowers and give them to a friend), forage_herbs (pick healing herbs: mends you and hurt people nearby, use when hurt or when others are hurt), swim (summer days at the lake, lifts mood), snowman (winter days, build a snowman near the fire, cheers the children), rake_leaves (autumn days, rake a pile of leaves the children jump in), fly_kite (spring days, fly a kite in the breeze), walk_dog (play fetch with your dog, only if you have one), assault_camp (storm the bandit camp beyond the hills, only while it stands; for the healthy and brave, it stops its raids when razed), stargaze (clear evenings at the fire, lifts mood), gather_star (gather shining starmetal from a fallen star's crater, only while the facts say a star fell; gives metal), douse (put out the forest fire with water, only while the facts say a wildfire burns; a bit dangerous, protects the woods and huts), puddle_jump (children only: splash in the puddles while it rains), catch_fireflies (children only: catch fireflies in a jar on a spring, summer or autumn evening), hide_seek (children only: hide in the bushes while friends look for you, they grow closer), eat (needs food in stock), sleep, talk (set target and say), wander. Use only the actions listed as available to you in the message.
 Mostly do the work of your job, but react to your needs, the weather, wolves, news and what others say. Talk about what you have seen, feel or remember, with opinions and feelings. Never repeat a line or an action you just did, and vary your sentences. Stay alive: eat when hungry, sleep when tired or at night.
 Speak only about facts given in the message: your needs, the stock, the weather, people nearby and what they said, family, village history and news. Never invent buildings, people, resources or events. Answer what others actually said to you. If you are a child, use very short, simple words."""
         private const val SYSTEM_SHORT = """Reply with ONLY a JSON object: {"thought": "", "action": "<one allowed action>", "target": "", "say": "<one short sentence using only the facts given, or empty>"}"""

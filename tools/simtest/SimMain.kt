@@ -83,6 +83,7 @@ fun main(args: Array<String>) {
     logSeen.take(8).forEach { println("   $it") }
     run { val kt = kidHist.values.sum().coerceAtLeast(1); println("KIDS samples=$kt play=${"%.1f".format(100.0 * (kidHist["play"] ?: 0) / kt)}% distinct=${kidHist.keys.size} mix=" + kidHist.entries.sortedByDescending { it.value }.take(14).joinToString { "${it.key}=${"%.0f".format(100.0 * it.value / kt)}%" }) }
     println("actions: " + actHist.entries.sortedByDescending { it.value }.take(14).joinToString { "${it.key}=${it.value}" })
+    println("ACTALL total=$samples wander=${"%.2f".format(100.0*(actHist["wander"]?:0)/samples)}% upkeep=${"%.2f".format(100.0*(actHist["upkeep"]?:0)/samples)}% entropyBits=${"%.2f".format(actHist.values.sumOf { c -> val p = c.toDouble()/samples; -p*Math.log(p)/Math.log(2.0) })} uprows=${sim.upkeepDone}")
     println("far from village samples: $farSamples/$samples")
     println("STARS fallen=${sim.starsFallen} shardsGathered=${sim.starShardsGot} metal=${sim.metal}")
     run {
