@@ -110,6 +110,7 @@ fun main(args: Array<String>) {
         println("REALMS save round trip ok=${sim2.realmRuns.toList() == sim.realmRuns.toList() && sim2.realmWins.toList() == sim.realmWins.toList() && sim2.lastTheme == sim.lastTheme && sim2.realmHazards == sim.realmHazards}")
         println("CARAVAN save round trip ok=${sim2.caravans == sim.caravans && sim2.carFinds == sim.carFinds && sim2.carAmbush == sim.carAmbush && sim2.carBeaten == sim.carBeaten && sim2.carSpent == sim.carSpent}")
         println("SCHOOL save round trip ok=${sim2.schoolLessons == sim.schoolLessons && sim2.schoolLevel == sim.schoolLevel && sim2.schoolStars == sim.schoolStars} (${sim2.schoolLessons} lessons)")
+        println("CATS save round trip ok=${sim2.catMice == sim.catMice && sim2.catPets == sim.catPets && sim2.catsArrived == sim.catsArrived} mice=${sim.catMice}")
         println("DIVINE full save round trip ok=${sim2.divine.encode() == sim.divine.encode()} loadedUses=${sim2.divine.totalUses()}")
     }
     println("SURPLUS wastedGathers=${sim.wastedGathers} carved=${sim.carved} posies=${sim.posies}")
@@ -151,6 +152,7 @@ fun main(args: Array<String>) {
     println("RIFTS expeditions=${sim.expeditions} wins=${sim.expWins} retreats=${sim.expRetreats} rooms=${sim.roomsCleared} deepest=${sim.deepestRoom} relics=${sim.relics} wardens=${sim.wardensSlain} state=${sim.riftState} side=${sim.sideRooms} traps=${sim.sideTraps} vaults=${sim.sideVaults} springs=${sim.sideSprings} shrines=${sim.sideShrines} rallies=${sim.riftRallies}")
     println("THREATS raids=${sim.raidsRepelled} ogres=${sim.ogresSlain} bosses=${sim.bossesSlain} golden=${sim.goldenAt} pop=${sim.villagers.size} legacy=${sim.legacy().count{it.second}}/${sim.legacy().size} legends=${sim.critters.legendsOwned()}")
     println("FOES kinds=${sim.foeStats.size} ${sim.foeStats.toSortedMap()} warlords=${sim.warlordsSlain} golems=${sim.golemsSlain} shamans=${sim.shamansSlain} frostPacks=${sim.frostPacksBroken} pilfersFoiled=${sim.pilfersFoiled} pilfersLost=${sim.pilfersLost} swarms=${sim.swarmsBroken} hornets=${sim.hornetsSwatted} liches=${sim.lichesSlain} bones=${sim.bonesRaised} landings=${sim.landings} reavers=${sim.reaversSlain} ships=${sim.shipsSeized}")
+    println("CATS now=${sim.fauna.count("cat")} arrived=${sim.catsArrived} stalks=${sim.fauna.seen["cat stalk"] ?: 0} catches=${sim.catMice} misses=${sim.fauna.seen["cat miss"] ?: 0} naps=${sim.fauna.seen["cat nap"] ?: 0} purrs=${sim.catPets} deeds=${sim.deeds.filter { it.startsWith("cat") }}")
     println("OTTERS now=${sim.fauna.count("otter")} dives=${sim.fauna.seen["otter dive"] ?: 0} floats=${sim.fauna.seen["otter float"] ?: 0} gifts=${sim.otterGifts} cheered=${sim.otterCheers} deeds=${sim.deeds.filter { it.startsWith("otter") }}")
     println("TROLLS slain=${sim.trollsSlain} stoned=${sim.trollsStoned} boulders=${sim.trollBoulders} rocks=${sim.trollRocks.size}")
     println("HARPIES slain=${sim.harpiesSlain} flocks=${sim.flocksScattered} dives=${sim.harpyDives} loot=${sim.harpyLoot}")

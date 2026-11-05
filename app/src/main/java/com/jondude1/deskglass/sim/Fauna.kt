@@ -36,6 +36,8 @@ class Animal(val kind: String, var x: Float, var y: Float, val id: Int) {
     var otterMode = 0     // otter: 0 swimming, 1 diving, 2 floating on its back with a shell, 3 offering a fish
     var otterT = 0f       // otter: time left in the current mode
     var diveIn = 6f       // otter: time until the next dive
+    var catMode = 0       // cat: 0 prowling, 1 stalking a mouse, 2 pouncing, 3 napping, 4 purring at a villager
+    var catT = 0f         // cat: time left in the current mode
 }
 
 /**
@@ -54,6 +56,8 @@ class Fauna(private val sim: CivSim) {
     private var fishClock = 6f
     private var petClock = 1f
     private var giftClock = 20f
+    private var catClock = 6f
+    private var mouseClock = 10f
     /** Wild-life happenings seen this run (used by the headless harness and the naturalist deed). Not saved. */
     val seen = HashMap<String, Int>()
     val kindsSeen = HashSet<String>()
@@ -204,7 +208,9 @@ class Fauna(private val sim: CivSim) {
             val a = it.next()
             if (!step(a, dt)) it.remove()
         }
-        for (a in animals) if (a.kind != "dog") kindsSeen.add(a.kind)
+        catClock -= dt
+        if (catClock <= 0f) { catClock = 4f; ensureCats() }
+        for (a in animals) if (a.kind != "dog" && a.kind != "cat" && a.kind != "mouse") kindsSeen.add(a.kind)
     }
 
     /** Night creatures, migrating geese, leaping fish and the animals that sleep through winter. */
@@ -512,6 +518,167 @@ class Fauna(private val sim: CivSim) {
         return false
     }
 
+    // ---- village cats: they slip in, nap by the hearth, stalk the mice in the grain and purr for passers-by ----
+    private fun catWanted(): Int {
+        val n = sim.villagers.size
+        if (n < 6 || sim.buildings.count { it.type == "hut" || it.type == "house" } < 3) return 0
+        return min(4, 1 + n / 8)
+    }
+
+    private fun catHomeSpot(): Pair<Float, Float>? {
+        val cold = sim.seasonIdx() == 3 || sim.isNight() || sim.raining()
+        val fire = sim.buildings.filter { it.type == "campfire" }
+        if (cold && fire.isNotEmpty()) { val b = fire[rnd.nextInt(fire.size)]; return Pair(b.x + 0.5f + (rnd.nextFloat() - 0.5f) * 2.4f, b.y + 1.1f) }
+        val homes = sim.buildings.filter { it.type == "hut" || it.type == "house" || it.type == "granary" || it.type == "farm" || it.type == "market" || it.type == "workshop" }
+        if (homes.isEmpty()) return null
+        val b = homes[rnd.nextInt(homes.size)]
+        return Pair(b.x + 0.5f + (rnd.nextFloat() - 0.5f) * 3f, b.y + 1.4f)
+    }
+
+    private fun ensureCats() {
+        val want = catWanted()
+        val have = count("cat")
+        if (have > want) { animals.firstOrNull { it.kind == "cat" && far(it.x, it.y, 3f) }?.let { animals.remove(it) }; return }
+        if (have < want && (have == 0 || rnd.nextInt(3) == 0)) {
+            val spot = catHomeSpot() ?: return
+            val x = spot.first.coerceIn(1f, GW - 2f)
+            val y = spot.second.coerceIn(1f, GH - 2f)
+            if (!land(x.toInt(), y.toInt())) return
+            val a = Animal("cat", x, y, nextId++)
+            a.homeX = x; a.homeY = y; a.speed = 1.5f; a.pause = 1f
+            a.facing = if (rnd.nextBoolean()) 1 else -1
+            a.cool = 8f
+            animals.add(a)
+            note("cat arrives")
+            sim.catArrives()
+        }
+        // mice stir in the grain wherever there is a granary, farm or mill, but only while a cat is about to hunt them
+        mouseClock -= 4f
+        if (mouseClock <= 0f && have > 0) {
+            mouseClock = 10f + rnd.nextFloat() * 12f
+            val barns = sim.buildings.filter { it.type == "granary" || it.type == "farm" || it.type == "mill" }
+            if (barns.isNotEmpty() && count("mouse") < 3) {
+                val b = barns[rnd.nextInt(barns.size)]
+                val mx = b.x + 0.5f + (rnd.nextFloat() - 0.5f) * 3f
+                val my = b.y + 1.3f + rnd.nextFloat() * 0.8f
+                if (land(mx.toInt(), my.toInt()) && mx > 1f && my > 1f && mx < GW - 1f && my < GH - 1f) {
+                    val m = Animal("mouse", mx, my, nextId++)
+                    m.homeX = mx; m.homeY = my; m.speed = 1.3f; m.life = 40f + rnd.nextFloat() * 30f
+                    m.pause = rnd.nextFloat() * 2f
+                    animals.add(m)
+                    note("mouse")
+                }
+            }
+        }
+    }
+
+    private fun catStep(a: Animal, dt: Float): Boolean {
+        if (a.cool > 0f) a.cool -= dt
+        // a prowling predator sends the cat bolting; it never fights
+        val danger = sim.predators.any { hypot(it.x - a.x, it.y - a.y) < 3.5f }
+        if (danger && a.catMode != 0) { a.catMode = 0; a.curled = false; a.target = 0 }
+        when (a.catMode) {
+            3 -> {
+                a.catT -= dt; a.moving = false; a.curled = true
+                if (a.catT <= 0f || danger) { a.catMode = 0; a.curled = false; a.pause = 0.8f }
+                return true
+            }
+            4 -> {
+                a.catT -= dt; a.moving = false
+                if (a.catT <= 0f) { a.catMode = 0; a.pause = 0.5f }
+                return true
+            }
+            2 -> {
+                a.catT -= dt; a.moving = false
+                if (a.catT <= 0f) {
+                    val m = animals.firstOrNull { it.id == a.target && it.kind == "mouse" }
+                    if (m != null && m.life > 0f && hypot(m.x - a.x, m.y - a.y) < 1.4f) {
+                        m.life = -1f
+                        sim.catMouse(a.x, a.y)
+                        note("cat catch")
+                        a.cool = 14f
+                    } else {
+                        note("cat miss")
+                        a.cool = 6f
+                    }
+                    a.catMode = 0; a.target = 0; a.pause = 1.5f
+                }
+                return true
+            }
+            1 -> {
+                val m = animals.firstOrNull { it.id == a.target && it.kind == "mouse" && it.life > 0f }
+                a.chase += dt
+                if (m == null || a.chase > 12f) { a.catMode = 0; a.target = 0; a.cool = 5f; return true }
+                val dx = m.x - a.x
+                val dy = m.y - a.y
+                val d = hypot(dx, dy)
+                if (d < 1.0f) { a.catMode = 2; a.catT = 0.55f; note("cat pounce"); return true }
+                val sp = (if (d < 2.5f) 1.0f else 2.0f) * dt
+                val nx = a.x + dx / d * min(sp, d)
+                val ny = a.y + dy / d * min(sp, d)
+                if (!land(nx.toInt(), ny.toInt())) { a.catMode = 0; a.target = 0; a.cool = 5f; return true }
+                a.x = nx; a.y = ny; a.moving = true
+                if (abs(dx) > 0.02f) a.facing = if (dx > 0) 1 else -1
+                return true
+            }
+        }
+        // prowling
+        if (danger) { a.flee = 1.5f }
+        if (a.flee > 0f) a.flee -= dt
+        if (a.cool <= 0f) {
+            // a passing villager stops to stroke the cat
+            val v = sim.villagers.firstOrNull { hypot(it.x - a.x, it.y - a.y) < 1.3f && it.action != "attack" && it.hp > 20f }
+            if (v != null && a.flee <= 0f) {
+                a.catMode = 4; a.catT = 3.2f + rnd.nextFloat() * 2f; a.cool = 30f + rnd.nextFloat() * 25f
+                a.facing = if (v.x >= a.x) 1 else -1
+                sim.catPetted(v, a.x, a.y)
+                note("cat purr")
+                return true
+            }
+            var best: Animal? = null
+            var bd = 7f
+            for (o in animals) {
+                if (o.kind != "mouse" || o.life <= 0f) continue
+                val d = hypot(o.x - a.x, o.y - a.y)
+                if (d < bd) { bd = d; best = o }
+            }
+            if (best != null && a.flee <= 0f) {
+                a.catMode = 1; a.target = best.id; a.chase = 0f; a.pause = 0f
+                note("cat stalk")
+                return true
+            }
+        }
+        if (a.pause > 0f) { a.pause -= dt; a.moving = false; return true }
+        val dx = a.tx - a.x
+        val dy = a.ty - a.y
+        val d = hypot(dx, dy)
+        if (d < 0.15f) {
+            a.moving = false
+            // doze off a while, in the sun by day and by the fire when it is cold or dark
+            if (rnd.nextInt(100) < 38) {
+                a.catMode = 3; a.catT = 14f + rnd.nextFloat() * 26f; a.curled = true
+                note("cat nap")
+                return true
+            }
+            a.pause = 1.5f + rnd.nextFloat() * 4f
+            val spot = catHomeSpot()
+            if (spot != null && rnd.nextInt(3) == 0) { a.homeX = spot.first; a.homeY = spot.second }
+            for (n in 0 until 8) {
+                val nx = a.homeX + (rnd.nextFloat() - 0.5f) * 3.2f
+                val ny = a.homeY + (rnd.nextFloat() - 0.5f) * 2.2f
+                if (land(nx.toInt(), ny.toInt()) && nx > 0.5f && ny > 0.5f && nx < GW - 0.5f && ny < GH - 0.5f) { a.tx = nx; a.ty = ny; break }
+            }
+            return true
+        }
+        val sp = a.speed * (if (a.flee > 0f) 2.8f else 1f) * dt
+        val nx = a.x + dx / d * min(sp, d)
+        val ny = a.y + dy / d * min(sp, d)
+        if (!land(nx.toInt(), ny.toInt())) { a.tx = a.x; a.ty = a.y; a.moving = false; return true }
+        a.x = nx; a.y = ny; a.moving = true
+        if (abs(dx) > 0.02f) a.facing = if (dx > 0) 1 else -1
+        return true
+    }
+
     private fun step(a: Animal, dt: Float): Boolean {
         a.phase += dt
         if (a.life < 0f) return false
@@ -589,8 +756,10 @@ class Fauna(private val sim: CivSim) {
             "fox" -> if (foxThink(a, dt)) return true
             "otter" -> if (otterThink(a, dt)) return true
             "dog" -> return dogStep(a, dt)
+            "cat" -> return catStep(a, dt)
+            "mouse" -> { a.life -= dt; if (a.life <= 0f) return false }
         }
-        val scare = when (a.kind) { "rabbit" -> 3.4f; "deer" -> 4.6f; "duck" -> 2.8f; "fox" -> 4.2f; "squirrel" -> 2.6f; "hedgehog" -> 2.2f; "otter" -> 2.2f; else -> 1.6f }
+        val scare = when (a.kind) { "rabbit" -> 3.4f; "deer" -> 4.6f; "duck" -> 2.8f; "fox" -> 4.2f; "squirrel" -> 2.6f; "hedgehog" -> 2.2f; "otter" -> 2.2f; "mouse" -> 2.4f; else -> 1.6f }
         if (a.flee <= 0f && threat(a, scare)) {
             a.flee = 1.6f + rnd.nextFloat()
             // run directly away from whoever is closest

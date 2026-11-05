@@ -1063,6 +1063,87 @@ fun DrawScope.drawFauna(sim: CivSim, art: CivArt, g: Geo) {
                     drawRect(Color(0xFF3A2416), Offset(px + w * 0.05f, py - h * 0.35f + (if (a.moving) ps * 0.5f else 0f) - bob), Size(ps * 1.1f, h * 0.35f))
                 }
             }
+            "mouse" -> {
+                val run = a.moving
+                val hop = if (run) abs(sin(t * 16f + a.id)) * ps * 0.5f else 0f
+                drawOval(Color.Black.copy(alpha = 0.18f), Offset(px - ps * 1.6f, py - ps * 0.3f), Size(ps * 3.2f, ps * 0.9f))
+                withTransform({ scale(dir, 1f, Offset(px, py)) }) {
+                    drawRect(Color(0xFF9A8C7A), Offset(px - ps * 1.2f, py - ps * 1.5f - hop), Size(ps * 2.4f, ps * 1.3f))
+                    drawRect(Color(0xFFB8AA96), Offset(px + ps * 0.8f, py - ps * 1.7f - hop), Size(ps * 1.0f, ps * 1.0f))
+                    drawRect(Color(0xFFE8A9A9), Offset(px + ps * 0.7f, py - ps * 2.1f - hop), Size(ps * 0.7f, ps * 0.7f))
+                    drawRect(Color(0xFFD99A9A), Offset(px - ps * 2.6f, py - ps * 0.7f - hop), Size(ps * 1.5f, ps * 0.3f))
+                    drawRect(Color(0xFF201410), Offset(px + ps * 1.4f, py - ps * 1.5f - hop), Size(ps * 0.4f, ps * 0.4f))
+                }
+            }
+            "cat" -> {
+                val pal = a.id % 4
+                val fur = when (pal) { 0 -> Color(0xFFD9892F); 1 -> Color(0xFF8D8F96); 2 -> Color(0xFF2B2A30); else -> Color(0xFFEFE6D6) }
+                val shade = when (pal) { 0 -> Color(0xFFA85F1B); 1 -> Color(0xFF63656C); 2 -> Color(0xFF16151A); else -> Color(0xFFC79A5C) }
+                val belly = if (pal == 2) Color(0xFF4A4852) else Color(0xFFF6EEDF)
+                val breathe = sin(t * 2.2f + a.id) * ps * 0.25f
+                val stalk = a.catMode == 1
+                val pounce = a.catMode == 2
+                val bob = if (a.moving && !stalk) abs(sin(t * 9f + a.id)) * ps * 0.5f else 0f
+                val leap = if (pounce) sin(((t * 3f) % 1f) * PI.toFloat()) * ps * 2.4f else 0f
+                drawOval(Color.Black.copy(alpha = 0.2f), Offset(px - ps * 3.4f, py - ps * 0.6f), Size(ps * 6.8f, ps * 1.5f))
+                withTransform({ scale(dir, 1f, Offset(px, py)) }) {
+                    if (a.catMode == 3 || a.curled) {
+                        // a loaf: tucked paws, tail wrapped round, eyes shut
+                        drawRect(fur, Offset(px - ps * 3.0f, py - ps * 3.0f + breathe), Size(ps * 6.0f, ps * 2.8f))
+                        drawRect(belly, Offset(px - ps * 2.0f, py - ps * 0.9f), Size(ps * 4.0f, ps * 0.7f))
+                        drawRect(shade, Offset(px - ps * 3.2f, py - ps * 1.4f), Size(ps * 6.6f, ps * 0.8f))
+                        drawRect(fur, Offset(px + ps * 1.4f, py - ps * 4.2f + breathe), Size(ps * 2.8f, ps * 2.4f))
+                        drawRect(fur, Offset(px + ps * 1.4f, py - ps * 5.0f + breathe), Size(ps * 0.8f, ps * 1.0f))
+                        drawRect(fur, Offset(px + ps * 3.4f, py - ps * 5.0f + breathe), Size(ps * 0.8f, ps * 1.0f))
+                        drawRect(Color(0xFF201410), Offset(px + ps * 3.0f, py - ps * 3.2f + breathe), Size(ps * 1.2f, ps * 0.3f))
+                    } else {
+                        val lowY = if (stalk) ps * 1.0f else 0f
+                        // tail: up and curled when relaxed, low and twitching when stalking
+                        val twitch = sin(t * (if (stalk || pounce) 14f else 3f) + a.id) * ps * 0.8f
+                        if (stalk || pounce) {
+                            drawRect(shade, Offset(px - ps * 6.0f, py - ps * 2.2f + twitch * 0.3f), Size(ps * 3.2f, ps * 0.9f))
+                        } else {
+                            drawRect(fur, Offset(px - ps * 3.6f, py - ps * 3.4f - bob), Size(ps * 1.0f, ps * 1.6f))
+                            drawRect(fur, Offset(px - ps * 4.2f + twitch * 0.4f, py - ps * 5.4f - bob), Size(ps * 1.0f, ps * 2.2f))
+                            drawRect(shade, Offset(px - ps * 3.6f + twitch * 0.6f, py - ps * 6.2f - bob), Size(ps * 1.0f, ps * 1.0f))
+                        }
+                        // body, legs
+                        drawRect(fur, Offset(px - ps * 3.2f, py - ps * 4.0f + lowY - bob - leap), Size(ps * 5.6f, ps * 2.4f))
+                        drawRect(belly, Offset(px - ps * 2.0f, py - ps * 2.0f + lowY - bob - leap), Size(ps * 3.6f, ps * 0.6f))
+                        val step = if (a.moving) sin(t * 12f + a.id) * ps * 0.5f else 0f
+                        drawRect(shade, Offset(px - ps * 2.8f + step, py - ps * 1.8f - leap), Size(ps * 1.0f, ps * 1.5f + (if (stalk) -ps * 0.4f else 0f)))
+                        drawRect(shade, Offset(px + ps * 1.0f - step, py - ps * 1.8f - leap), Size(ps * 1.0f, ps * 1.5f + (if (stalk) -ps * 0.4f else 0f)))
+                        // head with ears, eyes and whiskers
+                        val hx = px + ps * 1.8f
+                        val hy = py - ps * 5.4f + lowY * 1.4f - bob - leap
+                        drawRect(fur, Offset(hx, hy), Size(ps * 3.2f, ps * 2.6f))
+                        drawRect(fur, Offset(hx, hy - ps * 0.9f), Size(ps * 0.9f, ps * 1.0f))
+                        drawRect(fur, Offset(hx + ps * 2.3f, hy - ps * 0.9f), Size(ps * 0.9f, ps * 1.0f))
+                        drawRect(Color(0xFFE8A9A9), Offset(hx + ps * 0.2f, hy - ps * 0.5f), Size(ps * 0.4f, ps * 0.5f))
+                        drawRect(shade, Offset(hx + ps * 2.4f, hy + ps * 1.3f), Size(ps * 1.0f, ps * 0.8f))
+                        val night = g.dark > 0.55f
+                        val eye = if (night || stalk || pounce) Color(0xFFFFF04A) else Color(0xFF3F8F3A)
+                        drawRect(eye, Offset(hx + ps * 2.0f, hy + ps * 0.6f), Size(ps * 0.7f, ps * 0.7f))
+                        if (night) drawCircle(Color(0xFFFFF04A).copy(alpha = 0.25f), ps * 1.6f, Offset(hx + ps * 2.35f, hy + ps * 0.95f))
+                        drawRect(Color(0xFFF6EEDF).copy(alpha = 0.8f), Offset(hx + ps * 3.0f, hy + ps * 1.0f), Size(ps * 1.4f, ps * 0.25f))
+                    }
+                }
+                if (a.catMode == 3) {
+                    // sleepy z's drift up
+                    for (k in 0..1) {
+                        val zp = ((t * 0.35f + k * 0.5f + a.id * 0.1f) % 1f)
+                        drawRect(Color.White.copy(alpha = 0.75f * (1f - zp)), Offset(px + dir * ps * 4f + zp * ps * 3f, py - ps * 6f - zp * ps * 7f), Size(ps * (1.4f + k * 0.4f), ps * 0.4f))
+                        drawRect(Color.White.copy(alpha = 0.75f * (1f - zp)), Offset(px + dir * ps * 4f + zp * ps * 3f + ps * 0.8f, py - ps * 6.4f - zp * ps * 7f), Size(ps * 0.5f, ps * 0.9f))
+                    }
+                }
+                if (a.catMode == 4) {
+                    // purring: little hearts float up
+                    for (k in 0..1) {
+                        val hp = ((t * 0.7f + k * 0.5f + a.id * 0.13f) % 1f)
+                        drawCircle(Color(0xFFFF7A9A).copy(alpha = 1f - hp), ps * 0.9f, Offset(px + dir * ps * 3f + (k - 0.5f) * ps * 2f, py - ps * (7f + hp * 7f)))
+                    }
+                }
+            }
             "dog" -> {
                 val pal = a.id % 3
                 val coat = when (pal) { 0 -> Color(0xFFC8923F); 1 -> Color(0xFFEDE3D0); else -> Color(0xFF5A544C) }
