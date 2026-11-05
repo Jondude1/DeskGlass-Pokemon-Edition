@@ -109,6 +109,7 @@ fun main(args: Array<String>) {
         println("NIGHTSKY save round trip ok=${sim2.skyShows.toList() == sim.skyShows.toList() && sim2.skyWatches == sim.skyWatches && sim2.skyWishes == sim.skyWishes && sim2.skyLastNight == sim.skyLastNight}")
         println("REALMS save round trip ok=${sim2.realmRuns.toList() == sim.realmRuns.toList() && sim2.realmWins.toList() == sim.realmWins.toList() && sim2.lastTheme == sim.lastTheme && sim2.realmHazards == sim.realmHazards}")
         println("CARAVAN save round trip ok=${sim2.caravans == sim.caravans && sim2.carFinds == sim.carFinds && sim2.carAmbush == sim.carAmbush && sim2.carBeaten == sim.carBeaten && sim2.carSpent == sim.carSpent}")
+        println("SCHOOL save round trip ok=${sim2.schoolLessons == sim.schoolLessons && sim2.schoolLevel == sim.schoolLevel && sim2.schoolStars == sim.schoolStars} (${sim2.schoolLessons} lessons)")
         println("DIVINE full save round trip ok=${sim2.divine.encode() == sim.divine.encode()} loadedUses=${sim2.divine.totalUses()}")
     }
     println("SURPLUS wastedGathers=${sim.wastedGathers} carved=${sim.carved} posies=${sim.posies}")
@@ -188,6 +189,7 @@ fun main(args: Array<String>) {
     println("VOYAGE docks=${sim.buildings.count { it.type == "dock" }} voyages=${sim.voyages} finds=${sim.voyFinds} serpents=${sim.voyScares} crowd=${sim.voyCrowd} active=${sim.voyActive} routes=${sim.voyRouteLens()}")
     println("LIGHTHOUSE built=${sim.buildings.count { it.type == "lighthouse" }} tends=${sim.beaconTends} nightWatch=${sim.beaconNightWatch} fogSails=${sim.beaconFogSails} nightSails=${sim.beaconNightSails} scares=${sim.beaconScares} guided=${sim.beaconGuided} voyages=${sim.voyages} lit=${sim.beaconLit()}")
     println("GUILD built=${sim.buildings.count { it.type == "guild" }} works=${sim.guildWorks} rank=${sim.guildRank} spent=${sim.guildSpent} wood=${sim.wood} stone=${sim.stone} age=${sim.age}")
+    println("SCHOOL built=${sim.buildings.count { it.type == "school" }} lessons=${sim.schoolLessons} level=${sim.schoolLevel} stars=${sim.schoolStars} kids=${sim.villagers.count { sim.isChild(it) }}")
     println("ARMORY built=${sim.buildings.count { it.type == "armory" }} forged=${sim.gearForged} sets L/B/S=${sim.gearLeather}/${sim.gearBronze}/${sim.gearSteel} blocks=${sim.gearBlocks} saved=${sim.gearSaved.toInt()} metal=${sim.metal} wood=${sim.wood} stone=${sim.stone} adults=${sim.villagers.count { it.job != "Child" }} age=${sim.age}")
     println("MUSEUM built=${sim.buildings.count { it.type == "museum" }} visits=${sim.museumVisits} talks=${sim.museumTalks} shown=${Integer.bitCount(sim.museumShown)}/${Integer.bitCount(sim.exhibitMask())} age=${sim.age}")
     println("MARKETDAY market=${sim.buildings.count { it.type == "market" }} visits=${sim.stallVisits} days=${sim.stallDays} deals=${sim.stallDeals} bargains=${sim.stallBargains}")

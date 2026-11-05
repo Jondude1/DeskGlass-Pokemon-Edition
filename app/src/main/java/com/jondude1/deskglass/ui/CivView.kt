@@ -612,6 +612,7 @@ private fun DrawScope.drawWorld(
                 "scarecrow" -> art.scarecrow
                 "museum" -> art.museum
                 "guild" -> art.guild
+                "school" -> art.school
                 "armory" -> art.armory
                 "observatory" -> art.observatory
                 "lighthouse" -> art.lighthouse
@@ -1117,6 +1118,21 @@ private fun DrawScope.drawWorld(
                     drawCircle(Color(0xFFFFE9A0).copy(alpha = 0.9f * (1f - ph)), radius = ps * 0.5f, center = Offset(cx + (k - visitors * 1.5f) * ps * 1.4f, baseY - hh * 0.55f - ph * hh * 0.6f))
                 }
                 if (dark > 0.1f) drawCircle(Color(0xFFFFD27A).copy(alpha = min(0.3f, dark * 0.5f)), radius = ts * 0.9f, center = Offset(cx, baseY - hh * 0.4f))
+            }
+            if (b.type == "school") {
+                // the bell swings and chalk dust floats up while pupils sit a lesson, a gold star on the roof for every school level, warm window glow at night
+                val pupils = sim.villagers.count { it.action == "attend_school" && it.phase == "working" && kotlin.math.hypot(it.x - (b.x + 0.5f), it.y - (b.y + 0.5f)) < 2.5f }
+                val swing = if (pupils > 0) kotlin.math.sin(t * 7f) * ps * 1.6f else kotlin.math.sin(t * 0.8f) * ps * 0.3f
+                drawLine(Color(0xFFE8C547), Offset(cx, baseY - hh * 0.99f), Offset(cx + swing, baseY - hh * 0.88f), strokeWidth = ps * 1.8f)
+                for (k in 0 until sim.schoolLevel) {
+                    val tw = 0.6f + 0.4f * kotlin.math.sin(t * 2.5f + k * 1.4f)
+                    drawCircle(Color(0xFFFFD84A).copy(alpha = 0.6f + 0.4f * tw), radius = ps * 1.0f, center = Offset(cx - w * 0.38f + k * ps * 3.2f, baseY - hh * 1.1f))
+                }
+                for (k in 0 until pupils * 3) {
+                    val ph = (t * 0.9f + k * 0.27f) % 1f
+                    drawRect(Color.White.copy(alpha = 0.9f * (1f - ph)), Offset(cx - w * 0.3f + (k % 5) * ps * 2.6f, baseY - hh * 0.55f - ph * hh * 0.7f), Size(ps * 1.2f, ps * 1.2f))
+                }
+                if (dark > 0.1f) drawCircle(Color(0xFFFFD27A).copy(alpha = min(0.3f, dark * 0.5f)), radius = ts * 0.8f, center = Offset(cx, baseY - hh * 0.4f))
             }
             if (b.type == "guild") {
                 // a gold pennant on its own pole for every guild rank, hammer sparks while members train, warm window glow at night

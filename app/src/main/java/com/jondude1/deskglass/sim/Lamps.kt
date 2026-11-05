@@ -12,7 +12,7 @@ object Lamps {
     /** type -> [radius in tiles, strength 0..1]. Campfire, smelter, tower, hut and hall are lit by the older code in CivView. */
     private val glow: Map<String, FloatArray> = mapOf(
         "tavern" to floatArrayOf(3.4f, 0.8f), "market" to floatArrayOf(3.0f, 0.7f), "library" to floatArrayOf(2.4f, 0.65f),
-        "museum" to floatArrayOf(2.8f, 0.7f), "guild" to floatArrayOf(2.6f, 0.7f), "infirmary" to floatArrayOf(2.2f, 0.65f),
+        "museum" to floatArrayOf(2.8f, 0.7f), "guild" to floatArrayOf(2.6f, 0.7f), "school" to floatArrayOf(2.4f, 0.65f), "infirmary" to floatArrayOf(2.2f, 0.65f),
         "kiln" to floatArrayOf(2.6f, 0.75f), "mill" to floatArrayOf(1.9f, 0.55f), "loom" to floatArrayOf(1.9f, 0.55f),
         "smokehouse" to floatArrayOf(1.9f, 0.55f), "dock" to floatArrayOf(2.2f, 0.6f), "bath" to floatArrayOf(2.4f, 0.6f),
         "fountain" to floatArrayOf(2.2f, 0.55f), "belfry" to floatArrayOf(2.2f, 0.6f), "stage" to floatArrayOf(3.0f, 0.75f),
