@@ -50,7 +50,7 @@ class Species(
 
 object Dex {
     const val DUMMY = 0
-    const val COUNT = 95
+    const val COUNT = 104
     const val MAX_LEVEL = 50
     /** Level at which a critter learns the ultimate of its main type. */
     const val ULTIMATE_LV = 30
@@ -244,6 +244,18 @@ object Dex {
         s(93, "Stormreef", CType.TIDE, CType.SPARK, 3, 96, 96, 108, 52, -1, 0, 3, "water", 0, "Changed under a thunderhead, its coral crown crackles with yellow light."),
         s(94, "Sunmantle", CType.GLOW, CType.EMBER, 3, 80, 96, 70, 104, -1, 0, 3, "meadow", 0, "A daylight moth whose golden wings warm the air around it."),
         s(95, "Tarnwyrm", CType.STONE, CType.TIDE, 3, 104, 96, 112, 46, -1, 0, 3, "rock", 0, "Rain-changed, it rests in the hills like a mossy cairn with spring-water plates."),
+        // Snail line: a dewdrop snail of the lake edge that grows a mirror-bright spiral shell
+        s(96, "Dewsnail", CType.TIDE, CType.LEAF, 1, 48, 40, 56, 28, 97, 18, 2, "water", 0, "A tiny snail that carries one bright drop of dew on its shell."),
+        s(97, "Glimmershell", CType.TIDE, CType.LEAF, 2, 74, 60, 84, 36, 98, 34, 2, "water", 0, "Its spiral shell sparkles with trapped sunlight and leaves a silver trail."),
+        s(98, "Mirrorspire", CType.TIDE, CType.GLOW, 3, 100, 80, 112, 42, -1, 0, 3, "water", 0, "Its tall shell is a mirror that throws rainbows across the whole lake."),
+        // Kingfisher line: a darting river bird with a crest like a flame
+        s(99, "Dartlet", CType.TIDE, CType.GALE, 1, 40, 52, 38, 66, 100, 18, 2, "water", 2, "A round blue chick that dives for minnows and misses most of them."),
+        s(100, "Kingdart", CType.TIDE, CType.GALE, 2, 60, 74, 54, 90, 101, 34, 2, "water", 2, "It folds its wings and drops like a blue stone onto the fish."),
+        s(101, "Halcyonel", CType.GALE, CType.TIDE, 3, 82, 96, 72, 114, -1, 0, 3, "water", 2, "A great kingfisher with a flame-coloured crest. The river goes still when it hunts."),
+        // Armadillo line: a banded roller that curls into a bastion
+        s(102, "Curlkin", CType.IRON, CType.STONE, 1, 50, 46, 64, 30, 103, 18, 2, "rock", 0, "A small armoured roller that curls into a ball when startled."),
+        s(103, "Plateroll", CType.IRON, CType.STONE, 2, 74, 68, 96, 38, 104, 34, 2, "rock", 0, "Its golden bands ring like a bell when it rolls downhill."),
+        s(104, "Bastionback", CType.IRON, CType.STONE, 3, 100, 94, 124, 44, -1, 0, 3, "rock", 0, "A walking fortress with a spiked crest. Nothing gets past its back."),
     )
 
     private val dummy = Species(

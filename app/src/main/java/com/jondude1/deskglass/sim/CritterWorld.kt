@@ -710,7 +710,7 @@ class CritterWorld(private val sim: CivSim) {
 
     // ---- Critterdex milestones ----
 
-    private val dexSteps = intArrayOf(6, 12, 20, 30, 42, 55)
+    private val dexSteps = intArrayOf(6, 12, 20, 30, 42, 55, 70, 85)
 
     fun dexNext(): Int = if (dexMiles < dexSteps.size) dexSteps[dexMiles] else -1
 
@@ -726,7 +726,9 @@ class CritterWorld(private val sim: CivSim) {
             2 -> { sim.wood += 30; sim.stone += 20; "30 wood and 20 stone" }
             3 -> { scrolls[2] = scrolls[2] + 1; "a rare scroll" }
             4 -> { sim.metal += 6; scrolls[1] = scrolls[1] + 1; "6 metal and a fine scroll" }
-            else -> { scrolls[2] = scrolls[2] + 2; "two rare scrolls" }
+            5 -> { scrolls[2] = scrolls[2] + 2; "two rare scrolls" }
+            6 -> { sim.metal += 12; scrolls[2] = scrolls[2] + 1; "12 metal and a rare scroll" }
+            else -> { sim.food += 120; scrolls[2] = scrolls[2] + 3; "120 food and three rare scrolls" }
         }
         val c = centre()
         pop(c[0], c[1] - 1.6f, "Dex $need!", 0xFFFFE066)

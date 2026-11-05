@@ -160,6 +160,7 @@ fun main(args: Array<String>) {
     println("WONDERS count=${sim.buildings.count { it.type == "wonder" }} kinds=${sim.buildings.filter { it.type == "wonder" }.map { sim.wonderName(it.era) }} wood=${sim.wood} stone=${sim.stone} metal=${sim.metal}")
     println("EGGS laid=${sim.critters.eggsLaid} hatched=${sim.critters.eggsHatched} golden=${sim.critters.goldenHatched} pending=${sim.critters.eggs.count { it.hatchedAt < 0.0 }} critters=${sim.critters.critters.size}")
     println("FORK branchEvos=${cw.branchEvos} held=${cw.holdHeld} formsSeen=${cw.caught.filter { it in 90..95 }.sorted()} stage3Caught=${cw.caught.count { com.jondude1.deskglass.sim.Dex.byId(it).stage == 3 }}")
+    println("NEWLINES caught=${cw.caught.filter { it >= 96 }.sorted()} seen=${cw.seen.filter { it >= 96 }.sorted()} kept=${cw.critters.count { it.sp >= 96 }} bound=${cw.caught.size}/${Dex.COUNT} dexMiles=${cw.dexMiles}")
     println("TOURNEY held=${sim.critters.tourneys} matches=${sim.critters.tourMatches} forfeits=${sim.critters.tourForfeits} champ=${sim.critters.champName} on=${sim.critters.tourOn}")
     println("DEX species=${com.jondude1.deskglass.sim.Dex.COUNT} caught=${sim.critters.caught.size} seen=${sim.critters.seen.size} newLines(72-80) caught=${sim.critters.caught.filter { it >= 72 }.sorted()} seen=${sim.critters.seen.filter { it >= 72 }.sorted()} kept=${sim.critters.critters.filter { it.species.id >= 72 }.map { it.species.name + it.level }}")
     run {

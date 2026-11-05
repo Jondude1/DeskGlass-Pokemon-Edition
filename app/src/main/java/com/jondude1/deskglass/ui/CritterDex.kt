@@ -31,7 +31,7 @@ import com.jondude1.deskglass.sim.CivSim
 import com.jondude1.deskglass.sim.Dex
 import com.jondude1.deskglass.sim.Rank
 
-/** The Critterdex: every critter the village keeps, and all 89 species by evolution line. */
+/** The Critterdex: every critter the village keeps, and all 104 species by evolution line. */
 @Composable
 fun CritterDexScreen(sim: CivSim, onBack: () -> Unit) {
     val cart = remember { CritterArt() }
