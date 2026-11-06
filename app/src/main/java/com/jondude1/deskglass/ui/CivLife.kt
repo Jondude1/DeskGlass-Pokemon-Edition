@@ -1312,6 +1312,61 @@ fun DrawScope.drawFauna(sim: CivSim, art: CivArt, g: Geo) {
                     }
                 }
             }
+            "heron" -> {
+                val flying = a.heMode == 4
+                val lift = if (flying) a.alt * ts * 0.5f else 0f
+                val by = py - lift
+                val grey = Color(0xFF8E9BAA)
+                val dark = Color(0xFF55616F)
+                val pale = Color(0xFFDDE3E8)
+                val beak = Color(0xFFE2B33C)
+                val legc = Color(0xFF8A7A52)
+                val flap = sin(t * 7f + a.id)
+                drawOval(Color.Black.copy(alpha = if (flying) 0.10f else 0.18f), Offset(px - ps * 2.2f, py - ps * 0.5f), Size(ps * 4.4f, ps * 1.1f))
+                withTransform({ scale(dir, 1f, Offset(px, by)) }) {
+                    if (flying) {
+                        // slow broad wing beats, neck folded back, long legs trailing
+                        val wing = flap * ps * 3.0f
+                        drawLine(dark, Offset(px - ps * 0.5f, by - ps * 3.0f), Offset(px - ps * 4.4f, by - ps * 4.0f - wing), strokeWidth = ps * 1.3f)
+                        drawLine(grey, Offset(px + ps * 0.5f, by - ps * 3.0f), Offset(px + ps * 3.6f, by - ps * 3.6f + wing * 0.8f), strokeWidth = ps * 1.1f)
+                        drawRect(grey, Offset(px - ps * 1.6f, by - ps * 3.6f), Size(ps * 3.2f, ps * 1.5f))
+                        drawRect(grey, Offset(px + ps * 1.4f, by - ps * 4.0f), Size(ps * 1.0f, ps * 1.0f))
+                        drawRect(beak, Offset(px + ps * 2.3f, by - ps * 3.8f), Size(ps * 1.5f, ps * 0.4f))
+                        drawRect(legc, Offset(px - ps * 5.0f, by - ps * 2.5f), Size(ps * 3.4f, ps * 0.3f))
+                    } else {
+                        val strike = a.heMode == 2
+                        val gulp = a.heMode == 3
+                        val sway = if (a.moving) sin(t * 3f + a.id) * ps * 0.4f else 0f
+                        // long legs standing in the shallows
+                        drawRect(legc, Offset(px - ps * 0.7f + sway, by - ps * 4.2f), Size(ps * 0.3f, ps * 4.2f))
+                        drawRect(legc, Offset(px + ps * 0.5f - sway, by - ps * 4.2f), Size(ps * 0.3f, ps * 4.2f))
+                        // body, folded wing and tail
+                        drawRect(grey, Offset(px - ps * 1.8f, by - ps * 6.4f), Size(ps * 3.6f, ps * 2.3f))
+                        drawRect(dark, Offset(px - ps * 1.5f, by - ps * 6.0f), Size(ps * 2.4f, ps * 1.3f))
+                        drawRect(pale, Offset(px - ps * 0.6f, by - ps * 5.2f), Size(ps * 1.8f, ps * 0.6f))
+                        drawRect(dark, Offset(px - ps * 2.6f, by - ps * 6.0f), Size(ps * 1.0f, ps * 0.7f))
+                        if (strike) {
+                            // neck shot forward and down, beak at the water
+                            drawRect(grey, Offset(px + ps * 1.4f, by - ps * 5.8f), Size(ps * 2.8f, ps * 0.8f))
+                            drawRect(grey, Offset(px + ps * 3.8f, by - ps * 5.8f), Size(ps * 0.8f, ps * 2.6f))
+                            drawRect(beak, Offset(px + ps * 3.8f, by - ps * 3.3f), Size(ps * 0.5f, ps * 1.6f))
+                            drawOval(Color(0xFFBFE3F2).copy(alpha = 0.7f), Offset(px + ps * 2.6f, by - ps * 1.0f), Size(ps * 3.6f, ps * 1.0f))
+                        } else {
+                            // S-curved neck, black plume, dagger beak
+                            val nodY = if (gulp) sin(t * 14f) * ps * 0.25f else 0f
+                            drawRect(pale, Offset(px + ps * 1.0f, by - ps * 8.0f + nodY), Size(ps * 0.8f, ps * 2.0f))
+                            drawRect(pale, Offset(px + ps * 1.6f, by - ps * 9.2f + nodY), Size(ps * 0.8f, ps * 1.4f))
+                            drawRect(pale, Offset(px + ps * 1.3f, by - ps * 10.0f + nodY), Size(ps * 1.5f, ps * 1.2f))
+                            drawRect(Color(0xFF20242A), Offset(px + ps * 0.2f, by - ps * 10.0f + nodY), Size(ps * 1.4f, ps * 0.4f))
+                            drawRect(Color(0xFF20242A), Offset(px + ps * 2.0f, by - ps * 9.8f + nodY), Size(ps * 0.35f, ps * 0.35f))
+                            drawRect(beak, Offset(px + ps * 2.7f, by - ps * 9.6f + nodY), Size(ps * 2.0f, ps * 0.4f))
+                            if (gulp) drawRect(Color(0xFFE9F0F5), Offset(px + ps * 3.0f, by - ps * 9.3f + nodY), Size(ps * 1.6f, ps * 0.5f))
+                        }
+                        // ripple rings around the feet
+                        if (a.moving || strike) drawOval(Color.White.copy(alpha = 0.35f), Offset(px - ps * 1.8f, by - ps * 0.4f), Size(ps * 3.6f, ps * 0.8f), style = Stroke(width = ps * 0.25f))
+                    }
+                }
+            }
             "bat" -> {
                 val lift = a.alt * ts * 0.6f + sin(t * 2f + a.id) * ps
                 val flap = sin(t * 16f + a.id)

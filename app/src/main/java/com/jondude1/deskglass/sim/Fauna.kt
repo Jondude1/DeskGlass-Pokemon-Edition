@@ -41,6 +41,8 @@ class Animal(val kind: String, var x: Float, var y: Float, val id: Int) {
     var swMode = 0        // swallow: 0 swooping, 1 perched on a roof, 2 flying to a roof
     var swT = 0f          // swallow: time left on the perch
     var swCatch = 6f      // swallow: time until the next insect catch
+    var heMode = 0        // heron: 0 wading, 1 standing still, 2 striking, 3 swallowing a fish, 4 flying off
+    var heT = 0f          // heron: time left in the current mode
 }
 
 /**
@@ -61,6 +63,7 @@ class Fauna(private val sim: CivSim) {
     private var giftClock = 20f
     private var catClock = 6f
     private var swClock = 5f
+    private var heClock = 7f
     private var mouseClock = 10f
     /** Wild-life happenings seen this run (used by the headless harness and the naturalist deed). Not saved. */
     val seen = HashMap<String, Int>()
@@ -216,6 +219,8 @@ class Fauna(private val sim: CivSim) {
         if (catClock <= 0f) { catClock = 4f; ensureCats() }
         swClock -= dt
         if (swClock <= 0f) { swClock = 3f; ensureSwallows() }
+        heClock -= dt
+        if (heClock <= 0f) { heClock = 5f; ensureHerons() }
         for (a in animals) if (a.kind != "dog" && a.kind != "cat" && a.kind != "mouse") kindsSeen.add(a.kind)
     }
 
@@ -767,6 +772,101 @@ class Fauna(private val sim: CivSim) {
         return true
     }
 
+    // ---- herons: grey waders that stalk the shore, stand like statues and spear fish; a fisher nearby learns where the fish are ----
+    private fun heronSeason(): Boolean = sim.seasonIdx() <= 2 && !sim.isNight() && !sim.storm() && !sim.snowing()
+
+    private fun ensureHerons() {
+        val n = sim.villagers.size
+        if (!heronSeason() || n < 4) return
+        var shore = 0
+        for (y in 1 until GH - 1) for (x in 1 until GW - 1) if (land(x, y) && nearWater(x, y)) shore++
+        if (shore < 6) return
+        val want = min(3, 1 + n / 10)
+        if (count("heron") >= want || rnd.nextInt(2) != 0) return
+        val a = spawn("heron", { x, y -> land(x, y) && nearWater(x, y) }, avoid = 7f) ?: return
+        a.speed = 0.45f
+        a.heMode = 0; a.heT = 2f
+        a.tx = a.x; a.ty = a.y
+        note("heron")
+    }
+
+    private fun heronPickSpot(a: Animal) {
+        // herons like company: they drift toward a fisher on the shore, but never close enough to be startled
+        val fisher = sim.villagers.filter { it.action == "fish" || it.action == "ice_fish" }.minByOrNull { hypot(it.x - a.x, it.y - a.y) }
+        var bx = a.x; var by = a.y; var bd = 1e9f
+        for (n in 0 until 14) {
+            val nx = a.x + (rnd.nextFloat() - 0.5f) * 10f
+            val ny = a.y + (rnd.nextFloat() - 0.5f) * 8f
+            if (nx > 0.5f && ny > 0.5f && nx < GW - 0.5f && ny < GH - 0.5f && land(nx.toInt(), ny.toInt()) && nearWater(nx.toInt(), ny.toInt())) {
+                if (fisher == null) { a.tx = nx; a.ty = ny; return }
+                val fd = hypot(nx - fisher.x, ny - fisher.y)
+                if (fd < 4.6f) continue
+                if (fd < bd) { bd = fd; bx = nx; by = ny }
+            }
+        }
+        a.tx = bx; a.ty = by
+    }
+
+    private fun heronStep(a: Animal, dt: Float): Boolean {
+        if (a.heMode != 4 && (!heronSeason() || threat(a, 3.8f))) {
+            if (heronSeason()) { sim.heronFlush(); note("heron flushed") } else note("heron leaves")
+            a.heMode = 4; a.heT = 6f; a.moving = false
+            val v = sim.villagers.minByOrNull { hypot(it.x - a.x, it.y - a.y) }
+            a.dir = if (v != null && heronSeason()) Math.atan2((a.y - v.y).toDouble(), (a.x - v.x).toDouble()).toFloat() else (if (a.x < GW * 0.5f) PI.toFloat() else 0f)
+        }
+        when (a.heMode) {
+            4 -> {
+                a.heT -= dt
+                a.alt = min(1.7f, a.alt + dt * 0.9f)
+                a.x += cos(a.dir) * 3.2f * dt
+                a.y += sin(a.dir) * 2.0f * dt
+                a.facing = if (cos(a.dir) >= 0f) 1 else -1
+                a.moving = true
+                if (a.heT <= 0f || a.x < -2f || a.x > GW + 2f || a.y < -2f || a.y > GH + 2f) return false
+                return true
+            }
+            1 -> {
+                a.heT -= dt; a.moving = false
+                if (a.heT <= 0f) {
+                    var wx = 0; var wy = 0
+                    for (dy in -1..1) for (dx in -1..1) if (water(a.x.toInt() + dx, a.y.toInt() + dy)) { wx = dx; wy = dy }
+                    if (wx != 0 || wy != 0) { a.heMode = 2; a.heT = 0.5f; if (wx != 0) a.facing = if (wx > 0) 1 else -1 }
+                    else { a.heMode = 0; heronPickSpot(a) }
+                }
+                return true
+            }
+            2 -> {
+                a.heT -= dt; a.moving = false
+                if (a.heT <= 0f) {
+                    if (rnd.nextInt(100) < 55) { a.heMode = 3; a.heT = 1.4f; sim.heronCatch(a.x, a.y); note("heron catch") }
+                    else { a.heMode = 1; a.heT = 2f + rnd.nextFloat() * 3f; note("heron miss") }
+                }
+                return true
+            }
+            3 -> {
+                a.heT -= dt; a.moving = false
+                if (a.heT <= 0f) { a.heMode = 0; heronPickSpot(a) }
+                return true
+            }
+        }
+        // 0: wading slowly along the shore
+        val dx = a.tx - a.x
+        val dy = a.ty - a.y
+        val d = hypot(dx, dy)
+        if (d < 0.15f) {
+            a.moving = false
+            a.heMode = 1; a.heT = 3f + rnd.nextFloat() * 6f
+            return true
+        }
+        val sp = a.speed * dt
+        val nx = a.x + dx / d * min(sp, d)
+        val ny = a.y + dy / d * min(sp, d)
+        if (!land(nx.toInt(), ny.toInt())) { a.tx = a.x; a.ty = a.y; a.moving = false; return true }
+        a.x = nx; a.y = ny; a.moving = true
+        if (abs(dx) > 0.02f) a.facing = if (dx > 0) 1 else -1
+        return true
+    }
+
     private fun step(a: Animal, dt: Float): Boolean {
         a.phase += dt
         if (a.life < 0f) return false
@@ -846,6 +946,7 @@ class Fauna(private val sim: CivSim) {
             "dog" -> return dogStep(a, dt)
             "cat" -> return catStep(a, dt)
             "swallow" -> return swallowStep(a, dt)
+            "heron" -> return heronStep(a, dt)
             "mouse" -> { a.life -= dt; if (a.life <= 0f) return false }
         }
         val scare = when (a.kind) { "rabbit" -> 3.4f; "deer" -> 4.6f; "duck" -> 2.8f; "fox" -> 4.2f; "squirrel" -> 2.6f; "hedgehog" -> 2.2f; "otter" -> 2.2f; "mouse" -> 2.4f; else -> 1.6f }
