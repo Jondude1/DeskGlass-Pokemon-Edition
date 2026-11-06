@@ -448,6 +448,7 @@ private fun DrawScope.drawWorld(
 
     lifeUnderlay(sim, art, geo)
     lampPosts(sim, geo)
+    wetGround(sim, geo)
 
     // ships sail along open water
     var shipN = 0
