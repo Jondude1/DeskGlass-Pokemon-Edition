@@ -741,6 +741,9 @@ class CivSim(
     var hailOn = false; private var lastHailAt = 0.0
     val hailPops = ArrayList<FloatArray>()
     fun hail() = time < hailUntil && time < stormUntil
+    val flood = FloodState()
+    fun floodLevel(): Float = flood.level(time)
+    fun flooding(): Boolean = flood.level(time) > 0f
     /** 0..1: how white the ground is with hailstones (builds up in the storm, melts away after). */
     fun hailWhite(): Float {
         if (hail()) return ((time - hailStartAt) / 20.0).coerceIn(0.0, 1.0).toFloat()
@@ -1368,7 +1371,7 @@ class CivSim(
         statues.clear(); statueCheers = 0; nextStatueAt = 0.0
         cathX = -1; cathY = -1; cathWork = 0; cathTrips = 0; cathBells = 0; jubileeUntil = -1.0; cathFlash = -100.0; cathTryAt = 0.0; nextCathAt = 0.0; lastBellDay = 0
         graves.clear(); graveX = -1; graveY = -1; buried = 0; mournVisits = 0; lastBuryAt = -9999.0
-        pets.clear(); heronCatches = 0; heronTips = 0; heronFlushes = 0; heronShoals = 0; swallowReturns = 0; swallowCatches = 0; swallowPerches = 0; swallowYear = 0; catsArrived = 0; catMice = 0; catPets = 0; dogsAdopted = 0; dogWalks = 0; dogBarks = 0; nextPetAt = time + DAY_LEN * 1.2
+        pets.clear(); flood.resetAll(); heronCatches = 0; heronTips = 0; heronFlushes = 0; heronShoals = 0; swallowReturns = 0; swallowCatches = 0; swallowPerches = 0; swallowYear = 0; catsArrived = 0; catMice = 0; catPets = 0; dogsAdopted = 0; dogWalks = 0; dogBarks = 0; nextPetAt = time + DAY_LEN * 1.2
         // a new world must not inherit the old world's clocks (alerts, rain, festivals...)
         blazes.clear(); scorches.clear(); firesStarted = 0; firesDoused = 0; fireDouses = 0; fireBurnedOut = 0; fireLoss = 0; nextEmberAt = 0.0; vigils = 0; vigilPoints = 0; legendCalls = 0; trialMask = 0; trialHintAt = 0.0; trialsHinted = 0; shrineGlowUntil = 0.0; shrineCallUntil = 0.0; alertUntil = 0.0; starShards = 0; starsFallen = 0; starShardsGot = 0; starUntil = 0.0; starAnnounced = true; rainUntil = 0.0; stormUntil = 0.0; fogUntil = 0.0; snowUntil = 0.0; rainbowUntil = 0.0; droughtUntil = 0.0; droughtStart = 0.0; droughtWaterUntil = 0.0; droughtOn = false; droughts = 0; droughtsEnded = 0; droughtWaterings = 0; droughtSaved = 0; droughtWithered = 0; droughtRainEnds = 0; strikeAt = -99.0; nextWeatherAt = time + DAY_LEN * 0.5; lastSeason = -1; wxStats.clear(); festivalUntil = 0.0; feteOn = false; feteUntil = 0.0; lastFeteSeason = -1; fetesHeld = 0; feteRevels = 0; lessonsGiven = 0; apprenticesMade = 0; apprentice.clear(); feteKinds.clear(); feteGuestIds.clear(); plagueUntil = 0.0; godUntil = 0.0; order = ""; orderUntil = 0.0; shakeUntil = 0.0
         councilOn = false; councilUntil = 0.0; councilNextAt = 0.0; gloryNextAt = 0.0; decrees = 0; decreeKind = ""; decreeUntil = 0.0; decreeStart = 0.0; gildings = 0; decreeKinds.clear(); lastDecree = ""; councilsHeld = 0; councilSeats = 0; policy = ""; policyUntil = 0.0; policyActs = 0; policiesWon = 0; policiesLost = 0; policyVotes = 0; policyOf = 0; policyKinds.clear(); councilGuestIds.clear()
@@ -8250,6 +8253,8 @@ class CivSim(
             Deed("yard1", "Drill Sergeants", "Drilled critters in the training yard thirty times.", "+8 wood, +4 stone") { yardSessions >= 30 },
             Deed("yard2", "Sparring Partners", "Held ten two-person critter sparring bouts in the yard.", "joy for all") { yardSpars >= 10 },
             Deed("hail1", "Hard Hats", "Rode out a hailstorm.", "+6 wood") { hailStorms >= 1 && !hail() && !hailOn },
+            Deed("flood1", "High Water", "Weathered a flood of the lake.", "+8 wood") { flood.floods >= 1 && !flood.on },
+            Deed("flood2", "Sandbag Brigade", "Piled sandbags around five flooded farms.", "joy for all") { flood.baggedFarms >= 5 },
             Deed("hail2", "Snowball in Summer", "Children scooped up hailstones five times over.", "joy for all") { hailIce >= 5 && !hail() },
             Deed("crow1", "Crow Chasers", "Chased the autumn crows off the fields ten times.", "+6 food") { crowsShooed >= 10 },
             Deed("crow2", "Straw Sentinel", "A scarecrow scared off a whole flock by itself.", "joy for all") { crowsScared >= 1 },
@@ -9338,10 +9343,14 @@ class CivSim(
 
     private fun applyWeather(kind: String) {
         when (kind) {
-            "rain" -> { rainUntil = time + 90.0 + rnd.nextInt(60); wx("rain"); event("Rain begins to fall.") }
+            "rain" -> {
+                rainUntil = time + 90.0 + rnd.nextInt(60); wx("rain"); event("Rain begins to fall.")
+                if (seasonIdx() == 0 && rnd.nextInt(100) < 85) startFlood()
+            }
             "storm" -> {
                 stormUntil = time + 80.0 + rnd.nextInt(50); wasStorm = true; nextStrikeAt = time + 4.0
                 wx("storm"); event("Dark clouds roll in and a thunderstorm breaks over the village!")
+                if (seasonIdx() != 3 && rnd.nextInt(100) < 70) startFlood()
                 if (seasonIdx() != 3 && age >= 1 && villagers.size >= 6 && rnd.nextInt(100) < 65) {
                     hailStartAt = time + 10.0; hailUntil = time + 10.0 + 34.0 + rnd.nextInt(26); hailStorms++; wx("hail")
                 }
@@ -9736,6 +9745,88 @@ class CivSim(
     }
 
     /** Autumn crow flocks drop onto a farm and peck the grain; a scarecrow scares them off after ~25s, villagers can shoo them sooner. */
+    /** Heavy rain can swell the lake over its banks (see sim/Flood.kt). Needs a village with farms or homes and a real lake. */
+    private fun startFlood() {
+        if (age < 1 || villagers.size < 6 || flood.on || flooding() || time - flood.lastAt < DAY_LEN * 1.2) return
+        if (flood.lakeTiles(tiles) < 12 || drought()) return
+        flood.startAt = time + 20.0; flood.lastAt = time; flood.on = true; flood.warned = false
+        flood.bagged.clear(); flood.soaked.clear(); flood.lostThis = 0; flood.fishLeft = 0; flood.endAt = -999.0
+        flood.floods++; wx("flood")
+    }
+
+    private fun floodFarmKey(b: Building): Int = b.y * GW + b.x
+
+    /** The depth of the lake's reach over a farm (smallest over its tiles), 0 if the water cannot get to it. */
+    private fun floodDepthAt(b: Building): Int {
+        val d = flood.depth(tiles)
+        var best = 0
+        for (dx in 0..1) for (dy in 0..1) {
+            val x = b.x + dx; val y = b.y + dy
+            if (x >= GW || y >= GH) continue
+            val v = d[y * GW + x]
+            if (v > 0 && (best == 0 || v < best)) best = v
+        }
+        return best
+    }
+
+    private var nextFloodAt = 0.0
+
+    private fun floodTick() {
+        if (!flood.on) return
+        val lvl = flood.level(time)
+        if (time < flood.startAt) {
+            if (!flood.warned) { flood.warned = true; event("The rain has swollen the lake: its water is creeping up the banks!") }
+            return
+        }
+        if (lvl <= 0f && time >= flood.startAt + flood.total()) {
+            // the water is gone: silt, stranded fish
+            flood.on = false; flood.endAt = time
+            var siltGot = 0
+            for (k in flood.soaked) if (k !in flood.bagged) siltGot += 5
+            siltGot = min(siltGot, 40)
+            if (siltGot > 0) { food = min(capFood(), food + siltGot); flood.silt += siltGot }
+            val kids = villagers.filter { isChild(it) && it.phase != "sleeping" }
+            val fish = min(6, kids.size)
+            if (fish > 0) {
+                for (i in 0 until fish) kids[i].happiness = min(100f, kids[i].happiness + 6f)
+                food = min(capFood(), food + fish * 2); flood.fishScooped += fish
+                flood.fishLeft = fish; flood.fishAt = time
+            }
+            val kept = flood.bagged.size
+            event(
+                if (flood.soaked.isEmpty()) "The flood drains back into the lake and the banks reappear."
+                else "The flood drains away.${if (siltGot > 0) " Rich dark silt (+$siltGot food) is left on the soaked fields." else ""}${if (fish > 0) " Children scoop stranded fish out of the mud." else ""}${if (kept > 0) " The sandbags kept $kept farm${if (kept == 1) "" else "s"} dry." else ""}"
+            )
+            mark(if (flood.soaked.isEmpty()) "The lake rose and fell again." else "A flood swept the low fields, then drained.")
+            return
+        }
+        if (time < nextFloodAt) return
+        nextFloodAt = time + 4.0
+        if (lvl < 0.15f) return
+        for (b in buildings) {
+            if (b.type != "farm") continue
+            val d = floodDepthAt(b)
+            if (d == 0 || !flood.covers(d, lvl)) continue
+            val key = floodFarmKey(b)
+            if (key in flood.bagged) continue
+            if (key !in flood.soaked) {
+                flood.soaked.add(key); flood.farmsHit++
+                val worker = villagers.filter { !isChild(it) && it.phase != "sleeping" }.minByOrNull { hypot(it.x - b.x, it.y - b.y) }
+                if (wood >= 12 && worker != null && hypot(worker.x - b.x, worker.y - b.y) < 16f && rnd.nextInt(100) < 65) {
+                    wood -= 12; flood.bagged.add(key); flood.baggedFarms++
+                    worker.happiness = min(100f, worker.happiness + 3f)
+                    worker.say = "Sandbags on the field, quick!"; worker.sayLeft = 3f
+                    worker.remember("piled sandbags to keep the flood off a farm")
+                    if (flood.baggedFarms % 2 == 1) addLog("${worker.name} and the neighbours pile sandbags round a farm as the water rises.")
+                    continue
+                }
+                addLog("The flood water spreads over a farm field.")
+            }
+            val lose = min(food, 3)
+            food -= lose; flood.foodLost += lose; flood.lostThis += lose
+        }
+    }
+
     /** Hail: pellets hammer anyone caught outdoors (never fatal), flatten some grain, then children collect the stones. */
     private fun hailTick() {
         if (!hail()) {
@@ -9815,6 +9906,7 @@ class CivSim(
         }
         crowTick()
         hailTick()
+        floodTick()
         if (droughtOn) {
             if (raining() && time < droughtUntil) { droughtUntil = time; droughtRainEnds++ }
             if (!drought()) {
@@ -10072,6 +10164,7 @@ class CivSim(
             o.put("goods", goods)
             o.put("pgN", pageants).put("pgR", pageantRibbons).put("pgE", pageantEntryN).put("pgS", pageantWinSp).put("pgT", pageantWinTheme).put("pgW", pageantWinName)
             o.put("slS", stormlingsSlain).put("slB", stormlingBolts).put("slH", stormlingHits).put("slD", stormlingDodges).put("slF", stormlingFades).put("slP", stormlingSpent).put("obsW", obsWatches).put("obsF", obsForecasts).put("obsH", obsHits).put("obsP", obsPrepared).put("raids", raidsRepelled).put("ogres", ogresSlain).put("bosses", bossesSlain).put("warlords", warlordsSlain).put("campUp", if (campUp) 1 else 0).put("campX", campX.toDouble()).put("campY", campY.toDouble()).put("campHp", campHp.toDouble()).put("campMax", campMax.toDouble()).put("campR", campsRazed).put("campH", campHits).put("campS", campSorties).put("expN", expeditions).put("expW", expWins).put("expR", expRetreats).put("expRooms", roomsCleared).put("relics", relics).put("expDeep", deepestRoom).put("wardens", wardensSlain).put("golems", golemsSlain).put("frostPacks", frostPacksBroken).put("pilfF", pilfersFoiled).put("pilfL", pilfersLost).put("swarms", swarmsBroken).put("hornets", hornetsSwatted).put("liches", lichesSlain).put("bones", bonesRaised).put("reavers", reaversSlain).put("spiderS", spidersSlain).put("wormS", wormsSlain).put("wormE", wormErupts).put("wormH", wormHits).put("harpyS", harpiesSlain).put("harpyF", flocksScattered).put("harpyD", harpyDives).put("harpyL", harpyLoot).put("spiderW", websSpun).put("spiderC", webCatches).put("spiderB", spiderBites).put("trollS", trollsSlain).put("trollR", trollsStoned).put("trollB", trollBoulders).put("trollRocks", trollRocks.joinToString(",") { "${it[0].toInt()}:${it[1].toInt()}" }).put("ships", shipsSeized).put("landings", landings).put("shamans", shamansSlain).put("golden", goldenAt).put("visits", visitStats.entries.joinToString(",") { "${it.key}:${it.value}" }).put("deeds", deeds.joinToString(",")).put("tavern", tavernVisits).put("snacks", hungerSnacks).put("pets", pets.joinToString(",") { "${it.name}:${it.owner}:${it.bond}" }).put("dogA", dogsAdopted).put("dogW", dogWalks).put("dogB", dogBarks).put("fetes", fetesHeld).put("feteR", feteRevels).put("feteL", lastFeteSeason).put("feteK", feteKinds.joinToString(",")).put("snowmen", snowmenBuilt).put("leafR", leafPilesRaked).put("starsF", starsFallen).put("starG", starShardsGot).put("kites", kitesFlown).put("sprops", seasonProps.joinToString(",") { "${it.kind}:${it.x.toInt()}:${it.y.toInt()}" }).put("statues", statues.joinToString(";") { "${it.name}|${it.title}|${it.kind}|${it.x.toInt()}|${it.y.toInt()}|${it.tier}" }).put("statueC", statueCheers).put("graves", graves.joinToString(";") { "${it.name}|${it.job}|${it.x.toInt()}|${it.y.toInt()}|${it.ageYears}|${it.cause}|${it.day}" }).put("graveX", graveX).put("graveY", graveY).put("buried", buried).put("mournN", mournVisits).put("totemV", totemVisits).put("raised", raised).put("omens", omens).put("recov", recoveries).put("balS", ballistaShots).put("balK", ballistaKills).put("ranchV", ranchVisits).put("pastV", pastureVisits).put("sailN", sailTrips).put("millN", millGrinds).put("millF", flourMade).put("millL", loavesBaked).put("quarryN", quarryHauls).put("quarryS", quarryStone).put("quarryV", quarryVeins).put("vigN", vigils).put("vigP", vigilPoints).put("trMask", trialMask).put("legCalls", legendCalls).put("dockC", dockCatch).put("iceT", iceTrips).put("iceC", iceCatch).put("iceP", icePike).put("bottles", bottlesFound).put("flockS", flockSheep).put("flockH", flockHens).put("eggsG", eggsGathered).put("fleece", fleeces).put("techs", techs.joinToString(",")).put("research", research).put("studyN", studyCount).put("babies", babiesBorn).put("dreams", dreamsDone).put("weds", weds).put("feudsS", feudsStarted).put("feudsE", feudsEnded).put("bffs", bffs.joinToString(",")).put("courting", courting.entries.joinToString(",") { "${it.key}@${it.value.toInt()}" }).put("wallN", wallsRaised).put("wallX", wallCx).put("wallY", wallCy).put("wallD", if (wallDone) 1 else 0).put("wallH", wallHoldSecs.toDouble()).put("lessons", lessonsGiven).put("appMade", apprenticesMade).put("apprentice", apprentice.entries.joinToString(";") { "${it.key}:${it.value}" }).put("cathX", cathX).put("cathY", cathY).put("cathW", cathWork).put("cathT", cathTrips).put("cathB", cathBells).put("jubU", jubileeUntil).put("honeyN", honeyHarvests).put("honeyJ", honeyJars).put("honeyS", beeStings).put("honeyM", meadFeasts).put("honeyT", honeyMark).put("soakN", soaks).put("soakH", soakHeals).put("soakP", soakParties).put("soakG", soakGossips).put("shotN", shotsFired).put("shotB", bullseyes).put("shotM", archeryMatches).put("shotBest", archeryBest).put("fruitN", fruitPicks).put("fruitB", fruitBaskets).put("fruitC", ciderFeasts).put("fruitF", fruitFalls).put("fruitT", fruitMark).put("councN", councilsHeld).put("councS", councilSeats).put("councNext", councilNextAt).put("policy", policy).put("policyU", policyUntil).put("policyS", policyStart).put("policyB", policyBase.toDouble()).put("policyV", policyVotes).put("policyO", policyOf).put("policyA", policyActs).put("policyW", policiesWon).put("policyL", policiesLost).put("policyK", policyKinds.joinToString(",")).put("skUp", skillUps).put("skB", skillBonusLoads).put("skM", skillMasters).put("fireS", firesStarted).put("fireD", firesDoused).put("fireW", fireDouses).put("fireB", fireBurnedOut).put("fireL", fireLoss).put("sideN", sideRooms).put("sideT", sideTraps).put("sideV", sideVaults).put("sideS", sideSprings).put("sideH", sideShrines).put("riftRal", riftRallies).put("kgPud", puddleJumps).put("kgFly", fireflyJars).put("kgHide", hideSeekGames).put("kgFound", hideFinds).put("knightD", knightDuels).put("toysG", toysGiven).put("gDec", decrees).put("gNext", gloryNextAt).put("gKind", decreeKind).put("gUntil", decreeUntil).put("gStart", decreeStart).put("gGild", gildings).put("gKinds", decreeKinds.joinToString(",")).put("gLast", lastDecree).put("dryN", droughts).put("dryE", droughtsEnded).put("dryW", droughtWaterings).put("dryS", droughtSaved).put("dryX", droughtWithered).put("dryR", droughtRainEnds).put("scorpS", scorpionsSlain).put("scorpT", scorpionStings).put("scorpP", scorpionPincers).put("scorpN", scorpionSwarms).put("toadS", toadsSlain).put("toadL", toadLashes).put("toadC", toadChoruses).put("toadH", toadLeaps).put("stagS", stagsSlain).put("stagG", stagGores).put("stagC", stagCharges).put("stagM", stagMisses).put("stagR", stagRuts).put("mushN", mushPicked).put("mushG", glowcapsFound).put("mushS", mushStews).put("smkN", smokeBatches).put("smkR", smokeRations).put("smkC", smokeCheers).put("otG", otterGifts).put("otC", otterCheers).put("musN", museumVisits).put("stlN", stallVisits).put("stlD", stallDays).put("stlT", stallDeals).put("stlB", stallBargains).put("musT", museumTalks).put("musS", museumShown).put("visN", friendVisits).put("visM", friendVisitsMet).put("hgN", hearthGames).put("hgM", hearthMatches).put("hgT", hearthMends).put("hgP", hearthPlays).put("voyN", voyages).put("voyF", voyFinds).put("voyS", voyScares).put("voyC", voyCrowd).put("crowN", crowFlocks).put("crowS", crowsShooed).put("crowC", crowsScared).put("crowL", crowLoss).put("crowV", crowSaved).put("schL", schoolLessons).put("schV", schoolLevel).put("schS", schoolStars).put("gldW", guildWorks).put("gldR", guildRank).put("gldS", guildSpent).put("gLe", gearLeather).put("gBr", gearBronze).put("gSt", gearSteel).put("gFo", gearForged).put("gBl", gearBlocks).put("gSv", gearSaved.toDouble()).put("gFi", gearFirsts).put("lhT", beaconTends).put("lhN", beaconNightWatch).put("lhF", beaconFogSails).put("lhV", beaconNightSails).put("lhS", beaconScares).put("lhG", beaconGuided).put("hailN", hailStorms).put("hailH", hailHits).put("hailC", hailCrop).put("hailV", hailSaved).put("hailI", hailIce).put("tnkM", tinkerMends).put("swrF", sowerFarms).put("seeR", seerReadings).put("yetS", yetisSlain).put("yetT", yetiThrows).put("yetM", yetiSmashes).put("yetH", yetiHerds).put("rlmRun", realmRuns.joinToString(",")).put("rlmWin", realmWins.joinToString(",")).put("rlmT", riftTheme).put("rlmL", lastTheme).put("rlmH", realmHazards).put("rlmB", realmBonus).put("nsN", skyShows.joinToString(",")).put("nsW", skyWatches).put("nsK", skyWishes).put("nsL", skyLastNight).put("carN", caravans).put("carF", carFinds).put("carA", carAmbush).put("carB", carBeaten).put("carS", carSpent).put("catA", catsArrived).put("catM", catMice).put("catP", catPets).put("swR", swallowReturns).put("swC", swallowCatches).put("swP", swallowPerches).put("swY", swallowYear).put("heC", heronCatches).put("heT", heronTips).put("heF", heronFlushes)
+            o.put("flN", flood.floods).put("flH", flood.farmsHit).put("flB", flood.baggedFarms).put("flL", flood.foodLost).put("flS", flood.silt).put("flF", flood.fishScooped)
             o.put("trS", treantSlain).put("trB", treantBursts).put("trN", treantSnares).put("trM", treantMisses).put("trG", treantGroves)
             o.put("dsS", dustSlain).put("dsF", dustFlings).put("dsG", dustGrain).put("dsT", dustTires).put("dsM", dustStorms).put("slmP", slimeSplits).put("slmC", slimeClears).put("slmB", slimeBites).put("slmK", slimelingsSlain)
             o.put("lmN", landmarksFound).put("lmV", landmarkVisits).put("lmH", landmarkHeals).put("lmR", landmarkRelics)
@@ -10221,6 +10314,7 @@ class CivSim(
                 for (k in 0 until 5) { realmRuns[k] = a.getOrElse(k) { 0 }; realmWins[k] = b.getOrElse(k) { 0 } }
                 riftTheme = o.optInt("rlmT", 0).coerceIn(0, 4); lastTheme = o.optInt("rlmL", -1).coerceIn(-1, 4)
                 realmHazards = o.optInt("rlmH", 0); realmBonus = o.optInt("rlmB", 0); skyShows.fill(0); o.optString("nsN", "").split(",").forEachIndexed { i, x -> if (i < 4) skyShows[i] = x.trim().toIntOrNull() ?: 0 }; skyWatches = o.optInt("nsW", 0); skyWishes = o.optInt("nsK", 0); skyLastNight = o.optInt("nsL", -1); caravans = o.optInt("carN", 0); carFinds = o.optInt("carF", 0); carAmbush = o.optInt("carA", 0); carBeaten = o.optInt("carB", 0); carSpent = o.optInt("carS", 0); catsArrived = o.optInt("catA", 0); catMice = o.optInt("catM", 0); catPets = o.optInt("catP", 0); swallowReturns = o.optInt("swR", 0); swallowCatches = o.optInt("swC", 0); swallowPerches = o.optInt("swP", 0); swallowYear = o.optInt("swY", 0); heronCatches = o.optInt("heC", 0); heronTips = o.optInt("heT", 0); heronFlushes = o.optInt("heF", 0)
+            flood.floods = o.optInt("flN", 0); flood.farmsHit = o.optInt("flH", 0); flood.baggedFarms = o.optInt("flB", 0); flood.foodLost = o.optInt("flL", 0); flood.silt = o.optInt("flS", 0); flood.fishScooped = o.optInt("flF", 0)
             }
             treantSlain = o.optInt("trS", 0); treantBursts = o.optInt("trB", 0); treantSnares = o.optInt("trN", 0); treantMisses = o.optInt("trM", 0); treantGroves = o.optInt("trG", 0)
             dustSlain = o.optInt("dsS", 0); dustFlings = o.optInt("dsF", 0); dustGrain = o.optInt("dsG", 0); dustTires = o.optInt("dsT", 0); dustStorms = o.optInt("dsM", 0); slimeSplits = o.optInt("slmP", 0); slimeClears = o.optInt("slmC", 0); slimeBites = o.optInt("slmB", 0); slimelingsSlain = o.optInt("slmK", 0)

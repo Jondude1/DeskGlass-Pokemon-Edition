@@ -427,6 +427,7 @@ private fun DrawScope.drawWorld(
     seasonGround(sim, geo, vx0, vx1, vy0, vy1)
     droughtGround(sim, geo, vx0, vx1, vy0, vy1)
     hailGround(sim, geo, vx0, vx1, vy0, vy1)
+    floodGround(sim, geo, vx0, vx1, vy0, vy1)
     trackMarks(sim, geo, vx0, vx1, vy0, vy1)
 
     // kingdom territories: tinted ground and glowing borders
