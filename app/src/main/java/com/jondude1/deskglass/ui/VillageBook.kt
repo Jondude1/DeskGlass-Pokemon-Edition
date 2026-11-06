@@ -104,7 +104,7 @@ private fun deedsPage(sim: CivSim) {
 private fun lorePage(sim: CivSim) {
     val libs = sim.buildings.count { it.type == "library" }
     Text("${sim.techs.size} of ${sim.allTechs.size} discoveries · ${sim.research} lore gathered · ${sim.studyCount} study sessions", color = Color(0xFF9BE3BC), fontSize = 15.sp, fontWeight = FontWeight.Medium)
-    if (libs == 0) Text("Build a library (Town Age) and villagers will study there to make discoveries.", color = Glass.InkFaint, fontSize = 13.sp)
+    if (libs == 0) Text("Build a library (Hut Age) and villagers will study there to make discoveries.", color = Glass.InkFaint, fontSize = 13.sp)
     val next = sim.nextTech()
     if (next != null) {
         val pct = (sim.research * 100 / next.need).coerceIn(0, 100)

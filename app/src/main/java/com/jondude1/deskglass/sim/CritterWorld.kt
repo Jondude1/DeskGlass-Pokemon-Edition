@@ -1292,7 +1292,7 @@ class CritterWorld(private val sim: CivSim) {
             if (wild != null) {
                 val bold = v.job == "Hunter" || v.job == "Scout" || v.job == "Forager"
                 val legend = wild.c.species.rarity >= 5
-                val p = if (legend) 0.9f else if (wild.c.alpha) 0.7f else if (bold) 0.55f else 0.3f
+                val p = (if (legend) 0.9f else if (wild.c.alpha) 0.7f else if (bold) 0.55f else 0.3f) + (if (!legend && sim.hasTech("beasts")) 0.12f else 0f)
                 if (comp != null && ready(comp) && (!legend || comp.level >= wild.c.level) && (!wild.c.alpha || comp.level + 3 >= wild.c.level) && rnd.nextFloat() < p) {
                     if (legend) {
                         startWild(v, comp, wild)

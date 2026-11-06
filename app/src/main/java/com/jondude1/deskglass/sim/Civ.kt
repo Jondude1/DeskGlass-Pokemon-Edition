@@ -230,7 +230,7 @@ class CivSim(
     /** 0..1: how parched the land looks right now (fades in and out at the edges of the dry spell). */
     fun droughtLevel(): Float = if (!drought()) 0f else minOf(1.0, (time - droughtStart) / 25.0, (droughtUntil - time) / 25.0).toFloat().coerceIn(0f, 1f)
     /** True while the farms have been freshly watered during a drought. */
-    fun farmsWatered() = time < droughtWaterUntil
+    fun farmsWatered() = time < droughtWaterUntil || hasTech("cisterns")
     var strikeAt = -99.0; var strikeX = 0f; var strikeY = 0f
     private var nextWeatherAt = DAY_LEN * 0.5; private var nextStrikeAt = 0.0; private var lastSeason = -1; private var wasStorm = false
     /** Counts of weather and season events seen this run (used by the headless harness). */
@@ -642,10 +642,14 @@ class CivSim(
         Tech("farm", "Crop Rotation", 150, "150 food", "Berries and farm harvests yield +1 food."),
         Tech("saws", "Two-Man Saws", 450, "120 wood", "Every load of wood is one log bigger."),
         Tech("quarry", "Deep Quarrying", 900, "120 stone", "Stone and ore loads are one bigger."),
+        Tech("nets", "Woven Nets", 300, "80 wood", "Every fishing trip lands an extra fish."),
         Tech("herbal", "Herbal Medicine", 1500, "200 food", "Infirmaries heal much faster."),
+        Tech("beasts", "Beast Lore", 1900, "100 food", "Summoners read wild critters better: pacts are sealed more often."),
         Tech("vault", "Granary Vaults", 2300, "200 stone, 100 wood", "Every store holds a fifth more."),
+        Tech("cisterns", "Rain Cisterns", 2900, "100 stone", "Farms never wither in a drought: the cisterns keep them watered."),
         Tech("siege", "Siege Craft", 3300, "10 metal, 100 wood", "Ballistae shoot faster and hit harder."),
         Tech("stars", "Star Charts", 4600, "250 stone", "Wonders bless twice as strongly; scouts find richer caches."),
+        Tech("charts", "Wayfinders' Charts", 5100, "80 wood", "Scouts read the land better: lasting landmarks are found far more often."),
         // higher learning: opens in the Town Age once the first seven are known
         Tech("mill2", "Geared Millstones", 5600, "150 wood, 40 stone", "Every grinding at the windmill yields two more meals.", 3),
         Tech("hives", "Skep Husbandry", 6800, "120 wood, 30 food", "Honey harvests yield two more meals.", 3),
@@ -661,7 +665,7 @@ class CivSim(
     var discoveryFx = -100.0
     private var nextResearchAt = 0.0
     fun hasTech(id: String) = id in techs
-    fun nextTech(): Tech? = allTechs.firstOrNull { it.id !in techs }?.takeIf { age >= it.minAge }
+    fun nextTech(): Tech? = allTechs.firstOrNull { it.id !in techs && age >= it.minAge }
     /** Discoveries of the higher learning that the scholars have made. */
     fun higherTechs(): Int = allTechs.count { it.minAge > 0 && it.id in techs }
     var tavernVisits = 0
@@ -1886,7 +1890,7 @@ class CivSim(
             "lamp" -> if (age < 1) 0 else min(10, n / 2)
             "granary" -> if (age < 2) 0 else min(3, n / 8)
             "barracks" -> if (age < 3) 0 else min(2, n / 10)
-            "library" -> if (age < 3 || n < 10) 0 else min(2, n / 14)
+            "library" -> if (age < 1 || n < 8) 0 else if (age < 3) 1 else min(2, n / 14)
             "tavern" -> if (age < 1 || n < 8) 0 else min(if (age >= 3) 3 else 2, max(1, n / 10))
             "infirmary" -> if (age < 3 || n < 8) 0 else min(2, 1 + n / 20)
             "ballista" -> if (age < 3 || n < 8) 0 else min(if (age >= 4) 3 else 2, 1 + n / 10)
@@ -3097,6 +3101,7 @@ class CivSim(
             "fish" -> {
                 v.gathered++
                 if (rnd.nextInt(4) != 0) food++
+                if (hasTech("nets")) food++
                 if (buildings.any { it.type == "dock" && it.y * GW + it.x == v.targetTile }) { food = min(capFood(), food + 1); dockCatch++ }
                 if (v.gathered >= 3) {
                     v.remember("fished at the lake")
@@ -5240,7 +5245,7 @@ class CivSim(
 
     /** A scout arriving at the end of an exploring trip may stumble on a lasting landmark. */
     private fun tryDiscoverLandmark(v: Villager): Boolean {
-        if (landmarks.size >= 5 || time < 40.0 || rnd.nextInt(100) >= 32) return false
+        if (landmarks.size >= 5 || time < 40.0 || rnd.nextInt(100) >= (if (hasTech("charts")) 50 else 32)) return false
         val x = v.x.toInt().coerceIn(2, GW - 3)
         val y = v.y.toInt().coerceIn(2, GH - 3)
         if (blocked(y * GW + x)) return false
@@ -8215,7 +8220,7 @@ class CivSim(
             Deed("lore4", "Learned Folk", "Four discoveries made in the library.", "+30 wood, +20 stone") { techs.size >= 4 },
             Deed("lore7", "Age of Wisdom", "The first seven discoveries made.", "+10 metal, joy for all") { techs.size >= 7 },
             Deed("lore10", "Higher Learning", "Three discoveries of the Town Age scholars.", "+40 wood, +40 stone") { higherTechs() >= 3 },
-            Deed("lore14", "Age of Marvels", "All fourteen discoveries made.", "+15 metal, joy for all") { techs.size >= 14 },
+            Deed("lore14", "Age of Marvels", "Every discovery of the scholars made.", "+15 metal, joy for all") { techs.size >= allTechs.size },
             Deed("siege1", "Siege Engines", "Raised a great ballista.", "+15 wood, +5 stone") { count("ballista") >= 1 },
             Deed("siege10", "Bolt from Afar", "Felled ten foes with ballista bolts.", "+10 metal, +10 stone") { ballistaKills >= 10 },
             Deed("healer", "Mended and Whole", "Tended the hurt at the infirmary twenty times.", "+20 food, +10 stone") { recoveries >= 20 },
@@ -8334,6 +8339,10 @@ class CivSim(
         "saws" -> wood >= 120
         "quarry" -> stone >= 120
         "herbal" -> food >= 200
+        "nets" -> wood >= 80
+        "beasts" -> food >= 100
+        "cisterns" -> stone >= 100
+        "charts" -> wood >= 80
         "vault" -> stone >= 200 && wood >= 100
         "siege" -> metal >= 10 && wood >= 100
         "mill2" -> wood >= 150 && stone >= 40
@@ -8352,6 +8361,10 @@ class CivSim(
             "saws" -> wood -= 120
             "quarry" -> stone -= 120
             "herbal" -> food -= 200
+            "nets" -> wood -= 80
+            "beasts" -> food -= 100
+            "cisterns" -> stone -= 100
+            "charts" -> wood -= 80
             "vault" -> { stone -= 200; wood -= 100 }
             "siege" -> { metal -= 10; wood -= 100 }
             "mill2" -> { wood -= 150; stone -= 40 }
