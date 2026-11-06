@@ -1,6 +1,12 @@
 package com.jondude1.deskglass.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -25,12 +31,13 @@ import androidx.compose.ui.unit.sp
 import com.jondude1.deskglass.sim.CivSim
 import kotlinx.coroutines.delay
 
-private val BOOK_TABS = listOf("Deeds", "Lore", "Heroes", "Records", "Days", "Annals")
+private val BOOK_TABS = listOf("Deeds", "Lore", "Folk", "Heroes", "Records", "Days", "Annals")
 
 /** The Village Book: every deed (done and still to do), the heroes, lifetime records and the long chronicle. */
 @Composable
-fun VillageBookScreen(sim: CivSim, onBack: () -> Unit) {
+fun VillageBookScreen(sim: CivSim, onBack: () -> Unit, onFollow: (Int) -> Unit = {}) {
     var tab by remember { mutableIntStateOf(0) }
+    var folkSort by remember { mutableIntStateOf(0) }
     var tick by remember { mutableLongStateOf(0L) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -53,9 +60,10 @@ fun VillageBookScreen(sim: CivSim, onBack: () -> Unit) {
             when (tab) {
                 0 -> deedsPage(sim)
                 1 -> lorePage(sim)
-                2 -> heroesPage(sim)
-                3 -> recordsPage(sim)
-                4 -> almanacPage(sim)
+                2 -> folkPage(sim, folkSort, { folkSort = it }, onFollow)
+                3 -> heroesPage(sim)
+                4 -> recordsPage(sim)
+                5 -> almanacPage(sim)
                 else -> annalsPage(sim)
             }
             Spacer(Modifier.height(24.dp))
@@ -192,6 +200,67 @@ private fun almanacPage(sim: CivSim) {
         Column {
             Text("Day ${f[0]} · ${f[1]} · ${f[2]}", color = Glass.Ink, fontSize = 15.sp, fontWeight = FontWeight.Medium)
             Text(f[3].split(";").joinToString("  ·  "), color = Glass.InkDim, fontSize = 12.sp)
+        }
+    }
+}
+
+
+/** A thin filled bar for one need (0..100); used by the Folk page and the follow panel. */
+@Composable
+fun NeedBar(label: String, value: Float, color: Color, barWidth: Dp = 70.dp) {
+    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(label, color = Glass.InkFaint, fontSize = 10.sp, modifier = Modifier.width(34.dp))
+        Box(Modifier.width(barWidth).height(6.dp).background(Color(0x33FFFFFF), RoundedCornerShape(3.dp))) {
+            Box(Modifier.fillMaxWidth((value / 100f).coerceIn(0.02f, 1f)).height(6.dp).background(color, RoundedCornerShape(3.dp)))
+        }
+    }
+}
+
+/** How much a villager needs help right now, 0 (fine) .. 100 (urgent); used to sort the Folk page. */
+private fun neediness(v: com.jondude1.deskglass.sim.Villager): Float =
+    maxOf(100f - v.hp, v.hunger, 100f - v.energy, 100f - v.happiness)
+
+@Composable
+private fun folkPage(sim: CivSim, sort: Int, setSort: (Int) -> Unit, onFollow: (Int) -> Unit) {
+    val folk = sim.villagers.toList()
+    val kids = folk.count { sim.isChild(it) }
+    val avgHappy = if (folk.isEmpty()) 0 else (folk.sumOf { it.happiness.toDouble() } / folk.size).toInt()
+    val hurt = folk.count { it.hp < 60f }
+    val hungry = folk.count { it.hunger > 70f }
+    Text("${folk.size} villagers · $kids children · average happiness $avgHappy" + (if (hurt > 0) " · $hurt hurt" else "") + (if (hungry > 0) " · $hungry hungry" else ""), color = Color(0xFF9BE3BC), fontSize = 15.sp, fontWeight = FontWeight.Medium)
+    val jobs = folk.groupingBy { it.job }.eachCount().entries.sortedByDescending { it.value }
+    Text(jobs.joinToString(" · ") { "${it.value} ${it.key.lowercase()}" }, color = Glass.InkDim, fontSize = 12.sp)
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        GlassButton("By job", { setSort(0) }, filled = sort == 0)
+        GlassButton("Neediest", { setSort(1) }, filled = sort == 1)
+        GlassButton("Eldest", { setSort(2) }, filled = sort == 2)
+    }
+    val rows = when (sort) {
+        1 -> folk.sortedByDescending { neediness(it) }
+        2 -> folk.sortedByDescending { it.born.let { b -> -b } }
+        else -> folk.sortedWith(compareBy({ it.job }, { it.name }))
+    }
+    for (v in rows) {
+        Column(Modifier.fillMaxWidth().background(Color(0x14FFFFFF), RoundedCornerShape(12.dp)).padding(10.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Column(Modifier.width(210.dp)) {
+                    Text((if (v.titles.isNotEmpty()) "★ " else "") + v.name, color = Glass.Ink, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                    Text((if (sim.isChild(v)) "child" else v.job.lowercase()) + " · age ${sim.ageYears(v)} · feeling ${sim.mood(v)}", color = Glass.InkFaint, fontSize = 12.sp)
+                }
+                GlassButton("Follow", { onFollow(v.id) })
+            }
+            Text("Doing: " + (if (v.action.isEmpty()) "thinking" else v.action.replace('_', ' ')) + (sim.partnerOf(v)?.let { " · married to ${it.name}" } ?: "") + (sim.feudWith(v)?.let { " · feuding with ${it.name}" } ?: ""), color = Glass.InkDim, fontSize = 12.sp)
+            Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    NeedBar("health", v.hp, if (v.hp < 40f) Color(0xFFFF6B5E) else Color(0xFF7BD88F))
+                    NeedBar("fed", 100f - v.hunger, if (v.hunger > 70f) Color(0xFFFF9E57) else Color(0xFFE6C16A))
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    NeedBar("rest", v.energy, if (v.energy < 25f) Color(0xFFB07CFF) else Color(0xFF7CB8FF))
+                    NeedBar("cheer", v.happiness, if (v.happiness < 30f) Color(0xFFFF8AA8) else Color(0xFFFFD84A))
+                }
+            }
+            if (v.thought.isNotBlank()) Text("“${v.thought}”", color = Glass.InkFaint, fontSize = 12.sp)
         }
     }
 }

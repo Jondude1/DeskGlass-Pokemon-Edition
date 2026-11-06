@@ -2418,7 +2418,7 @@ fun VillageScreen(vm: MainViewModel, fullscreen: Boolean, onFullscreen: (Boolean
         return
     }
     if (showBook) {
-        VillageBookScreen(sim) { showBook = false }
+        VillageBookScreen(sim, { showBook = false }, { id -> cam.followId = id; showBook = false })
         return
     }
 

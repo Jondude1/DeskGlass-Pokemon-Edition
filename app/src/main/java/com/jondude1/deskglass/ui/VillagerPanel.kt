@@ -54,10 +54,16 @@ fun VillagerPanel(sim: CivSim, id: Int, tick: Long, modifier: Modifier = Modifie
             "Doing: " + (if (v.action.isEmpty()) "thinking" else v.action.replace('_', ' ')),
             color = Glass.InkDim, fontSize = 12.sp,
         )
-        Text(
-            "HP ${v.hp.toInt()} · hunger ${v.hunger.toInt()} · energy ${v.energy.toInt()} · happy ${v.happiness.toInt()}",
-            color = Glass.InkFaint, fontSize = 11.sp,
-        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                NeedBar("HP", v.hp, if (v.hp < 40f) Color(0xFFFF6B5E) else Color(0xFF7BD88F), 70.dp)
+                NeedBar("fed", 100f - v.hunger, if (v.hunger > 70f) Color(0xFFFF9E57) else Color(0xFFE6C16A), 70.dp)
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                NeedBar("rest", v.energy, if (v.energy < 25f) Color(0xFFB07CFF) else Color(0xFF7CB8FF), 50.dp)
+                NeedBar("cheer", v.happiness, if (v.happiness < 30f) Color(0xFFFF8AA8) else Color(0xFFFFD84A), 50.dp)
+            }
+        }
         if (v.thought.isNotBlank()) Text("“${v.thought}”", color = Glass.InkDim, fontSize = 12.sp)
 
         val career = sim.careerLines(v)
