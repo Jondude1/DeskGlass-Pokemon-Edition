@@ -102,6 +102,19 @@ fun main(args: Array<String>) {
         for (m in godLog.take(6)) println("   GOD $m")
         val enc = d.encode(); val c2 = Divine(); c2.decode(enc)
         println("DIVINE codec round trip ok=${c2.encode() == enc} enc=$enc")
+        run {
+            // forced check: bind all six legends, hurt a villager, keep a tough foe about, and let 400s pass
+            val f0 = sim.boons.fired.copyOf()
+            for (k in 0 until 6) sim.critters.critters.add(Critter(9000 + k, 57 + k, 25).also { it.heal() })
+            sim.villagers[0].hp = 40f
+            var struck = 0
+            for (step in 0 until 4000) {
+                if (step % 500 == 0) { sim.predators.add(Predator("ogre", sim.villagers[0].x + 6f, sim.villagers[0].y)); sim.villagers[0].hp = 40f }
+                sim.tick(0.1f)
+            }
+            println("BOONS forced 400s fired=${LegendBoons.NAMES.mapIndexed { k, n -> n + "=" + (sim.boons.fired[k] - f0[k]) }}")
+            sim.critters.critters.removeAll { it.uid >= 9000 }
+        }
         sim.divine.favour = 100f; sim.villagers[0].hp = 30f
         val hm = sim.godPower("heal"); println("DIVINE forced heal -> hp=${sim.villagers[0].hp.toInt()} msg=$hm")
         sim.divine.favour = 5f; println("DIVINE broke -> ${sim.godPower("smite")}")
@@ -116,6 +129,8 @@ fun main(args: Array<String>) {
         println("HERON save round trip ok=${sim2.heronCatches == sim.heronCatches && sim2.heronTips == sim.heronTips && sim2.heronFlushes == sim.heronFlushes} catches=${sim.heronCatches}")
         println("SWALLOW save round trip ok=${sim2.swallowReturns == sim.swallowReturns && sim2.swallowCatches == sim.swallowCatches && sim2.swallowPerches == sim.swallowPerches && sim2.swallowYear == sim.swallowYear} returns=${sim.swallowReturns}")
         println("CATS save round trip ok=${sim2.catMice == sim.catMice && sim2.catPets == sim.catPets && sim2.catsArrived == sim.catsArrived} mice=${sim.catMice}")
+        println("BOONS fired=${LegendBoons.NAMES.mapIndexed { k, n -> n + "=" + sim.boons.fired[k] }} total=${sim.boons.total()} kinds=${sim.boons.kinds()} foesStruck=${sim.boons.foesStruck} woundsMended=${sim.boons.woundsMended} legendsOwned=${sim.critters.legendsOwned()}")
+        println("BOONS save round trip ok=${sim2.boons.encode() == sim.boons.encode()} enc=${sim.boons.encode()}")
         println("DIVINE full save round trip ok=${sim2.divine.encode() == sim.divine.encode()} loadedUses=${sim2.divine.totalUses()}")
     }
     println("SURPLUS wastedGathers=${sim.wastedGathers} carved=${sim.carved} posies=${sim.posies}")

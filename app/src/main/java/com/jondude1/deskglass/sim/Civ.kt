@@ -257,6 +257,7 @@ class CivSim(
     private var lastYetiAt = -999.0
     var dustSlain = 0; var dustFlings = 0; var dustGrain = 0; var dustTires = 0; var dustStorms = 0
     private var lastDustAt = -999.0
+    val boons = LegendBoons()
     var treantSlain = 0; var treantBursts = 0; var treantSnares = 0; var treantMisses = 0; var treantGroves = 0
     private var lastTreantAt = -999.0
     var slimeSplits = 0; var slimeClears = 0; var slimeBites = 0; var slimelingsSlain = 0
@@ -1348,6 +1349,7 @@ class CivSim(
         chronicle.clear()
         almanac.reset()
         divine.reset()
+        boons.reset()
         predators.clear()
         time = DAY_LEN * 0.08
         lastBirth = time
@@ -1693,6 +1695,90 @@ class CivSim(
     }
 
     // ---- divine favour: powers the player calls down from the sky ----
+
+    /** Bound legends answer the village on their own: each has a gift and a cooldown (see LegendBoons). */
+    private fun legendBoonTick() {
+        if (villagers.size < 3 || time < 30.0) return
+        for (c in critters.critters) {
+            val k = c.sp - 57
+            if (k < 0 || k > 5) continue
+            if (c.faintedUntil > 0.0) continue
+            if (boons.next[k] <= 0.0) { boons.next[k] = time + 40.0 + 10.0 * k; continue }
+            if (time < boons.next[k]) continue
+            var cx = 0f; var cy = 0f
+            for (v in villagers) { cx += v.x; cy += v.y }
+            cx /= villagers.size; cy /= villagers.size
+            val cooldown = (80.0 - min(30, c.level).toDouble())
+            val foes = predators.filter { !(it.kind == "burrower" && it.aux > 0f) }
+            var line = ""
+            when (k) {
+                0 -> {
+                    val hurt = villagers.filter { it.hp < 92f }
+                    if (hurt.isNotEmpty()) {
+                        for (v in hurt) { v.hp = min(100f, v.hp + 22f); v.happiness = min(100f, v.happiness + 4f) }
+                        for (v in hurt.take(6)) fx.add(Fx("mend", v.x, v.y, time, 1.6f))
+                        boons.woundsMended += hurt.size
+                        line = "Aurelion's dawn-light washes over the village and mends ${hurt.size} wound${if (hurt.size == 1) "" else "s"}."
+                    } else if (villagers.any { it.happiness < 55f }) {
+                        for (v in villagers) v.happiness = min(100f, v.happiness + 5f)
+                        line = "Aurelion's warm mane-light settles on the village and lifts every heart."
+                    }
+                }
+                1 -> {
+                    val farms = buildings.filter { it.type == "farm" }
+                    if (farms.isNotEmpty() || count("dock") > 0) {
+                        for (b in farms) b.boostUntil = max(b.boostUntil, time + 70.0)
+                        for (b in farms.take(5)) fx.add(Fx("bless", b.x + 0.5f, b.y + 0.5f, time, 1.4f))
+                        food += 6 + 2 * min(farms.size, 4)
+                        line = "Tidewyrm rolls a cool tide over the fields: the farms drink it in and the stores fill."
+                    }
+                }
+                2 -> {
+                    wood += 8
+                    food += 4
+                    for (v in villagers) v.happiness = min(100f, v.happiness + 3f)
+                    line = "Elderstag shakes its antlers and a grove's bounty falls over the village (+8 wood, +4 food)."
+                }
+                3 -> {
+                    val tgt = foes.sortedByDescending { predatorMaxHp(it.kind) }.take(2)
+                    if (tgt.isNotEmpty()) {
+                        for (f in tgt) {
+                            f.hp -= 40f
+                            fx.add(Fx("bolt", f.x, f.y, time, 0.7f))
+                        }
+                        boons.foesStruck += tgt.size
+                        strikeAt = time; strikeX = tgt[0].x; strikeY = tgt[0].y
+                        line = "Stormroc beats its wings and lightning forks down on ${tgt.size} foe${if (tgt.size == 1) "" else "s"}."
+                    }
+                }
+                4 -> {
+                    val tgt = foes.minByOrNull { f -> villagers.minOfOrNull { hypot(it.x - f.x, it.y - f.y) } ?: 99f }
+                    if (tgt != null) {
+                        tgt.hp -= 45f
+                        fx.add(Fx("quake", tgt.x, tgt.y, time, 1.0f))
+                        for (v in villagers) if (isFighter(v)) v.hp = min(100f, v.hp + 12f)
+                        boons.foesStruck++
+                        line = "Ironwarden stamps down: the ground shakes under the ${tgt.kind} and the fighters take heart."
+                    }
+                }
+                else -> {
+                    val tgt = foes.maxByOrNull { predatorMaxHp(it.kind) }
+                    if (tgt != null) {
+                        tgt.hp -= 90f
+                        fx.add(Fx("quake", tgt.x, tgt.y, time, 1.2f))
+                        fx.add(Fx("bolt", tgt.x, tgt.y, time, 0.7f))
+                        boons.foesStruck++
+                        line = "Voidwyrm tears a dark rift under the ${tgt.kind} and drags a piece of it away."
+                    }
+                }
+            }
+            if (line.isEmpty()) { boons.next[k] = time + 20.0; continue }
+            boons.fired[k]++
+            boons.next[k] = time + cooldown
+            fx.add(Fx("boon${57 + k}", cx, cy, time, 2.4f))
+            if (boons.fired[k] == 1) event(line) else if (boons.fired[k] % 4 == 0) addLog(line)
+        }
+    }
 
     /** Spend favour on one of the five powers. Returns the line shown to the player (also stored in divine.lastMsg). */
     fun godPower(id: String): String {
@@ -8094,6 +8180,8 @@ class CivSim(
             Deed("storm1", "Eye of the Storm", "Slew a living stormling.", "+15 stone, +5 metal") { stormlingsSlain >= 1 },
             Deed("storm2", "Quick Feet", "Leapt clear of ten stormling bolts.", "+20 food, +10 wood") { stormlingDodges >= 10 },
             Deed("stag2", "Matador Village", "Let five charges miss and strike the stuck stag.", "+20 wood, +10 stone") { stagMisses >= 5 },
+            Deed("boon1", "The Legend Answers", "A bound legend answered the village with a gift of its own.", "+15 food, +5 goods") { boons.total() >= 1 },
+            Deed("boon2", "Guardians' Chorus", "Three different legends have each answered the village.", "+20 wood, +10 stone") { boons.kinds() >= 3 },
             Deed("treant1", "Timber!", "Felled a Heartwood treant.", "+20 wood, +5 goods") { treantSlain >= 1 },
             Deed("treant2", "Root Dodgers", "Let six root bursts grab nothing but air.", "+15 food, +10 stone") { treantMisses >= 6 },
             Deed("dust1", "Dust Settler", "Beat a dust devil.", "+15 food, +5 goods") { dustSlain >= 1 },
@@ -9755,6 +9843,7 @@ class CivSim(
         councilTick()
         almanac.check(this)
         divine.tick(this, dt)
+        legendBoonTick()
         gloryTick()
         starTick()
         shroomTick()
@@ -10025,6 +10114,7 @@ class CivSim(
             o.put("critters", critters.toJson())
             o.put("almanac", almanac.encode())
             o.put("divine", divine.encode())
+            o.put("boons", boons.encode())
             val tmp = File(saveFile.parentFile, saveFile.name + ".tmp")
             tmp.writeText(o.toString())
             tmp.renameTo(saveFile)
@@ -10087,6 +10177,7 @@ class CivSim(
             if (ch != null) for (i in 0 until ch.length()) chronicle.add(ch.getString(i))
             almanac.decode(o.optString("almanac", ""))
             divine.decode(o.optString("divine", ""))
+            boons.decode(o.optString("boons", ""))
             villagers.clear()
             val vs = o.getJSONArray("villagers")
             for (i in 0 until vs.length()) {

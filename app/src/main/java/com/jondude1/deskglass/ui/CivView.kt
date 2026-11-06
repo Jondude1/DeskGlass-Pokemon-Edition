@@ -1710,6 +1710,30 @@ private fun DrawScope.drawWorld(
                     )
                 }
             }
+            "boon57", "boon58", "boon59", "boon60", "boon61", "boon62" -> {
+                // a bound legend answers: a wide ring in its own colour, a pillar of light and motes shaped by the legend
+                val bk = (f.type.substring(4).toIntOrNull() ?: 57) - 57
+                val col = Color(com.jondude1.deskglass.sim.LegendBoons.COLORS[bk.coerceIn(0, 5)])
+                val fade = if (p < 0.55f) 1f else (1f - p) / 0.45f
+                drawCircle(col.copy(alpha = 0.16f * fade), radius = ts * (1.2f + p * 8f), center = Offset(cx, cy))
+                drawCircle(col.copy(alpha = 0.6f * fade), radius = ts * (0.6f + p * 6.5f), center = Offset(cx, cy), style = androidx.compose.ui.graphics.drawscope.Stroke(width = ps * 1.6f))
+                drawRect(col.copy(alpha = 0.28f * fade), Offset(cx - ps * 3f, cy - ts * 5f * (0.4f + 0.6f * (1f - p))), Size(ps * 6f, ts * 5f * (0.4f + 0.6f * (1f - p))))
+                for (k in 0 until 18) {
+                    val q = ((age * 0.55f + k * 0.057f) % 1f)
+                    val ang = k * 0.349f + age * (if (bk == 5) 2.4f else 0.6f)
+                    val rr = ts * (0.5f + p * 5.5f) * (0.35f + (k % 4) * 0.2f)
+                    val mx = cx + kotlin.math.cos(ang) * rr
+                    val my = cy + kotlin.math.sin(ang) * rr * 0.6f
+                    when (bk) {
+                        0 -> drawRect(col.copy(alpha = fade * (1f - q)), Offset(mx, my - q * ts * 1.6f), Size(ps * 1.8f, ps * 1.8f))
+                        1 -> drawCircle(Color(0xFFCFF6FF).copy(alpha = fade * (1f - q)), radius = ps * 1.3f, center = Offset(mx, my - q * ts * 1.2f))
+                        2 -> drawRect(Color(0xFF6FBF4A).copy(alpha = fade * (1f - q)), Offset(mx + kotlin.math.sin(q * 7f + k) * ps * 3f, cy - ts * 3f + q * ts * 3.4f), Size(ps * 2f, ps * 1.2f))
+                        3 -> drawLine(col.copy(alpha = fade * (1f - q)), Offset(mx, cy - ts * 4f), Offset(mx + ps * 2f, my), strokeWidth = ps * 0.9f)
+                        4 -> drawRect(col.copy(alpha = fade * (1f - q)), Offset(mx, my - q * ts * 0.8f), Size(ps * 2.4f, ps * 2.4f))
+                        else -> drawRect(col.copy(alpha = fade * (1f - q * 0.5f)), Offset(mx, my), Size(ps * 1.6f, ps * 1.6f))
+                    }
+                }
+            }
             "sunburst" -> {
                 // golden rays fan out from a bright core and a warm ring rolls across the village
                 val fade = if (p < 0.6f) 1f else (1f - p) / 0.4f
