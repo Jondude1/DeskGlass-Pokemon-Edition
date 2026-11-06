@@ -327,6 +327,14 @@ object Dex {
         return out.sortedBy { it.first }
     }
 
+    /** A move a winner could copy from a beaten rival: a stronger, different-type move it does not know yet, or null. */
+    fun lessonFor(c: Critter, foe: Critter): Move? {
+        val have = c.moves.map { it.id }.toSet()
+        val cur = moves[c.taught]?.power ?: 0
+        return foe.moves.filter { it.tier in 1..3 && it.type !in c.species.types && it.id !in have && it.power > cur && it.power >= 40 }
+            .maxByOrNull { it.power }
+    }
+
     /** The four most recently learned moves at a level. */
     fun movesAt(sp: Species, lv: Int): List<Move> {
         val known = learnset(sp).filter { it.first <= lv }.map { it.second }
@@ -494,7 +502,13 @@ class Critter(val uid: Int, var sp: Int, var level: Int) {
     val atk: Int get() = (Dex.atk(species, level) * statPct / 100).let { (it * nature.mult(0)).toInt() }
     val def: Int get() = (Dex.def(species, level) * statPct / 100).let { (it * nature.mult(1)).toInt() }
     val spd: Int get() = (Dex.spd(species, level) * statPct / 100).let { (it * nature.mult(2)).toInt() }
-    val moves: List<Move> get() = Dex.movesAt(species, level)
+    /** A move copied from a beaten rival (Move id), "" for none. It takes the place of the oldest learned move. */
+    var taught = ""
+    val moves: List<Move> get() {
+        val base = Dex.movesAt(species, level)
+        val t = Dex.moves[taught] ?: return base
+        return if (base.any { it.id == t.id }) base else base.takeLast(3) + t
+    }
     val name: String get() = nick.ifBlank { species.name }
     /** "Ember the Cindrel" once named, plain species name before. */
     val label: String get() = if (nick.isBlank()) species.name else "$nick the ${species.name}"

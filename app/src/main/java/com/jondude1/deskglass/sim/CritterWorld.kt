@@ -161,6 +161,27 @@ class CritterWorld(private val sim: CivSim) {
     /** Veteran promotions announced so far, by rank (index 1..4). */
     val rankUps = IntArray(5)
 
+    /** Moves copied from beaten rivals so far, and the ids copied. */
+    var lessonsLearned = 0
+    val lessonKinds = HashSet<String>()
+
+    /** A winner may study a beaten rival and copy one of its moves, shown as a pop-up and a village note. */
+    private fun studyFoe(c: Critter, foe: Critter) {
+        if (c.level < 6 || c.owner < 0 || rnd.nextFloat() > 0.4f) return
+        val m = Dex.lessonFor(c, foe) ?: return
+        c.taught = m.id
+        lessonsLearned++
+        lessonKinds.add(m.id)
+        val b = bodyFor(c)
+        pop(b.x, b.y - 2.2f, "Learned ${m.name}!", m.type.color)
+        sim.note("${c.name} the ${c.species.name} watched the ${foe.species.name} fight and learns ${m.name} (${m.type.label}).")
+        sim.villagers.firstOrNull { it.id == c.owner }?.let {
+            it.remember("${c.name} learned ${m.name} from a rival")
+            it.happiness = min(100f, it.happiness + 3f)
+        }
+        sim.fx.add(Fx("spawn", b.x, b.y, sim.time, 0.8f))
+    }
+
     /** Celebrates a critter that has just won enough to earn the next veteran medal. */
     private fun checkRank(c: Critter) {
         val r = c.rank
@@ -1804,6 +1825,7 @@ class CritterWorld(private val sim: CivSim) {
         d.natureIdx = Nature.ALL.indexOf(c.nature)
         d.alpha = c.alpha
         d.charm = c.charm
+        d.taught = c.taught
         d.wins = c.wins
         d.heal()
         return d
@@ -2258,6 +2280,7 @@ class CritterWorld(private val sim: CivSim) {
                     val lv = mine.gainXp(gain)
                     mine.wins++
                     checkRank(mine)
+                    studyFoe(mine, foe)
                     mine.bond++
                     e.result = "won"
                     e.banner = "${mine.name} wins! +$gain XP"
@@ -2310,6 +2333,7 @@ class CritterWorld(private val sim: CivSim) {
                 val l2 = c2.gainXp(x2)
                 if (w1) c1.wins++ else c2.wins++
                 checkRank(if (w1) c1 else c2)
+                if (w1) studyFoe(c1, c2) else studyFoe(c2, c1)
                 val win = if (w1) c1 else c2
                 e.result = "spar"
                 e.banner = "${win.name} takes the match!"
@@ -2491,10 +2515,11 @@ class CritterWorld(private val sim: CivSim) {
         for (c in critters) {
             arr.put(
                 JSONObject().put("id", c.uid).put("sp", c.sp).put("lv", c.level).put("xp", c.xp).put("hp", c.hp)
-                    .put("own", c.owner).put("comp", c.companion).put("nick", c.nick).put("wins", c.wins).put("bond", c.bond).put("shiny", c.shiny).put("alpha", c.alpha).put("chm", c.charm)
+                    .put("own", c.owner).put("comp", c.companion).put("nick", c.nick).put("wins", c.wins).put("bond", c.bond).put("shiny", c.shiny).put("alpha", c.alpha).put("chm", c.charm).put("tgt", c.taught)
             )
         }
         o.put("critters", arr)
+        o.put("lessonsL", lessonsLearned)
         val ea = JSONArray()
         for (e in eggs) {
             if (e.hatchedAt >= 0.0) continue
@@ -2534,6 +2559,7 @@ class CritterWorld(private val sim: CivSim) {
                 }
             }
             o.optJSONArray("scrolls")?.let { a -> for (i in 0 until min(3, a.length())) scrolls[i] = a.getInt(i) }
+            lessonsLearned = o.optInt("lessonsL", 0)
             val arr = o.optJSONArray("critters")
             if (arr != null) {
                 for (i in 0 until arr.length()) {
@@ -2551,6 +2577,7 @@ class CritterWorld(private val sim: CivSim) {
                     c.nick = j.optString("nick", "")
                     c.wins = j.optInt("wins", 0)
                     c.rankSeen = c.rank
+                    c.taught = j.optString("tgt", "")
                     c.bond = j.optInt("bond", 0)
                     c.shiny = j.optBoolean("shiny", false)
                     if (c.shiny) shinyAnnounced.add(c.uid)

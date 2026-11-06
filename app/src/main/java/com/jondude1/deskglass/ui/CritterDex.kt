@@ -101,6 +101,12 @@ fun CritterDexScreen(sim: CivSim, onBack: () -> Unit) {
                             "Carries: ${Charm.name(c.charm)}, ${Charm.text(c.charm)}",
                             color = Glass.InkFaint, fontSize = 12.sp,
                         )
+                        Dex.moves[c.taught]?.let { tm ->
+                            Text(
+                                "Copied move: ${tm.name} (${tm.type.label}, power ${tm.power}) learned from a beaten rival",
+                                color = Glass.InkFaint, fontSize = 12.sp,
+                            )
+                        }
                         Text(
                             if (c.level >= Style.LEVEL) "Style: ${Style.name(Style.of(c))}, ${Style.text(Style.of(c))}" else "Finds its fighting style at level ${Style.LEVEL}",
                             color = Glass.InkFaint, fontSize = 12.sp,

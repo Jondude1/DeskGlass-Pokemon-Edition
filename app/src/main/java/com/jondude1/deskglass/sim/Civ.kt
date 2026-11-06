@@ -8131,6 +8131,8 @@ class CivSim(
             Deed("dock1", "Gone Fishing", "Rowed out from the fishing dock twelve times.", "+15 food, +6 wood") { sailTrips >= 12 },
             Deed("quarry1", "Stone by the Cartload", "Cut stone at the quarry twenty times.", "+20 wood, +10 food") { quarryHauls >= 20 },
             Deed("vigil1", "Keepers of the Flame", "Kept vigil at the legend shrine twenty times.", "+15 stone, +10 food") { vigils >= 20 },
+            Deed("lesson1", "Quick Study", "A critter copied a move from a beaten rival.", "+10 food") { critters.lessonsLearned >= 1 },
+            Deed("lesson2", "Move Collectors", "Ten moves learned from rivals.", "joy for all") { critters.lessonsLearned >= 10 },
             Deed("vigil2", "The Shrine Answers", "A legend answered the call of the shrine.", "joy for all") { legendCalls >= 1 },
             Deed("cath1", "Foundation Stones", "Laid the foundations of the Great Cathedral.", "+30 wood, +30 stone") { cathTier() >= 1 },
             Deed("cath5", "Hallowed Halls", "Finished the Great Cathedral, spire and bell.", "joy for all") { cathTier() >= 5 },

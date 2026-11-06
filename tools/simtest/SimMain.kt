@@ -144,8 +144,10 @@ fun main(args: Array<String>) {
 // save round trip of the critter layer
     val j = cw.toJson()
     val before = cw.critters.map { Triple(it.uid, it.sp, it.level) }
+    val tBefore = cw.critters.map { it.taught }; val lBefore = cw.lessonsLearned
     cw.fromJson(j)
     val after = cw.critters.map { Triple(it.uid, it.sp, it.level) }
+    println("LESSONS save round trip ok=${tBefore == cw.critters.map { it.taught } && lBefore == cw.lessonsLearned} (${lBefore} lessons)")
     println("save round trip ok=${before == after} (${after.size} critters, dex ${cw.caught.size}/${Dex.COUNT})")
     println("AGES reached: $ageAt final=${sim.age} pop=${sim.villagers.size}")
     println("AGENEED age=${sim.age} day=${sim.day()} ${sim.ageNeedText()} progress=${sim.progress()}")
@@ -301,6 +303,11 @@ fun main(args: Array<String>) {
         val w = cw.senseWon; val st = cw.senseStarted
         fun r(i: Int) = if (st[i] == 0) "n/a" else "${w[i] * 100 / st[i]}%(${st[i]})"
         println("SENSE scouts=${cw.senseScouts} declined=${cw.senseDeclined} swaps=${cw.senseSwaps} lessons=${cw.senseLessons} actualWin easy=${r(0)} even=${r(1)} risky=${r(2)} longshot=${r(3)}")
+    }
+    run {
+        val base = cw.critters.flatMap { Dex.movesAt(it.species, it.level) }.map { it.id }.toSet()
+        val all = cw.critters.flatMap { it.moves }.map { it.id }.toSet()
+        println("LESSONS learned=${cw.lessonsLearned} kinds=${cw.lessonKinds.size} holders=${cw.critters.count { it.taught.isNotEmpty() }} offTypeBefore=0 offTypeAfter=${cw.critters.count { c -> c.moves.any { it.type !in c.species.types && it.type != CType.PLAIN } }} distinctMovesKept before=${base.size} after=${all.size} list=${cw.critters.filter { it.taught.isNotEmpty() }.take(6).map { it.name + ":" + it.taught }}")
     }
     println("STYLES fired=${Style.used.values.sum()} kinds=${Style.used.size} ${Style.used.toSortedMap()} speciesStyles=${(1..Dex.COUNT).groupingBy { Style.ofSpecies(Dex.byId(it)) }.eachCount().toSortedMap()}")
     println("ABIL talents fired=${Battle.abilCount.values.sum()} kinds=${Battle.abilCount.size} ${Battle.abilCount.toSortedMap()}")
